@@ -64,9 +64,13 @@ func describe(c gnet.ConnectionStat) Service {
 	if cwd, err := p.Cwd(); err == nil {
 		s.Cwd = cwd
 		s.Project = DetectProject(cwd)
+		if s.Project != "" {
+			s.ProjectName = filepath.Base(s.Project)
+		}
 	}
 	if ct, err := p.CreateTime(); err == nil && ct > 0 {
 		s.Started = time.UnixMilli(ct)
 	}
+	s.Framework = DetectFramework(s.Process, s.Cmdline)
 	return s
 }
