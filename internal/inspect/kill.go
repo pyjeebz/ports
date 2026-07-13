@@ -17,13 +17,16 @@ const (
 // Stop terminates the process behind a service: SIGTERM, up to stopWait
 // for a clean exit, then SIGKILL. force skips straight to SIGKILL.
 func Stop(s Service, force bool) error {
+	// docker-backed: stop the container through the daemon — killing
+	// docker-proxy would break the mapping and leave it running
+	if s.ContainerID != "" {
+		return StopContainer(s.ContainerID, force)
+	}
+	if s.Process == "docker-proxy" {
+		return errors.New("docker-backed — could not resolve the container; use `docker stop`")
+	}
 	if !s.Known() {
 		return errors.New("owner unknown — run with sudo")
-	}
-	// killing docker-proxy breaks the port mapping and leaves the
-	// container running; the container itself is what must stop
-	if s.Process == "docker-proxy" {
-		return errors.New("docker-backed — use `docker stop` on the container")
 	}
 	p, err := gproc.NewProcess(s.Pid)
 	if err != nil {
