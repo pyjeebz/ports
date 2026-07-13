@@ -1,9 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -53,19 +55,42 @@ func writeTable(services []inspect.Service) {
 		fmt.Println("no listening TCP ports")
 		return
 	}
+	// group by project: project rows first, same project adjacent, so a
+	// frontend, api, and db that belong together read as one application
+	rows := slices.Clone(services)
+	slices.SortStableFunc(rows, func(a, b inspect.Service) int {
+		if (a.Project == "") != (b.Project == "") {
+			if a.Project != "" {
+				return -1
+			}
+			return 1
+		}
+		if c := strings.Compare(a.Project, b.Project); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Port, b.Port)
+	})
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
-	for _, s := range services {
+	for _, s := range rows {
 		if !s.Known() {
 			unknown = true
 		}
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, s.Process, project(s), uptime(s))
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, process(s), project(s), uptime(s))
 	}
 	w.Flush()
 	if unknown {
 		fmt.Fprintln(os.Stderr, "\nsome ports belong to other users' processes (shown as ?) — run with sudo to see them")
 	}
+}
+
+func process(s inspect.Service) string {
+	if s.Framework != "" {
+		return s.Framework
+	}
+	return s.Process
 }
 
 func project(s inspect.Service) string {
