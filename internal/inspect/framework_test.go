@@ -20,6 +20,11 @@ func TestDetectFramework(t *testing.T) {
 		{"python3.12", "gunicorn: master [app.wsgi:application]", "Gunicorn"},
 		{"postgres", "/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/16/main", "PostgreSQL"},
 		{"redis-server", "redis-server *:6379", "Redis"},
+		// docker image names route through the same table
+		{"postgres", "postgres:16-alpine", "PostgreSQL"},
+		{"redis", "redis:7", "Redis"},
+		{"mysql", "mysql:8.4", "MySQL"},
+		{"mongo", "mongo:7", "MongoDB"},
 		{"nginx", "nginx: master process /usr/sbin/nginx", "nginx"},
 		{"main", "/tmp/go-build2384912/b001/exe/main", "Go (go run)"},
 		{"docker-proxy", "/usr/bin/docker-proxy -proto tcp -host-port 5432", ""}, // M4's job
