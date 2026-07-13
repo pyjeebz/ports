@@ -31,12 +31,13 @@ var frameworkRules = []frameworkRule{
 	{name: "Django", exe: []string{"python"}, cmd: []string{"manage.py", "django"}},
 	{name: "Flask", bin: []string{"flask"}},
 	{name: "Gunicorn", bin: []string{"gunicorn"}, cmd: []string{"gunicorn"}},
-	// databases & servers
+	// databases & servers — prefixes match both the host binary and the
+	// docker image name (mysqld / mysql:8, redis-server / redis:7, …)
 	{name: "PostgreSQL", exe: []string{"postgres"}},
-	{name: "MySQL", exe: []string{"mysqld"}},
-	{name: "MariaDB", exe: []string{"mariadbd"}},
-	{name: "Redis", exe: []string{"redis-server"}},
-	{name: "MongoDB", exe: []string{"mongod"}},
+	{name: "MySQL", exe: []string{"mysql"}},
+	{name: "MariaDB", exe: []string{"mariadb"}},
+	{name: "Redis", exe: []string{"redis"}},
+	{name: "MongoDB", exe: []string{"mongo"}},
 	{name: "nginx", exe: []string{"nginx"}},
 	{name: "Apache", exe: []string{"httpd", "apache2"}},
 	// generic runtimes last
