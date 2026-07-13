@@ -206,8 +206,8 @@ func writeTable(services []inspect.Service) {
 	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
 	for _, s := range rows {
-		if !s.Known() {
-			unknown = true
+		if !s.Known() && s.Container == "" {
+			unknown = true // docker rows are identified via the daemon; sudo adds nothing
 		}
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, process(s), project(s), uptime(s))
 	}
