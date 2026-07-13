@@ -6,14 +6,16 @@ import "time"
 // recognizes: what the process is, which project it belongs to, and
 // how long it has been running.
 type Service struct {
-	Port    uint32    `json:"port"`
-	Pid     int32     `json:"pid"`
-	Process string    `json:"process"`
-	Cmdline string    `json:"cmdline,omitempty"`
-	Addr    string    `json:"addr"`
-	Cwd     string    `json:"cwd,omitempty"`
-	Project string    `json:"project,omitempty"`
-	Started time.Time `json:"started,omitzero"`
+	Port        uint32    `json:"port"`
+	Pid         int32     `json:"pid"`
+	Process     string    `json:"process"`
+	Framework   string    `json:"framework,omitempty"`
+	Cmdline     string    `json:"cmdline,omitempty"`
+	Addr        string    `json:"addr"`
+	Cwd         string    `json:"cwd,omitempty"`
+	Project     string    `json:"project,omitempty"`
+	ProjectName string    `json:"project_name,omitempty"`
+	Started     time.Time `json:"started,omitzero"`
 }
 
 // Known reports whether the owning process could be identified.
