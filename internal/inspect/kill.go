@@ -17,6 +17,11 @@ const (
 // Stop terminates the process behind a service: SIGTERM, up to stopWait
 // for a clean exit, then SIGKILL. force skips straight to SIGKILL.
 func Stop(s Service, force bool) error {
+	// the Windows pid means nothing to our signals; observing across
+	// the boundary is fine, killing across it is not
+	if s.Windows {
+		return errors.New("windows-side — stop it from Windows (Task Manager or taskkill)")
+	}
 	// docker-backed: stop the container through the daemon — killing
 	// docker-proxy would break the mapping and leave it running
 	if s.ContainerID != "" {
