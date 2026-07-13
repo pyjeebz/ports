@@ -27,6 +27,11 @@ type Service struct {
 	Image          string `json:"image,omitempty"`
 	ComposeProject string `json:"compose_project,omitempty"`
 	ComposeService string `json:"compose_service,omitempty"`
+
+	// windows-side listener, seen across the WSL2 boundary; WindowsPid
+	// is a Windows pid — never a target for kill
+	Windows    bool  `json:"windows,omitempty"`
+	WindowsPid int32 `json:"windows_pid,omitempty"`
 }
 
 // Known reports whether the owning process could be identified.
