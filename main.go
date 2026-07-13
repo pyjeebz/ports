@@ -65,6 +65,9 @@ func main() {
 			os.Exit(1)
 		}
 		os.Exit(stopAll(matched, force, func(s inspect.Service, _ string) string {
+			if s.Container != "" {
+				return fmt.Sprintf("✓ stopped %s (container %s) — port %d is free", process(s), dockerName(s), port)
+			}
 			return fmt.Sprintf("✓ killed %s (pid %d) — port %d is free", process(s), s.Pid, port)
 		}))
 
@@ -117,24 +120,32 @@ func match(services []inspect.Service, keep func(inspect.Service) bool) []inspec
 	return out
 }
 
-// stopAll stops one process per pid (a process may hold several ports)
-// and prints a line per process. Returns the exit code.
+// stopAll stops one process per pid — or one container per id, however
+// many ports it publishes — and prints a line per stop. Returns the exit
+// code.
 func stopAll(matched []inspect.Service, force bool, okMsg func(inspect.Service, string) string) int {
 	type group struct {
 		s     inspect.Service
 		ports []string
 	}
 	var groups []*group
-	byPid := map[int32]*group{}
+	byKey := map[string]*group{}
 	for _, s := range matched {
-		if g, ok := byPid[s.Pid]; ok && s.Known() {
+		key := ""
+		switch {
+		case s.ContainerID != "":
+			key = "c:" + s.ContainerID
+		case s.Known():
+			key = fmt.Sprintf("p:%d", s.Pid)
+		}
+		if g, ok := byKey[key]; ok && key != "" {
 			g.ports = append(g.ports, fmt.Sprintf(":%d", s.Port))
 			continue
 		}
 		g := &group{s: s, ports: []string{fmt.Sprintf(":%d", s.Port)}}
 		groups = append(groups, g)
-		if s.Known() {
-			byPid[s.Pid] = g
+		if key != "" {
+			byKey[key] = g
 		}
 	}
 	code := 0
@@ -172,15 +183,18 @@ func writeTable(services []inspect.Service) {
 		fmt.Println("no listening TCP ports")
 		return
 	}
-	// group by project: project rows first, same project adjacent, so a
-	// frontend, api, and db that belong together read as one application
+	// group by project name, so a frontend, api, and compose db that
+	// belong together read as one application even across the docker line
 	rows := slices.Clone(services)
 	slices.SortStableFunc(rows, func(a, b inspect.Service) int {
-		if (a.Project == "") != (b.Project == "") {
-			if a.Project != "" {
+		if (a.ProjectName == "") != (b.ProjectName == "") {
+			if a.ProjectName != "" {
 				return -1
 			}
 			return 1
+		}
+		if c := strings.Compare(a.ProjectName, b.ProjectName); c != 0 {
+			return c
 		}
 		if c := strings.Compare(a.Project, b.Project); c != 0 {
 			return c
@@ -204,13 +218,29 @@ func writeTable(services []inspect.Service) {
 }
 
 func process(s inspect.Service) string {
-	if s.Framework != "" {
+	switch {
+	case s.Framework != "":
 		return s.Framework
+	case s.Image != "":
+		return inspect.ImageBase(s.Image)
+	default:
+		return s.Process
 	}
-	return s.Process
+}
+
+// dockerName is the container as a developer knows it: the compose
+// project-service pair when labeled, else the container name.
+func dockerName(s inspect.Service) string {
+	if s.ComposeProject != "" && s.ComposeService != "" {
+		return s.ComposeProject + "-" + s.ComposeService
+	}
+	return s.Container
 }
 
 func project(s inspect.Service) string {
+	if s.Container != "" {
+		return "docker: " + dockerName(s)
+	}
 	if s.Project == "" {
 		return "—"
 	}
