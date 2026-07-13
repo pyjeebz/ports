@@ -33,6 +33,7 @@ func Scan() ([]Service, error) {
 		seen[k] = true
 		services = append(services, describe(c))
 	}
+	enrichDocker(services, listContainers())
 	sort.Slice(services, func(i, j int) bool {
 		if services[i].Port != services[j].Port {
 			return services[i].Port < services[j].Port
