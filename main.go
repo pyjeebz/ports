@@ -15,6 +15,9 @@ import (
 	"github.com/pyjeebz/ports/internal/inspect"
 )
 
+// version is stamped by goreleaser at release time.
+var version = "dev"
+
 func main() {
 	jsonOut, force := false, false
 	var args []string
@@ -24,6 +27,9 @@ func main() {
 			jsonOut = true
 		case "--force":
 			force = true
+		case "--version":
+			fmt.Println("ports", version)
+			return
 		default:
 			args = append(args, a)
 		}
@@ -97,8 +103,9 @@ func usage(w io.Writer) {
   ports kill <name>  stop a project or service by name
 
 flags:
-  --json   JSON output (list, find)
-  --force  SIGKILL immediately instead of SIGTERM first
+  --json     JSON output (list, find)
+  --force    SIGKILL immediately instead of SIGTERM first
+  --version  print version
 `)
 }
 
@@ -206,8 +213,8 @@ func writeTable(services []inspect.Service) {
 	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
 	for _, s := range rows {
-		if !s.Known() && s.Container == "" {
-			unknown = true // docker rows are identified via the daemon; sudo adds nothing
+		if !s.Known() && s.Container == "" && !s.Windows {
+			unknown = true // docker and windows rows are identified elsewhere; sudo adds nothing
 		}
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, process(s), project(s), uptime(s))
 	}
@@ -238,6 +245,9 @@ func dockerName(s inspect.Service) string {
 }
 
 func project(s inspect.Service) string {
+	if s.Windows {
+		return "windows"
+	}
 	if s.Container != "" {
 		return "docker: " + dockerName(s)
 	}
@@ -245,7 +255,7 @@ func project(s inspect.Service) string {
 		return "—"
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		if rel := strings.TrimPrefix(s.Project, home); rel != s.Project {
+		if rel, ok := strings.CutPrefix(s.Project, home); ok {
 			return "~" + rel
 		}
 	}
