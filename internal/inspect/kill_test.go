@@ -81,6 +81,12 @@ func TestStopRefusesDockerProxy(t *testing.T) {
 	}
 }
 
+func TestStopRefusesWindows(t *testing.T) {
+	if err := Stop(Service{Pid: 0, Windows: true, WindowsPid: 42}, false); err == nil {
+		t.Fatal("Stop accepted a windows-side row; it must refuse")
+	}
+}
+
 func TestStopRefusesUnknownOwner(t *testing.T) {
 	if err := Stop(Service{Pid: 0, Process: "?"}, false); err == nil {
 		t.Fatal("Stop accepted pid 0; it must refuse")
