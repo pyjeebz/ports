@@ -25,6 +25,23 @@ archives:
       - goos: windows
         formats: [zip]
 
+homebrew_casks:
+  - repository:
+      owner: pyjeebz
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/pyjeebz/ports
+    description: "See what's running on your machine, by project — and kill it by name"
+
+scoops:
+  - repository:
+      owner: pyjeebz
+      name: scoop-bucket
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: bucket
+    homepage: https://github.com/pyjeebz/ports
+    description: "See what's running on your machine, by project — and kill it by name."
+
 checksum:
   name_template: checksums.txt
 
