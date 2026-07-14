@@ -61,6 +61,25 @@ been running. That context is what turns "kill a random PID and hope" into
 - **Zero config** — no manifest, no daemon, nothing to declare. All context is inferred from the machine itself. Useful sixty seconds after install, on a machine in whatever state it's in.
 - **Local-first** — a single static binary. No cloud, no accounts, no telemetry.
 
-## Status
+## Install
 
-🚧 Early development — not yet ready to install. Watch the repo if you want the first release.
+**Homebrew** (macOS):
+
+```
+brew install pyjeebz/tap/ports
+```
+
+**Scoop** (Windows):
+
+```
+scoop bucket add pyjeebz https://github.com/pyjeebz/scoop-bucket
+scoop install ports
+```
+
+**curl** (Linux, macOS):
+
+```
+curl -fsSL https://raw.githubusercontent.com/pyjeebz/ports/main/install.sh | sh
+```
+
+Or grab a binary from the [releases page](https://github.com/pyjeebz/ports/releases), or `go install github.com/pyjeebz/ports@latest`.
