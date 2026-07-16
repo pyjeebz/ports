@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://ports.tools">
+    <img src=".github/og.png" alt="ports — see every port, stop it by name" width="760">
+  </a>
+</p>
+
 # ports
 
 **See what's running on your machine, by project — and kill it by name.**
