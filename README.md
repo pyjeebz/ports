@@ -2,6 +2,8 @@
 
 **See what's running on your machine, by project — and kill it by name.**
 
+[**ports.tools**](https://ports.tools) · [Docs](https://ports.tools/docs) · [Releases](https://github.com/pyjeebz/ports/releases)
+
 `ports` answers one question, instantly and with zero configuration: *what is running on this machine right now, and what does it belong to?*
 
 ```
@@ -79,7 +81,9 @@ scoop install ports
 **curl** (Linux, macOS):
 
 ```
-curl -fsSL https://raw.githubusercontent.com/pyjeebz/ports/main/install.sh | sh
+curl -fsSL https://ports.tools/install | sh
 ```
 
 Or grab a binary from the [releases page](https://github.com/pyjeebz/ports/releases), or `go install github.com/pyjeebz/ports@latest`.
+
+Full documentation lives at [ports.tools/docs](https://ports.tools/docs).
