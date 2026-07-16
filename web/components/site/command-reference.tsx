@@ -1,5 +1,3 @@
-import { CopyButton } from "./copy-button";
-
 const REF = [
   {
     cmd: "ports",
@@ -31,7 +29,6 @@ export function CommandReference() {
             <div className="ref-row" key={r.cmd}>
               <code className="ref-cmd">{r.cmd}</code>
               <span className="ref-desc">{r.desc}</span>
-              <CopyButton text={r.cmd} />
             </div>
           ))}
         </div>

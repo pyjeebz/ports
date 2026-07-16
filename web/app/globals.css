@@ -335,9 +335,9 @@ a {
 }
 .ref-row {
   display: grid;
-  grid-template-columns: 220px 1fr auto;
+  grid-template-columns: 220px 1fr;
   gap: 24px;
-  padding: 12px 14px 12px 22px;
+  padding: 12px 22px;
   background: var(--panel);
   align-items: center;
 }
@@ -356,11 +356,8 @@ a {
 @media (max-width: 640px) {
   .ref-row {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 6px;
     align-items: start;
-  }
-  .ref-row .copy-btn {
-    justify-self: start;
   }
 }
 
