@@ -9,10 +9,14 @@ import (
 )
 
 var (
-	jsonOut bool
-	force   bool
-	dryRun  bool
-	format  string
+	jsonOut      bool
+	force        bool
+	dryRun       bool
+	format       string
+	filterPorts  string
+	filterFrameworks string
+	filterProjects string
+	filterUptime string
 )
 
 var rootCmd = &cobra.Command{
@@ -66,6 +70,10 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
 	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, csv, tsv")
+	rootCmd.PersistentFlags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
+	rootCmd.PersistentFlags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
+	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
+	rootCmd.PersistentFlags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
@@ -77,6 +85,12 @@ func runList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
+	if err != nil {
+		return err
+	}
+	services = inspect.ApplyFilter(services, filter)
 
 	switch format {
 	case "json":
