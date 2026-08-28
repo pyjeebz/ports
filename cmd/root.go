@@ -11,6 +11,7 @@ import (
 var (
 	jsonOut bool
 	force   bool
+	dryRun  bool
 )
 
 var rootCmd = &cobra.Command{
@@ -62,6 +63,7 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output")
 	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
