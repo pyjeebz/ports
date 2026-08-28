@@ -12,6 +12,7 @@ var (
 	jsonOut bool
 	force   bool
 	dryRun  bool
+	format  string
 )
 
 var rootCmd = &cobra.Command{
@@ -61,9 +62,10 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output")
+	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output (deprecated: use --format json)")
 	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
+	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, csv, tsv")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
@@ -76,9 +78,17 @@ func runList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if jsonOut {
+	switch format {
+	case "json":
 		return inspect.WriteJSON(services)
+	case "csv":
+		return inspect.WriteCSV(services)
+	case "tsv":
+		return inspect.WriteTSV(services)
+	case "table":
+		fallthrough
+	default:
+		inspect.WriteTable(services)
+		return nil
 	}
-	inspect.WriteTable(services)
-	return nil
 }
