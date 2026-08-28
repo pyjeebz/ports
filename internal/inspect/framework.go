@@ -18,21 +18,38 @@ type frameworkRule struct {
 
 var frameworkRules = []frameworkRule{
 	// node frameworks
+	{name: "Remix", bin: []string{"remix"}, cmd: []string{"@remix-run"}},
+	{name: "SvelteKit", bin: []string{"svelte-kit", "sveltekit"}, cmd: []string{"@sveltejs/kit"}},
+	{name: "SolidStart", bin: []string{"solid-start"}, cmd: []string{"@solidjs/start"}},
+	{name: "Astro", bin: []string{"astro"}},
+	{name: "Hono", bin: []string{"hono"}, cmd: []string{"hono"}},
+	{name: "Elysia", bin: []string{"elysia"}, cmd: []string{"elysia"}},
 	{name: "Next.js", bin: []string{"next"}, cmd: []string{"next-server"}},
 	{name: "Vite", bin: []string{"vite"}},
 	{name: "Nuxt", bin: []string{"nuxt", "nuxi"}},
-	{name: "Astro", bin: []string{"astro"}},
 	{name: "React (CRA)", bin: []string{"react-scripts"}},
 	{name: "Webpack", bin: []string{"webpack-dev-server"}, cmd: []string{"webpack serve"}},
 	{name: "Storybook", bin: []string{"storybook", "start-storybook"}},
 	// python servers
 	{name: "FastAPI", bin: []string{"fastapi"}},
 	{name: "Uvicorn", bin: []string{"uvicorn"}},
+	{name: "Starlette", bin: []string{"starlette"}, cmd: []string{"starlette"}},
+	{name: "Sanic", bin: []string{"sanic"}, cmd: []string{"sanic"}},
+	{name: "Quart", bin: []string{"quart"}, cmd: []string{"quart"}},
 	{name: "Django", exe: []string{"python"}, cmd: []string{"manage.py", "django"}},
 	{name: "Flask", bin: []string{"flask"}},
 	{name: "Gunicorn", bin: []string{"gunicorn"}, cmd: []string{"gunicorn"}},
+	// go frameworks
+	{name: "Gin", bin: []string{"gin"}, cmd: []string{"github.com/gin-gonic/gin"}},
+	{name: "Echo", bin: []string{"echo"}, cmd: []string{"github.com/labstack/echo"}},
+	{name: "Chi", bin: []string{"chi"}, cmd: []string{"github.com/go-chi/chi"}},
+	{name: "Fiber", bin: []string{"fiber"}, cmd: []string{"github.com/gofiber/fiber"}},
+	{name: "PocketBase", bin: []string{"pocketbase"}, cmd: []string{"pocketbase"}},
 	// databases & servers — prefixes match both the host binary and the
 	// docker image name (mysqld / mysql:8, redis-server / redis:7, …)
+	{name: "SurrealDB", exe: []string{"surreal"}},
+	{name: "ClickHouse", exe: []string{"clickhouse"}},
+	{name: "Dragonfly", exe: []string{"dragonfly"}},
 	{name: "PostgreSQL", exe: []string{"postgres"}},
 	{name: "MySQL", exe: []string{"mysql"}},
 	{name: "MariaDB", exe: []string{"mariadb"}},
@@ -40,7 +57,12 @@ var frameworkRules = []frameworkRule{
 	{name: "MongoDB", exe: []string{"mongo"}},
 	{name: "nginx", exe: []string{"nginx"}},
 	{name: "Apache", exe: []string{"httpd", "apache2"}},
+	// rust frameworks
+	{name: "Axum", bin: []string{"axum"}, cmd: []string{"axum"}},
+	{name: "Actix-web", bin: []string{"actix-web"}, cmd: []string{"actix-web"}},
 	// generic runtimes last
+	{name: "Bun", exe: []string{"bun"}},
+	{name: "Deno", exe: []string{"deno"}},
 	{name: "Go (go run)", cmd: []string{"/go-build"}},
 	{name: "Node.js", exe: []string{"node"}},
 }
