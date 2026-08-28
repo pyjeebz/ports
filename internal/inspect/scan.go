@@ -12,7 +12,13 @@ import (
 // Scan returns every listening TCP socket, deduped by (pid, port) so a
 // process bound on both v4 and v6 shows once, sorted by port. On WSL2
 // it also includes listeners on the Windows side of the boundary.
-func Scan() ([]Service, error) {
+func Scan(cfg *Config) ([]Service, error) {
+	if cfg == nil {
+		cfg = DefaultConfig()
+	}
+	frameworkRules = MergeFrameworks(cfg.CustomFrameworks)
+	projectMarkers = MergeProjectMarkers(cfg.CustomProjectMarkers)
+
 	// ask the Windows side in parallel: the interop calls, when they
 	// apply, cost far more than the whole /proc scan
 	winCh := make(chan []Service, 1)

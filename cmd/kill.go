@@ -14,7 +14,8 @@ var killCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		q := args[0]
-		services, err := inspect.Scan()
+		cfg := buildInspectConfig()
+		services, err := inspect.Scan(cfg)
 		if err != nil {
 			return err
 		}

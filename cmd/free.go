@@ -20,7 +20,8 @@ var freeCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "ports: invalid port %q\n", arg)
 			os.Exit(2)
 		}
-		services, err := inspect.Scan()
+		cfg := buildInspectConfig()
+		services, err := inspect.Scan(cfg)
 		if err != nil {
 			return err
 		}

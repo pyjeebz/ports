@@ -6,6 +6,7 @@ import (
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -50,10 +51,44 @@ what is running on this machine right now, and what does it belong to?
 
 func Execute(version string) {
 	rootCmd.Version = version
+
+	// Load config file
+	if err := loadConfig(); err != nil {
+		fmt.Fprintln(os.Stderr, "ports: config:", err)
+		os.Exit(1)
+	}
+
+	// Bind flags to viper so they can be set via config file
+	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
+		fmt.Fprintln(os.Stderr, "ports: bind flags:", err)
+		os.Exit(1)
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "ports:", err)
 		os.Exit(1)
 	}
+}
+
+func loadConfig() error {
+	viper.SetConfigName("ports-config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("$HOME/.config/ports")
+	viper.AddConfigPath("/etc/ports")
+
+	// Environment variable prefix
+	viper.SetEnvPrefix("PORTS")
+	viper.AutomaticEnv()
+
+	// If config file found, read it
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return err
+		}
+		// Config file not found is OK
+	}
+	return nil
 }
 
 var listCmd = &cobra.Command{
@@ -81,7 +116,8 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	services, err := inspect.Scan()
+	cfg := buildInspectConfig()
+	services, err := inspect.Scan(cfg)
 	if err != nil {
 		return err
 	}
@@ -105,4 +141,26 @@ func runList(cmd *cobra.Command, args []string) error {
 		inspect.WriteTable(services)
 		return nil
 	}
+}
+
+func buildInspectConfig() *inspect.Config {
+	var cfg inspect.Config
+
+	// Custom frameworks
+	if viper.IsSet("frameworks") {
+		var custom []inspect.FrameworkRule
+		if err := viper.UnmarshalKey("frameworks", &custom); err == nil {
+			cfg.CustomFrameworks = custom
+		}
+	}
+
+	// Custom project markers
+	if viper.IsSet("projects.markers") {
+		var markers []string
+		if err := viper.UnmarshalKey("projects.markers", &markers); err == nil {
+			cfg.CustomProjectMarkers = markers
+		}
+	}
+
+	return &cfg
 }
