@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"os/exec"
+	"runtime"
 	"testing"
 	"time"
 
@@ -51,6 +52,11 @@ func TestStopGraceful(t *testing.T) {
 }
 
 func TestStopEscalatesWhenTermIgnored(t *testing.T) {
+	// windows Terminate is TerminateProcess — always forceful, so there is
+	// no ignorable SIGTERM and nothing to escalate from
+	if runtime.GOOS == "windows" {
+		t.Skip("escalation needs unix signal semantics")
+	}
 	s := startVictim(t, "sh", "-c", `trap "" TERM; while :; do sleep 0.2; done`)
 	time.Sleep(100 * time.Millisecond) // let the trap install
 	start := time.Now()
