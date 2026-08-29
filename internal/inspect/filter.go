@@ -8,11 +8,11 @@ import (
 
 // Filter holds the filtering criteria for services.
 type Filter struct {
-	Ports       []PortFilter
-	Frameworks  []string
-	Projects    []string
-	UptimeMin   *time.Duration
-	UptimeMax   *time.Duration
+	Ports      []PortFilter
+	Frameworks []string
+	Projects   []string
+	UptimeMin  *time.Duration
+	UptimeMax  *time.Duration
 }
 
 // PortFilter represents a single port or port range filter.

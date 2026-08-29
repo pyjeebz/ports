@@ -58,8 +58,8 @@ func TestEnrichDocker(t *testing.T) {
 	}))
 
 	services := []Service{
-		{Port: 5432, Pid: 0, Process: "?"},                    // root-owned docker-proxy, non-root scan
-		{Port: 16379, Pid: 42, Process: "docker-proxy"},       // visible docker-proxy
+		{Port: 5432, Pid: 0, Process: "?"},                     // root-owned docker-proxy, non-root scan
+		{Port: 16379, Pid: 42, Process: "docker-proxy"},        // visible docker-proxy
 		{Port: 3000, Pid: 7, Process: "node", Cmdline: "node"}, // host process: untouched
 	}
 	enrichDocker(services, listContainers())
@@ -152,12 +152,12 @@ func TestListContainersNoDaemon(t *testing.T) {
 
 func TestImageBase(t *testing.T) {
 	cases := map[string]string{
-		"postgres":                   "postgres",
-		"postgres:16-alpine":         "postgres",
-		"ghcr.io/acme/api:1.2":       "api",
-		"localhost:5000/team/web":    "web",
-		"redis@sha256:deadbeef":      "redis",
-		"mysql:8.4":                  "mysql",
+		"postgres":                "postgres",
+		"postgres:16-alpine":      "postgres",
+		"ghcr.io/acme/api:1.2":    "api",
+		"localhost:5000/team/web": "web",
+		"redis@sha256:deadbeef":   "redis",
+		"mysql:8.4":               "mysql",
 	}
 	for ref, want := range cases {
 		if got := ImageBase(ref); got != want {

@@ -7,9 +7,9 @@ import (
 
 func TestParsePortFilters(t *testing.T) {
 	cases := []struct {
-		input    string
-		want     []PortFilter
-		wantErr  bool
+		input   string
+		want    []PortFilter
+		wantErr bool
 	}{
 		{"3000", []PortFilter{{Min: 3000, Max: 3000}}, false},
 		{"3000,4000", []PortFilter{{Min: 3000, Max: 3000}, {Min: 4000, Max: 4000}}, false},
@@ -42,16 +42,16 @@ func TestParsePortFilters(t *testing.T) {
 
 func TestParseUptimeFilter(t *testing.T) {
 	cases := []struct {
-		input    string
-		wantMin  *time.Duration
-		wantMax  *time.Duration
-		wantErr  bool
+		input   string
+		wantMin *time.Duration
+		wantMax *time.Duration
+		wantErr bool
 	}{
 		{">1h", durationPtr(time.Hour), nil, false},
 		{">=1h", durationPtr(time.Hour), nil, false},
 		{"<30m", nil, durationPtr(30 * time.Minute), false},
 		{"<=30m", nil, durationPtr(30 * time.Minute), false},
-		{"1h", durationPtr(time.Hour), nil, false}, // defaults to >=
+		{"1h", durationPtr(time.Hour), nil, false},        // defaults to >=
 		{"90", durationPtr(90 * time.Second), nil, false}, // seconds
 		{"", nil, nil, false},
 		{"invalid", nil, nil, true},
@@ -86,11 +86,11 @@ func durationPtr(d time.Duration) *time.Duration {
 func TestFilterMatches(t *testing.T) {
 	now := time.Now()
 	s := Service{
-		Port:       3000,
-		Framework:  "Next.js",
-		Project:    "/home/user/shop",
+		Port:        3000,
+		Framework:   "Next.js",
+		Project:     "/home/user/shop",
 		ProjectName: "shop",
-		Started:    now.Add(-2 * time.Hour),
+		Started:     now.Add(-2 * time.Hour),
 	}
 
 	f := &Filter{

@@ -16,8 +16,7 @@ func Scan(cfg *Config) ([]Service, error) {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	frameworkRules = MergeFrameworks(cfg.CustomFrameworks)
-	projectMarkers = MergeProjectMarkers(cfg.CustomProjectMarkers)
+	env := cfg.resolve()
 
 	// ask the Windows side in parallel: the interop calls, when they
 	// apply, cost far more than the whole /proc scan
@@ -49,7 +48,7 @@ func Scan(cfg *Config) ([]Service, error) {
 			continue
 		}
 		seen[k] = true
-		services = append(services, describe(c))
+		services = append(services, describe(c, env))
 	}
 	enrichDocker(services, listContainers())
 
@@ -75,7 +74,7 @@ func Scan(cfg *Config) ([]Service, error) {
 	return services, nil
 }
 
-func describe(c gnet.ConnectionStat) Service {
+func describe(c gnet.ConnectionStat, env scanEnv) Service {
 	s := Service{Port: c.Laddr.Port, Pid: c.Pid, Addr: c.Laddr.IP, Process: "?"}
 	if !s.Known() {
 		return s
@@ -96,7 +95,7 @@ func describe(c gnet.ConnectionStat) Service {
 	}
 	if cwd, err := p.Cwd(); err == nil {
 		s.Cwd = cwd
-		s.Project = DetectProject(cwd)
+		s.Project = detectProject(cwd, env.markers)
 		if s.Project != "" {
 			s.ProjectName = filepath.Base(s.Project)
 		}
@@ -104,6 +103,6 @@ func describe(c gnet.ConnectionStat) Service {
 	if ct, err := p.CreateTime(); err == nil && ct > 0 {
 		s.Started = time.UnixMilli(ct)
 	}
-	s.Framework = DetectFramework(s.Process, s.Cmdline)
+	s.Framework = detectFramework(env.rules, s.Process, s.Cmdline)
 	return s
 }

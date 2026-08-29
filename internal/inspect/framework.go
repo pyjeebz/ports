@@ -74,9 +74,13 @@ var scriptExts = []string{".js", ".mjs", ".cjs", ".ts", ".py"}
 // DetectFramework names the framework behind a process from its exe
 // basename and cmdline. Returns "" when nothing in the table matches.
 func DetectFramework(process, cmdline string) string {
+	return detectFramework(frameworkRules, process, cmdline)
+}
+
+func detectFramework(rules []frameworkRule, process, cmdline string) string {
 	exe := strings.ToLower(process)
 	cmd := strings.ToLower(cmdline)
-	for _, r := range frameworkRules {
+	for _, r := range rules {
 		if r.matches(exe, cmd) {
 			return r.name
 		}

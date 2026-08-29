@@ -62,7 +62,7 @@ func writeDelimited(services []Service, delim rune) error {
 	for _, s := range rows {
 		if err := w.Write([]string{
 			fmt.Sprintf("%d", s.Port),
-			process(s),
+			ProcessName(s),
 			project(s),
 			uptime(s),
 		}); err != nil {
@@ -102,7 +102,7 @@ func WriteTable(services []Service) {
 		if !s.Known() && s.Container == "" && !s.Windows {
 			unknown = true
 		}
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, process(s), project(s), uptime(s))
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
 	}
 	w.Flush()
 	if unknown {
@@ -110,7 +110,9 @@ func WriteTable(services []Service) {
 	}
 }
 
-func process(s Service) string {
+// ProcessName is the process as a developer knows it: the framework
+// when detected, the docker image base for containers, else the exe.
+func ProcessName(s Service) string {
 	switch {
 	case s.Framework != "":
 		return s.Framework
@@ -126,7 +128,7 @@ func project(s Service) string {
 		return "windows"
 	}
 	if s.Container != "" {
-		return "docker: " + dockerName(s)
+		return "docker: " + DockerName(s)
 	}
 	if s.Project == "" {
 		return "—"
@@ -156,9 +158,9 @@ func uptime(s Service) string {
 	}
 }
 
-// dockerName is the container as a developer knows it: the compose
+// DockerName is the container as a developer knows it: the compose
 // project-service pair when labeled, else the container name.
-func dockerName(s Service) string {
+func DockerName(s Service) string {
 	if s.ComposeProject != "" && s.ComposeService != "" {
 		return s.ComposeProject + "-" + s.ComposeService
 	}

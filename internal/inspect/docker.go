@@ -69,7 +69,7 @@ func StopContainer(id string, force bool) error {
 		grace = 0
 	}
 	url := fmt.Sprintf("http://docker/containers/%s/stop?t=%d", id, grace)
-	resp, err := dockerHTTP(15 * time.Second).Post(url, "", nil)
+	resp, err := dockerHTTP(15*time.Second).Post(url, "", nil)
 	if err != nil {
 		return err
 	}

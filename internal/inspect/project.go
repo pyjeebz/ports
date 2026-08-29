@@ -6,9 +6,19 @@ import (
 	"path/filepath"
 )
 
+// A directory holding any of these is a monorepo workspace root, so
+// services in any member package group under it.
+var workspaceMarkers = []string{
+	"turbo.json",
+	"nx.json",
+	"pnpm-workspace.yaml",
+	"yarn.lock",
+	"go.work",
+}
+
 // A directory holding any of these is a project root candidate when no
 // .git is found above the process cwd.
-var projectMarkers = []string{
+var regularMarkers = []string{
 	"package.json",
 	"go.mod",
 	"pyproject.toml",
@@ -22,13 +32,13 @@ var projectMarkers = []string{
 	"mix.exs",
 	"deno.json",
 	"deno.jsonc",
-	// monorepo workspace markers
-	"turbo.json",
-	"nx.json",
-	"pnpm-workspace.yaml",
-	"yarn.lock",
-	"go.work",
-	"Cargo.workspace",
+}
+
+// markerSet is the list of markers one scan runs with: the workspace
+// detectors are fixed, the regular list can gain user-configured names.
+type markerSet struct {
+	workspace []string
+	regular   []string
 }
 
 // DetectProject maps a process working directory to the project it
@@ -38,6 +48,10 @@ var projectMarkers = []string{
 // regular marker file. The home directory itself is never a project.
 // Returns "" when nothing plausible is found.
 func DetectProject(cwd string) string {
+	return detectProject(cwd, markerSet{workspace: workspaceMarkers, regular: regularMarkers})
+}
+
+func detectProject(cwd string, markers markerSet) string {
 	if cwd == "" {
 		return ""
 	}
@@ -49,10 +63,10 @@ func DetectProject(cwd string) string {
 			if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 				gitRoot = dir // keep walking: outermost wins
 			}
-			if workspaceRoot == "" && hasWorkspaceMarker(dir) {
+			if workspaceRoot == "" && markers.hasWorkspace(dir) {
 				workspaceRoot = dir // keep walking: outermost wins
 			}
-			if markerRoot == "" && hasRegularMarker(dir) {
+			if markerRoot == "" && markers.hasRegular(dir) {
 				markerRoot = dir
 			}
 		}
@@ -71,22 +85,21 @@ func DetectProject(cwd string) string {
 	return markerRoot
 }
 
-func hasWorkspaceMarker(dir string) bool {
-	workspaceMarkers := []string{
-		"turbo.json",
-		"nx.json",
-		"pnpm-workspace.yaml",
-		"yarn.lock",
-		"go.work",
-	}
-	for _, m := range workspaceMarkers {
-		if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
+func (m markerSet) hasWorkspace(dir string) bool {
+	for _, name := range m.workspace {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
 			return true
 		}
 	}
 	// Cargo workspace: check for [workspace] in Cargo.toml
-	if hasCargoWorkspace(dir) {
-		return true
+	return hasCargoWorkspace(dir)
+}
+
+func (m markerSet) hasRegular(dir string) bool {
+	for _, name := range m.regular {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			return true
+		}
 	}
 	return false
 }
@@ -98,28 +111,4 @@ func hasCargoWorkspace(dir string) bool {
 		return false
 	}
 	return bytes.Contains(data, []byte("[workspace]"))
-}
-
-func hasRegularMarker(dir string) bool {
-	regularMarkers := []string{
-		"package.json",
-		"go.mod",
-		"pyproject.toml",
-		"requirements.txt",
-		"Cargo.toml",
-		"Gemfile",
-		"composer.json",
-		"pom.xml",
-		"build.gradle",
-		"build.gradle.kts",
-		"mix.exs",
-		"deno.json",
-		"deno.jsonc",
-	}
-	for _, m := range regularMarkers {
-		if _, err := os.Stat(filepath.Join(dir, m)); err == nil {
-			return true
-		}
-	}
-	return false
 }
