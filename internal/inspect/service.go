@@ -24,12 +24,12 @@ type Service struct {
 	// container context, filled from the engine when the port is really
 	// a container behind a proxy; Runtime names the engine (docker,
 	// podman, …) the row came from
-	Runtime         string `json:"runtime,omitempty"`
-	Container       string `json:"container,omitempty"`
-	ContainerID     string `json:"container_id,omitempty"`
-	Image           string `json:"image,omitempty"`
-	ComposeProject  string `json:"compose_project,omitempty"`
-	ComposeService  string `json:"compose_service,omitempty"`
+	Runtime        string `json:"runtime,omitempty"`
+	Container      string `json:"container,omitempty"`
+	ContainerID    string `json:"container_id,omitempty"`
+	Image          string `json:"image,omitempty"`
+	ComposeProject string `json:"compose_project,omitempty"`
+	ComposeService string `json:"compose_service,omitempty"`
 
 	// windows-side listener, seen across the WSL2 boundary; WindowsPid
 	// is a Windows pid — never a target for kill
