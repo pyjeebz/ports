@@ -89,15 +89,15 @@ func WriteTable(services []Service) {
 	rows := sortRows(services)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
+	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
 	for _, s := range rows {
 		if !s.Known() && s.Container == "" && !s.Windows {
 			unknown = true
 		}
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
+		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
 	}
-	w.Flush()
+	_ = w.Flush()
 	if unknown {
 		fmt.Fprintln(os.Stderr, "\nsome ports belong to other users' processes (shown as ?) — run with sudo to see them")
 	}
@@ -202,7 +202,7 @@ func WriteTree(services []Service) {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
+	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	// line prefixes the connector drawn just before this row's content;
 	// base is the continuation gap its subtree hangs under.
 	var draw func(n *node, line, base string)
@@ -219,9 +219,9 @@ func WriteTree(services []Service) {
 	for _, r := range roots {
 		draw(r, "", "")
 	}
-	w.Flush()
+	_ = w.Flush()
 }
 
 func writeTreeRow(w *tabwriter.Writer, s Service, prefix string) {
-	fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), project(s), uptime(s))
+	_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), project(s), uptime(s))
 }

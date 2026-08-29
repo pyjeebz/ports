@@ -23,7 +23,7 @@ func captureStdout(t *testing.T, f func()) string {
 	}()
 	f()
 	os.Stdout = saved
-	w.Close()
+	_ = w.Close()
 	return <-done
 }
 

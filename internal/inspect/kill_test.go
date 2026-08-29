@@ -15,8 +15,8 @@ func startVictim(t *testing.T, args ...string) Service {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	go cmd.Wait() // reap on exit
-	t.Cleanup(func() { cmd.Process.Kill() })
+	go func() { _ = cmd.Wait() }() // reap on exit
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
 	s := Service{Pid: int32(cmd.Process.Pid), Process: args[0]}
 	if p, err := gproc.NewProcess(s.Pid); err == nil {
 		if ct, err := p.CreateTime(); err == nil && ct > 0 {

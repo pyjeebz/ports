@@ -20,14 +20,14 @@ func fakeDocker(t *testing.T, handler http.Handler) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	sock := dir + "/docker.sock"
 	l, err := net.Listen("unix", sock)
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewUnstartedServer(handler)
-	srv.Listener.Close()
+	_ = srv.Listener.Close()
 	srv.Listener = l
 	srv.Start()
 	old := dockerSocket
@@ -63,7 +63,7 @@ func TestEnrichDocker(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		w.Write([]byte(containersJSON))
+		_, _ = w.Write([]byte(containersJSON))
 	}))
 
 	services := []Service{
@@ -233,6 +233,6 @@ func mountSocket(t *testing.T, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { l.Close() })
+	t.Cleanup(func() { _ = l.Close() })
 	return path
 }
