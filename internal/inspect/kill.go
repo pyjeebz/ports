@@ -28,7 +28,7 @@ func Stop(s Service, force bool) error {
 		return StopContainer(s.ContainerID, force)
 	}
 	if s.Process == "docker-proxy" {
-		return errors.New("docker-backed — could not resolve the container; use `docker stop`")
+		return fmt.Errorf("%s-backed — could not resolve the container; use `%s stop`", containerRuntime, containerRuntime)
 	}
 	if !s.Known() {
 		return errors.New("owner unknown — run with sudo")

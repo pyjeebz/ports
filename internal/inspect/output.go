@@ -128,7 +128,11 @@ func project(s Service) string {
 		return "windows"
 	}
 	if s.Container != "" {
-		return "docker: " + DockerName(s)
+		runtime := s.Runtime
+		if runtime == "" {
+			runtime = "docker"
+		}
+		return runtime + ": " + DockerName(s)
 	}
 	if s.Project == "" {
 		return "—"

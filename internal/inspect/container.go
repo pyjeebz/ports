@@ -7,15 +7,93 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
-// dockerSocket is a var so tests can point the client at a fake daemon.
-var dockerSocket = "/var/run/docker.sock"
+// dockerSocket and containerRuntime name the engine the enrichment and
+// container stops talk to. Both are vars so tests can point the client
+// at a fake daemon; detectRuntime fills the real values.
+var (
+	dockerSocket     = "/var/run/docker.sock"
+	containerRuntime = "docker"
+)
 
-// Container is the slice of dockerd's /containers/json response that
-// enrichment needs.
+func init() { detectRuntime() }
+
+// detectRuntime picks the socket to talk to. A DOCKER_HOST unix path is
+// authoritative, as the docker CLI treats it; otherwise the well-known
+// Podman sockets are probed before the Docker default. CONTAINER_RUNTIME
+// narrows the probe to one engine — an explicit choice should not
+// silently fall through to docker's socket. Nothing found leaves the
+// defaults, and scanning silently skips container enrichment, as it
+// already does without a daemon.
+func detectRuntime() {
+	dockerSocket, containerRuntime = "/var/run/docker.sock", "docker"
+
+	if prefer := strings.ToLower(os.Getenv("CONTAINER_RUNTIME")); prefer != "" {
+		for _, c := range candidateSockets(prefer) {
+			if socketExists(c) {
+				containerRuntime, dockerSocket = prefer, c
+				return
+			}
+		}
+		return // named engine only; don't fall through
+	}
+
+	// nerdctl is not here on purpose: it fronts containerd, whose raw
+	// API has no /containers/json — nothing to talk to without a proxy.
+	if dh := unixPath(os.Getenv("DOCKER_HOST")); dh != "" {
+		dockerSocket = dh // authoritative, even if currently unreachable
+		return
+	}
+	for _, c := range candidateSockets("podman") {
+		if socketExists(c) {
+			containerRuntime, dockerSocket = "podman", c
+			return
+		}
+	}
+}
+
+// candidateSockets lists the well-known Docker-API socket paths for one
+// engine, XDG-relative first.
+func candidateSockets(runtime string) []string {
+	switch runtime {
+	case "podman":
+		var paths []string
+		if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
+			paths = append(paths, filepath.Join(dir, "podman", "podman.sock"))
+		}
+		return append(paths, "/var/run/podman/podman.sock")
+	case "docker":
+		return []string{unixPath(os.Getenv("DOCKER_HOST")), "/var/run/docker.sock"}
+	default:
+		return nil
+	}
+}
+
+func socketExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	st, err := os.Stat(path)
+	return err == nil && st.Mode()&os.ModeSocket != 0
+}
+
+// unixPath turns a Docker-CLI-style DOCKER_HOST into a unix socket path,
+// empty for anything else (tcp, npipe) — those engines are reachable
+// over the network and this scanner only speaks sockets.
+func unixPath(dockerHost string) string {
+	if before, ok := strings.CutPrefix(dockerHost, "unix://"); ok {
+		return before
+	}
+	return ""
+}
+
+// Container is the slice of the engine's /containers/json response that
+// enrichment needs (docker, podman, or any Docker-API-compatible peer).
 type Container struct {
 	ID      string            `json:"Id"`
 	Names   []string          `json:"Names"`
@@ -60,9 +138,9 @@ func listContainers() []Container {
 	return cs
 }
 
-// StopContainer asks dockerd to stop a container — engine-side SIGTERM,
-// grace period, then SIGKILL, the same contract as Stop. force cuts the
-// grace period to zero.
+// StopContainer asks the engine to stop a container — engine-side
+// SIGTERM, grace period, then SIGKILL, the same contract as Stop. force
+// cuts the grace period to zero.
 func StopContainer(id string, force bool) error {
 	grace := 2
 	if force {
@@ -79,7 +157,7 @@ func StopContainer(id string, force bool) error {
 		return nil
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-	return fmt.Errorf("docker: stop %s: %s", shortID(id), strings.TrimSpace(string(body)))
+	return fmt.Errorf("%s: stop %s: %s", containerRuntime, shortID(id), strings.TrimSpace(string(body)))
 }
 
 // enrichDocker fills docker-proxy and owner-unknown rows with the
@@ -106,6 +184,7 @@ func enrichDocker(services []Service, containers []Container) {
 		if c == nil {
 			continue
 		}
+		s.Runtime = containerRuntime
 		s.Container = containerName(c)
 		s.ContainerID = c.ID
 		s.Image = c.Image

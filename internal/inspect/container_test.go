@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -164,4 +166,66 @@ func TestImageBase(t *testing.T) {
 			t.Errorf("ImageBase(%q) = %q, want %q", ref, got, want)
 		}
 	}
+}
+
+// detectRuntime fills the package vars from the environment and the
+// well-known sockets; each case restores them after itself.
+func TestDetectRuntime(t *testing.T) {
+	oldSocket, oldRuntime := dockerSocket, containerRuntime
+	t.Cleanup(func() { dockerSocket, containerRuntime = oldSocket, oldRuntime })
+	t.Setenv("DOCKER_HOST", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	podmanSock := mountSocket(t, "podman.sock")
+
+	t.Run("docker default when no podman socket", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+		detectRuntime()
+		if containerRuntime != "docker" {
+			t.Errorf("no podman socket present: got runtime %q", containerRuntime)
+		}
+	})
+
+	t.Run("xdg podman socket detected", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", filepath.Dir(filepath.Dir(podmanSock)))
+		detectRuntime()
+		if containerRuntime != "podman" || dockerSocket != podmanSock {
+			t.Errorf("got %q at %q, want podman at %q", containerRuntime, dockerSocket, podmanSock)
+		}
+	})
+
+	t.Run("CONTAINER_RUNTIME narrows to docker even with podman present", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", filepath.Dir(filepath.Dir(podmanSock)))
+		t.Setenv("CONTAINER_RUNTIME", "docker")
+		detectRuntime()
+		if containerRuntime != "docker" || dockerSocket != "/var/run/docker.sock" {
+			t.Errorf("got %q at %q, want docker default", containerRuntime, dockerSocket)
+		}
+	})
+
+	t.Run("DOCKER_HOST beats podman", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", filepath.Dir(filepath.Dir(podmanSock)))
+		t.Setenv("DOCKER_HOST", "unix:///tmp/missing.sock")
+		detectRuntime()
+		if dockerSocket != "/tmp/missing.sock" {
+			t.Errorf("got %q, want the DOCKER_HOST path", dockerSocket)
+		}
+	})
+}
+
+// mountSocket listens on a fresh unix socket path so os.Stat reports a
+// socket file; the listener stays open for the test's duration.
+func mountSocket(t *testing.T, name string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "podman")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, name)
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { l.Close() })
+	return path
 }
