@@ -1,0 +1,55 @@
+---
+title: Commands
+description: Four commands and two flags. That's the whole tool.
+---
+
+## ports · ports list
+
+Display every listening TCP port with its framework, project directory, and uptime. Supports `--json` output.
+
+| Column   | Value                                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------------- |
+| PORT     | The TCP port number.                                                                                           |
+| PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
+| PROJECT  | A local path, a `docker:` container reference, `windows`, or `—` when unknown.                                 |
+| UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
+
+## ports find \<name\>
+
+Filter the table. Case-insensitive, matches substrings across framework, process, project, and container names.
+
+```sh
+$ ports find postgres
+5432     PostgreSQL    docker: shop-db        2d
+```
+
+## ports free \<port\>
+
+Kill whatever holds a port.
+
+```sh
+$ ports free 3000
+✓ killed Next.js (pid 48391) — port 3000 is free
+```
+
+## ports kill \<name\>
+
+Stop all processes that belong to a named project or service. Docker-backed ports stop the container via the API — never docker-proxy.
+
+```sh
+$ ports kill shop
+✓ stopped Next.js (:3000)
+✓ stopped FastAPI (:8000)
+✓ stopped PostgreSQL (container shop-db)
+```
+
+## Flags
+
+| Flag     | Effect                                                                                          |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| `--json`  | Receive a JSON array instead of the table. Use this when you want to pipe ports output into other tools or scripts. |
+| `--force` | Skip SIGTERM and kill immediately.                                                              |
+
+## Permissions
+
+Some rows may show `?` in the PROCESS column — this happens when the socket belongs to a process owned by a different user and the OS does not expose its details without elevated privileges. Run `sudo ports` to reveal those processes.

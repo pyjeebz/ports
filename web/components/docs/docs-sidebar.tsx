@@ -48,7 +48,7 @@ export function DocsSidebar() {
   return (
     <aside className="sidebar">
       <Link className="brand" href="/">
-        <PortsLogo className="h-[22px] w-[22px]" maskId="ports-slash-docs" />
+        <PortsLogo className="h-[22px] w-[22px]" />
         ports <span className="docs-tag">docs</span>
       </Link>
       <div className="search">

@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 /* ── ports design tokens: monochrome + one functional green ── */
 :root {

@@ -38,7 +38,7 @@ export default function Redesign() {
     <div className="mx-auto max-w-[1080px] px-6">
       <header className="flex items-center justify-between py-6">
         <span className="flex items-center gap-2.5 text-[15px] font-semibold">
-          <PortsLogo className="h-5 w-5" maskId="vbg-head" /> ports
+          <PortsLogo className="h-5 w-5" /> ports
         </span>
         <nav className="flex gap-6 text-sm text-muted">
           <Link href="/docs" className="transition-colors hover:text-foreground">
@@ -197,7 +197,7 @@ export default function Redesign() {
 
       <footer className="flex flex-wrap items-center justify-between gap-4 py-10 text-[13px] text-faint">
         <span className="flex items-center gap-2">
-          <PortsLogo className="h-4 w-4" maskId="vbg-foot" /> ports
+          <PortsLogo className="h-4 w-4" /> ports
         </span>
         <div className="flex gap-6">
           <a

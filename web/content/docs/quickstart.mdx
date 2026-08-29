@@ -1,0 +1,50 @@
+---
+title: Quickstart
+description: See everything listening on your machine, find the service you care about, and stop it — all without touching a PID.
+---
+
+## List running ports
+
+Run `ports` with no arguments. Rows are sorted and grouped by project, and every process shows a framework or service name — not a raw process name.
+
+```sh
+$ ports
+PORT     PROCESS       PROJECT                UPTIME
+3000     Next.js       ~/projects/shop        14m
+5432     PostgreSQL    docker: shop-db        2d
+8000     FastAPI       ~/projects/shop        14m
+```
+
+## Find a service
+
+The search is case-insensitive and matches substrings — framework, process, project, or container.
+
+```sh
+$ ports find postgres
+5432     PostgreSQL    docker: shop-db        2d
+```
+
+## Free a port
+
+Kill whatever holds a port, by number.
+
+```sh
+$ ports free 3000
+✓ killed Next.js (pid 48391) — port 3000 is free
+```
+
+## Stop a project
+
+Stops all processes that belong to a named project or service — dev servers and containers alike.
+
+```sh
+$ ports kill shop
+✓ stopped FastAPI (:8000)
+✓ stopped PostgreSQL (container shop-db)
+```
+
+<Callout type="info">
+  ports sends SIGTERM first and only escalates to SIGKILL if the process does
+  not exit. Docker-backed ports stop the container through the daemon — never
+  by killing docker-proxy.
+</Callout>

@@ -1,0 +1,43 @@
+---
+title: Installation
+description: Install via Homebrew, Scoop, or curl. One static binary, no runtime.
+---
+
+## Install
+
+<Tabs items={["Homebrew", "curl", "Scoop"]}>
+  <Tab value="Homebrew">
+
+    ```sh
+    brew install pyjeebz/tap/ports
+    ```
+
+  </Tab>
+  <Tab value="curl">
+
+    ```sh
+    curl -fsSL https://ports.tools/install | sh
+    ```
+
+  </Tab>
+  <Tab value="Scoop">
+
+    ```sh
+    scoop bucket add pyjeebz https://github.com/pyjeebz/scoop-bucket
+    scoop install ports
+    ```
+
+  </Tab>
+</Tabs>
+
+## Verify
+
+```sh
+$ ports --version
+ports <version>
+```
+
+<Callout type="info">
+  That's it — there is no step two. Run `ports` and you'll see everything
+  listening on your machine.
+</Callout>

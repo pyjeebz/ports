@@ -1,10 +1,7 @@
-export function PortsLogo({
-  className,
-  maskId = "ports-slash",
-}: {
-  className?: string;
-  maskId?: string;
-}) {
+import { useId } from "react";
+
+export function PortsLogo({ className }: { className?: string }) {
+  const maskId = useId();
   return (
     <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true" className={className}>
       <mask id={maskId}>

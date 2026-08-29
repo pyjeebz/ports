@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PortsLogo } from "./ports-logo";
 
 export function SiteFooter() {
@@ -8,10 +10,7 @@ export function SiteFooter() {
           <div className="foot-grid">
             <div className="foot-brand">
               <span className="brand">
-                <PortsLogo
-                  className="h-[18px] w-[18px]"
-                  maskId="ports-slash-foot"
-                />
+                <PortsLogo className="h-[18px] w-[18px]" />
                 ports
               </span>
               <p>
@@ -23,7 +22,7 @@ export function SiteFooter() {
             <div className="foot-col">
               <h5>Product</h5>
               <a href="/docs/installation">Install</a>
-              <a href="/">The tool</a>
+              <Link href="/">The tool</Link>
               <a href="https://github.com/pyjeebz/ports/releases">Releases</a>
             </div>
             <div className="foot-col">
@@ -36,7 +35,7 @@ export function SiteFooter() {
               <h5>Project</h5>
               <a href="https://github.com/pyjeebz/ports">GitHub</a>
               <a href="https://github.com/pyjeebz/ports/releases">Changelog</a>
-              <a href="/">ports.tools</a>
+              <Link href="/">ports.tools</Link>
             </div>
           </div>
         </div>

@@ -1,0 +1,41 @@
+---
+title: Introduction
+description: A zero-config CLI that shows every listening port with its framework, project, and uptime — and lets you stop things by name.
+---
+
+ports answers the question every developer hits multiple times a day: **what is actually running on this machine right now, and how do I stop it?**
+
+Instead of raw PIDs and process names, you get framework names, project directories, and uptime — grouped so a frontend, API, and database that belong together read as one application.
+
+```sh
+$ ports
+PORT     PROCESS       PROJECT                UPTIME
+3000     Next.js       ~/projects/shop        14m
+5432     PostgreSQL    docker: shop-db        2d
+8000     FastAPI       ~/projects/shop        14m
+5173     Vite          ~/projects/admin       3h
+11434    Ollama        windows                ?
+```
+
+<Callout type="info">
+  ports requires no configuration and no setup beyond installation. All context
+  is inferred from the machine itself.
+</Callout>
+
+## Highlights
+
+<Cards>
+  <Card
+    title="Framework detection"
+    description="A human-readable name for every service: framework detection first, then container image names, then raw process names."
+  />
+  <Card
+    title="Docker unwrap"
+    description="Shows real container and Compose service names instead of docker-proxy."
+  />
+  <Card title="WSL2-aware" description="Distinguishes Windows-side listeners from WSL processes in the same table." />
+  <Card
+    title="JSON output"
+    description="Pass `--json` to any list or find command for scripting and automation."
+  />
+</Cards>
