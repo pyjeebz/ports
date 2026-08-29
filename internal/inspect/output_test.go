@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -17,9 +18,8 @@ func captureStdout(t *testing.T, f func()) string {
 	os.Stdout = w
 	done := make(chan string, 1)
 	go func() {
-		buf := make([]byte, 1<<16)
-		n, _ := real.Read(buf)
-		done <- string(buf[:n])
+		buf, _ := io.ReadAll(real) // read to EOF: one Read can race the writer
+		done <- string(buf)
 	}()
 	f()
 	os.Stdout = saved

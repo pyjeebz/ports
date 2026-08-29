@@ -14,7 +14,14 @@ import (
 // docker client at it for the duration of the test.
 func fakeDocker(t *testing.T, handler http.Handler) {
 	t.Helper()
-	sock := t.TempDir() + "/docker.sock"
+	// t.TempDir embeds the test name; on darwin that can push the socket
+	// path past the ~104-char sockaddr limit, so use a short temp dir.
+	dir, err := os.MkdirTemp("", "ports")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sock := dir + "/docker.sock"
 	l, err := net.Listen("unix", sock)
 	if err != nil {
 		t.Fatal(err)
