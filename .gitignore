@@ -1,2 +1,4 @@
 /ports
 /dist/
+*.test
+web/.next/
