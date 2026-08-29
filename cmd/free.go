@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/pyjeebz/ports/internal/inspect"
@@ -17,8 +16,7 @@ var freeCmd = &cobra.Command{
 		arg := args[0]
 		port, err := strconv.ParseUint(arg, 10, 16)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ports: invalid port %q\n", arg)
-			os.Exit(2)
+			return exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
 		}
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
@@ -27,15 +25,17 @@ var freeCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.Port == uint32(port) })
 		if len(matched) == 0 {
-			fmt.Fprintf(os.Stderr, "ports: nothing listening on %d\n", port)
-			os.Exit(1)
+			return fmt.Errorf("nothing listening on %d", port)
 		}
-		os.Exit(stopAll(matched, force, dryRun, func(s inspect.Service, _ string) string {
+		code := stopAll(matched, force, dryRun, func(s inspect.Service, _ string) string {
 			if s.Container != "" {
-				return fmt.Sprintf("✓ stopped %s (container %s) — port %d is free", process(s), dockerName(s), port)
+				return fmt.Sprintf("✓ stopped %s (container %s) — port %d is free", inspect.ProcessName(s), inspect.DockerName(s), port)
 			}
-			return fmt.Sprintf("✓ killed %s (pid %d) — port %d is free", process(s), s.Pid, port)
-		}))
+			return fmt.Sprintf("✓ killed %s (pid %d) — port %d is free", inspect.ProcessName(s), s.Pid, port)
+		})
+		if code != 0 {
+			return exitError{code: code}
+		}
 		return nil
 	},
 }

@@ -8,6 +8,15 @@ import (
 	"github.com/pyjeebz/ports/internal/inspect"
 )
 
+// exitError carries a bare exit code through cobra when the useful
+// output has already been printed (a per-row kill report, for one).
+type exitError struct {
+	code int
+	msg  string
+}
+
+func (e exitError) Error() string { return e.msg }
+
 func match(services []inspect.Service, keep func(inspect.Service) bool) []inspect.Service {
 	var out []inspect.Service
 	for _, s := range services {
@@ -16,6 +25,27 @@ func match(services []inspect.Service, keep func(inspect.Service) bool) []inspec
 		}
 	}
 	return out
+}
+
+// writeReport renders services in the --format the user asked for.
+func writeReport(services []inspect.Service) error {
+	if jsonOut {
+		// --json is deprecated but still honored
+		return inspect.WriteJSON(services)
+	}
+	switch format {
+	case "json":
+		return inspect.WriteJSON(services)
+	case "csv":
+		return inspect.WriteCSV(services)
+	case "tsv":
+		return inspect.WriteTSV(services)
+	case "table":
+		inspect.WriteTable(services)
+		return nil
+	default:
+		return fmt.Errorf("unknown format %q (want table, json, csv, or tsv)", format)
+	}
 }
 
 // stopAll stops one process per pid — or one container per id, however
@@ -50,33 +80,15 @@ func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(insp
 	for _, g := range groups {
 		ports := strings.Join(g.ports, ", ")
 		if dryRun {
-			fmt.Printf("would stop %s (%s)\n", process(g.s), ports)
+			fmt.Printf("would stop %s (%s)\n", inspect.ProcessName(g.s), ports)
 			continue
 		}
 		if err := inspect.Stop(g.s, force); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", process(g.s), ports, err)
+			fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", inspect.ProcessName(g.s), ports, err)
 			code = 1
 			continue
 		}
 		fmt.Println(okMsg(g.s, ports))
 	}
 	return code
-}
-
-func process(s inspect.Service) string {
-	switch {
-	case s.Framework != "":
-		return s.Framework
-	case s.Image != "":
-		return inspect.ImageBase(s.Image)
-	default:
-		return s.Process
-	}
-}
-
-func dockerName(s inspect.Service) string {
-	if s.ComposeProject != "" && s.ComposeService != "" {
-		return s.ComposeProject + "-" + s.ComposeService
-	}
-	return s.Container
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
@@ -21,12 +20,14 @@ var killCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesName(q) })
 		if len(matched) == 0 {
-			fmt.Fprintf(os.Stderr, "ports: nothing matching %q — try `ports find %s`\n", q, q)
-			os.Exit(1)
+			return fmt.Errorf("nothing matching %q — try `ports find %s`", q, q)
 		}
-		os.Exit(stopAll(matched, force, dryRun, func(s inspect.Service, ports string) string {
-			return fmt.Sprintf("✓ stopped %s (%s)", process(s), ports)
-		}))
+		code := stopAll(matched, force, dryRun, func(s inspect.Service, ports string) string {
+			return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
+		})
+		if code != 0 {
+			return exitError{code: code}
+		}
 		return nil
 	},
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -10,14 +11,14 @@ import (
 )
 
 var (
-	jsonOut      bool
-	force        bool
-	dryRun       bool
-	format       string
-	filterPorts  string
+	jsonOut          bool
+	force            bool
+	dryRun           bool
+	format           string
+	filterPorts      string
 	filterFrameworks string
-	filterProjects string
-	filterUptime string
+	filterProjects   string
+	filterUptime     string
 )
 
 var rootCmd = &cobra.Command{
@@ -65,6 +66,14 @@ func Execute(version string) {
 	}
 
 	if err := rootCmd.Execute(); err != nil {
+		var ee exitError
+		if errors.As(err, &ee) {
+			// output already printed; just carry the code
+			if ee.msg != "" {
+				fmt.Fprintln(os.Stderr, "ports:", ee.msg)
+			}
+			os.Exit(ee.code)
+		}
 		fmt.Fprintln(os.Stderr, "ports:", err)
 		os.Exit(1)
 	}
@@ -128,19 +137,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 	services = inspect.ApplyFilter(services, filter)
 
-	switch format {
-	case "json":
-		return inspect.WriteJSON(services)
-	case "csv":
-		return inspect.WriteCSV(services)
-	case "tsv":
-		return inspect.WriteTSV(services)
-	case "table":
-		fallthrough
-	default:
-		inspect.WriteTable(services)
-		return nil
-	}
+	return writeReport(services)
 }
 
 func buildInspectConfig() *inspect.Config {
