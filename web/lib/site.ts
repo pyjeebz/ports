@@ -39,12 +39,28 @@ export const CONTACTS: Contact[] = [
 ] as const;
 
 export const COMMANDS = [
-  { cmd: "ports", desc: "Every listening port with its framework, project, and uptime." },
-  { cmd: "ports find <name>", desc: "Locate a service by name, port, or project." },
-  { cmd: "ports free <port>", desc: "Identify what holds a port and stop it, gracefully." },
-  { cmd: "ports kill <name>", desc: "Stop a project or service by name." },
-  { cmd: "--json", desc: "Machine-readable output — the seam for scripts and agents." },
-  { cmd: "--force", desc: "Skip the SIGTERM grace period and kill immediately." },
+  {
+    cmd: "ports",
+    href: "/docs/commands#cmd-list",
+    desc: "Every listening port with its framework, project, and uptime.",
+  },
+  {
+    cmd: "ports find <name>",
+    href: "/docs/commands#cmd-find",
+    desc: "Locate a service by name, port, or project.",
+  },
+  {
+    cmd: "ports free <port>",
+    href: "/docs/commands#cmd-free",
+    desc: "Identify what holds a port and stop it, gracefully.",
+  },
+  {
+    cmd: "ports kill <name>",
+    href: "/docs/commands#cmd-kill",
+    desc: "Stop a project or service by name.",
+  },
+  { cmd: "--json", href: "/docs/commands#flags", desc: "Machine-readable output — the seam for scripts and agents." },
+  { cmd: "--force", href: "/docs/commands#flags", desc: "Skip the SIGTERM grace period and kill immediately." },
 ] as const;
 
 export const CAPABILITIES = [

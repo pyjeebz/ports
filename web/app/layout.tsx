@@ -26,7 +26,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {/* Static CRT texture: scanlines + vignette. The only animated
+            pixels on the site are the radar sweep and the flap board. */}
+        <div className="crt" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }

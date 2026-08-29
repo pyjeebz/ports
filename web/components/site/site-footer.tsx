@@ -1,46 +1,49 @@
 import Link from "next/link";
 
 import { PortsLogo } from "./ports-logo";
+import { SITE } from "@/lib/site";
 
 export function SiteFooter() {
   return (
-    <>
-      <footer className="gx">
-        <div className="col">
-          <div className="foot-grid">
-            <div className="foot-brand">
-              <span className="brand">
-                <PortsLogo className="h-[18px] w-[18px]" />
-                ports
-              </span>
-              <p>
-                See what&apos;s running on your machine, by project — and kill it
-                by name.
-              </p>
-              <span className="meta">MIT · v0.1.0</span>
-            </div>
-            <div className="foot-col">
-              <h5>Product</h5>
-              <a href="/docs/installation">Install</a>
-              <Link href="/">The tool</Link>
-              <a href="https://github.com/pyjeebz/ports/releases">Releases</a>
-            </div>
-            <div className="foot-col">
-              <h5>Documentation</h5>
-              <a href="/docs">Introduction</a>
-              <a href="/docs/quickstart">Quickstart</a>
-              <a href="/docs/commands">Commands</a>
-            </div>
-            <div className="foot-col">
-              <h5>Project</h5>
-              <a href="https://github.com/pyjeebz/ports">GitHub</a>
-              <a href="https://github.com/pyjeebz/ports/releases">Changelog</a>
-              <Link href="/">ports.tools</Link>
-            </div>
+    <footer className="py-14">
+      <div className="mx-auto max-w-[1160px] px-8">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-[2fr_1fr_1fr]">
+          <div className="max-w-[320px]">
+            <span className="flex items-center gap-2.5 text-[15px] font-semibold">
+              <PortsLogo className="h-[18px] w-[18px]" />
+              ports
+            </span>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+              ports never starts, supervises, or installs anything. It reads
+              your machine and — when you ask — stops a thing you name.
+            </p>
+            <p className="mt-3 font-mono text-[11.5px] tracking-[0.08em] text-faint">
+              MIT LICENSE · {SITE.domain.replace("https://", "")}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <h5 className="text-[12.5px] font-semibold text-foreground">Docs</h5>
+            <Link href="/docs" className="text-[13.5px] text-muted hover:text-foreground">
+              Introduction
+            </Link>
+            <Link href="/docs/quickstart" className="text-[13.5px] text-muted hover:text-foreground">
+              Quickstart
+            </Link>
+            <Link href="/docs/commands" className="text-[13.5px] text-muted hover:text-foreground">
+              Commands
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <h5 className="text-[12.5px] font-semibold text-foreground">Project</h5>
+            <a href={SITE.links.github} className="text-[13.5px] text-muted hover:text-foreground">
+              GitHub ↗
+            </a>
+            <a href={SITE.links.releases} className="text-[13.5px] text-muted hover:text-foreground">
+              Releases ↗
+            </a>
           </div>
         </div>
-      </footer>
-      <div className="frame-close gx" />
-    </>
+      </div>
+    </footer>
   );
 }
