@@ -11,6 +11,7 @@ import (
 type Service struct {
 	Port        uint32    `json:"port"`
 	Pid         int32     `json:"pid"`
+	ParentPid   int32     `json:"ppid,omitempty"`
 	Process     string    `json:"process"`
 	Framework   string    `json:"framework,omitempty"`
 	Cmdline     string    `json:"cmdline,omitempty"`

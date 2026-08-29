@@ -93,6 +93,9 @@ func describe(c gnet.ConnectionStat, env scanEnv) Service {
 	if cmd, err := p.Cmdline(); err == nil {
 		s.Cmdline = cmd
 	}
+	if pp, err := p.Ppid(); err == nil {
+		s.ParentPid = pp
+	}
 	if cwd, err := p.Cwd(); err == nil {
 		s.Cwd = cwd
 		s.Project = detectProject(cwd, env.markers)

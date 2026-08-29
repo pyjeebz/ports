@@ -15,6 +15,7 @@ var (
 	force            bool
 	dryRun           bool
 	format           string
+	showTree         bool
 	filterPorts      string
 	filterFrameworks string
 	filterProjects   string
@@ -114,6 +115,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
 	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, csv, tsv")
+	rootCmd.PersistentFlags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
 	rootCmd.PersistentFlags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
 	rootCmd.PersistentFlags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
 	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")

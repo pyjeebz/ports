@@ -30,10 +30,10 @@ func WriteTSV(services []Service) error {
 	return writeDelimited(services, '\t')
 }
 
-func writeDelimited(services []Service, delim rune) error {
-	if len(services) == 0 {
-		return nil
-	}
+// sortRows is the shared display order: rows with a project first, then
+// by project name and path, then by port — so a project's services
+// appear together regardless of which sockets the scan returned in.
+func sortRows(services []Service) []Service {
 	rows := slices.Clone(services)
 	slices.SortStableFunc(rows, func(a, b Service) int {
 		if (a.ProjectName == "") != (b.ProjectName == "") {
@@ -50,6 +50,14 @@ func writeDelimited(services []Service, delim rune) error {
 		}
 		return cmp.Compare(a.Port, b.Port)
 	})
+	return rows
+}
+
+func writeDelimited(services []Service, delim rune) error {
+	if len(services) == 0 {
+		return nil
+	}
+	rows := sortRows(services)
 
 	w := csv.NewWriter(os.Stdout)
 	w.Comma = delim
@@ -78,22 +86,7 @@ func WriteTable(services []Service) {
 		fmt.Println("no listening TCP ports")
 		return
 	}
-	rows := slices.Clone(services)
-	slices.SortStableFunc(rows, func(a, b Service) int {
-		if (a.ProjectName == "") != (b.ProjectName == "") {
-			if a.ProjectName != "" {
-				return -1
-			}
-			return 1
-		}
-		if c := strings.Compare(a.ProjectName, b.ProjectName); c != 0 {
-			return c
-		}
-		if c := strings.Compare(a.Project, b.Project); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Port, b.Port)
-	})
+	rows := sortRows(services)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
@@ -169,4 +162,66 @@ func DockerName(s Service) string {
 		return s.ComposeProject + "-" + s.ComposeService
 	}
 	return s.Container
+}
+
+// WriteTree writes services as a table where child processes are nested
+// under their parent, matched on pid → parent pid. Only host processes
+// participate: a row whose parent is not itself in the scan is a root,
+// and container / windows rows are always roots — their parent on the
+// other side of a boundary is not another scanned row's child.
+func WriteTree(services []Service) {
+	if len(services) == 0 {
+		fmt.Println("no listening TCP ports")
+		return
+	}
+	rows := sortRows(services)
+
+	type node struct {
+		s        *Service
+		children []*node
+	}
+	nodes := make([]*node, len(rows))
+	byPid := map[int32]*node{}
+	for i := range nodes {
+		nodes[i] = &node{s: &rows[i]}
+	}
+	for _, n := range nodes {
+		if _, seen := byPid[n.s.Pid]; !seen {
+			byPid[n.s.Pid] = n // first row wins when a pid holds several ports
+		}
+	}
+	var roots []*node
+	for _, n := range nodes {
+		s := n.s
+		if parent := byPid[s.ParentPid]; s.ParentPid > 0 && parent != nil && parent.s != s &&
+			s.Container == "" && !s.Windows {
+			parent.children = append(parent.children, n)
+			continue
+		}
+		roots = append(roots, n)
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
+	// line prefixes the connector drawn just before this row's content;
+	// base is the continuation gap its subtree hangs under.
+	var draw func(n *node, line, base string)
+	draw = func(n *node, line, base string) {
+		writeTreeRow(w, *n.s, line)
+		for i, c := range n.children {
+			conn, cont := "├─ ", "│  "
+			if i == len(n.children)-1 {
+				conn, cont = "└─ ", "   "
+			}
+			draw(c, base+conn, base+cont)
+		}
+	}
+	for _, r := range roots {
+		draw(r, "", "")
+	}
+	w.Flush()
+}
+
+func writeTreeRow(w *tabwriter.Writer, s Service, prefix string) {
+	fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), project(s), uptime(s))
 }

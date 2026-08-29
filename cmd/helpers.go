@@ -41,6 +41,10 @@ func writeReport(services []inspect.Service) error {
 	case "tsv":
 		return inspect.WriteTSV(services)
 	case "table":
+		if showTree {
+			inspect.WriteTree(services)
+			return nil
+		}
 		inspect.WriteTable(services)
 		return nil
 	default:
