@@ -16,9 +16,21 @@ export async function generateMetadata(
   const page = source.getPage(params.slug);
   if (!page) return {};
 
+  // Per-doc OG card, rendered by /api/og (a catch-all can't host its own
+  // opengraph-image route).
+  const og = new URLSearchParams({
+    title: page.data.title,
+    desc: page.data.description ?? "",
+  });
+
   return {
     title: page.data.title,
     description: page.data.description,
+    openGraph: {
+      title: `${page.data.title} · ports docs`,
+      description: page.data.description,
+      images: [`/api/og?${og.toString()}`],
+    },
   };
 }
 

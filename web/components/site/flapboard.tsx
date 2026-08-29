@@ -17,15 +17,15 @@ export function Flapboard() {
 
   return (
     <div className="code-shell font-mono text-[13px]">
-      {/* scenario tabs */}
+      {/* scenario tabs — toggle buttons: the "panels" are the shared board
+          below, so full tab semantics would be over-engineered here */}
       <div className="flex flex-wrap border-b border-line-soft bg-panel-2">
         {FLAP_SCENARIOS.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => setScenarioId(s.id)}
-            aria-selected={s.id === scenarioId}
-            role="tab"
+            aria-pressed={s.id === scenarioId}
             className={`cursor-pointer border-b-2 px-3.5 py-2.5 text-[12px] transition-colors ${
               s.id === scenarioId
                 ? "border-accent text-accent"
