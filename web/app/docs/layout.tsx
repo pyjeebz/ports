@@ -1,20 +1,20 @@
-import type { Metadata } from "next";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
 
-import { DocsSidebar } from "@/components/docs/docs-sidebar";
+import { source } from "@/lib/source";
 
-export const metadata: Metadata = {
-  title: { template: "%s — ports docs", default: "ports docs" },
-};
-
-export default function DocsLayout({
+export default function RootDocLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="docs-wrap">
-      <DocsSidebar />
+    <DocsLayout
+      tree={source.getPageTree()}
+      sidebar={{
+        enabled: true,
+      }}
+    >
       {children}
-    </div>
+    </DocsLayout>
   );
 }

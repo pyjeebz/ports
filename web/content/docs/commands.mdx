@@ -3,6 +3,9 @@ title: Commands
 description: Four commands and two flags. That's the whole tool.
 ---
 
+{/* stable anchors — the landing's command table links here */}
+<span id="cmd-list" />
+
 ## ports · ports list
 
 Display every listening TCP port with its framework, project directory, and uptime. Supports `--json` output.
@@ -14,6 +17,8 @@ Display every listening TCP port with its framework, project directory, and upti
 | PROJECT  | A local path, a `docker:` container reference, `windows`, or `—` when unknown.                                 |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
 
+<span id="cmd-find" />
+
 ## ports find \<name\>
 
 Filter the table. Case-insensitive, matches substrings across framework, process, project, and container names.
@@ -23,6 +28,8 @@ $ ports find postgres
 5432     PostgreSQL    docker: shop-db        2d
 ```
 
+<span id="cmd-free" />
+
 ## ports free \<port\>
 
 Kill whatever holds a port.
@@ -31,6 +38,8 @@ Kill whatever holds a port.
 $ ports free 3000
 ✓ killed Next.js (pid 48391) — port 3000 is free
 ```
+
+<span id="cmd-kill" />
 
 ## ports kill \<name\>
 
@@ -42,6 +51,8 @@ $ ports kill shop
 ✓ stopped FastAPI (:8000)
 ✓ stopped PostgreSQL (container shop-db)
 ```
+
+<span id="flags" />
 
 ## Flags
 

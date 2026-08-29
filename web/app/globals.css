@@ -1,7 +1,10 @@
 @import "tailwindcss";
-/* Docs pages still render from the old hand-built components until the
-   Fumadocs migration lands — their CSS lives here, to be deleted then. */
-@import "./legacy-docs.css";
+/* Fumadocs token defaults must register before the preset: shiki.css
+   @applies fd-diff utilities, which only exist once these @theme vars load.
+   The preset does not import this file itself. */
+@import "fumadocs-ui/css/lib/default-colors.css";
+/* Fumadocs UI styles: preset pulls in base + shiki + typography. */
+@import "fumadocs-ui/css/preset.css";
 
 /* ── phosphor CRT tokens ─────────────────────────────────── */
 :root {
@@ -23,14 +26,24 @@
   --alert: #ffb340;
   --danger: #ff6b5e;
 
-  /* aliases so bridged docs CSS keeps resolving */
-  --ink: var(--foreground);
-  --ink-strong: var(--strong);
-  --ink-muted: var(--muted);
-  --ink-faint: var(--faint);
-  --green: var(--accent);
-  --green-dim: var(--accent-dim);
-  --mono: var(--font-mono);
+  /* Fumadocs' --color-fd-* tokens, mapped onto the same phosphor palette.
+     Unlayered :root rules beat the preset's @theme defaults. */
+  --color-fd-background: #05080a;
+  --color-fd-foreground: #e4efe7;
+  --color-fd-card: #0a0f0c;
+  --color-fd-card-foreground: #e4efe7;
+  --color-fd-popover: #0a0f0c;
+  --color-fd-popover-foreground: #e4efe7;
+  --color-fd-muted: #0e1611;
+  --color-fd-muted-foreground: #9db3a7;
+  --color-fd-secondary: #0e1611;
+  --color-fd-secondary-foreground: #e4efe7;
+  --color-fd-primary: #33e581;
+  --color-fd-primary-foreground: #04150b;
+  --color-fd-accent: rgba(51, 229, 129, 0.1);
+  --color-fd-accent-foreground: #a9ffc9;
+  --color-fd-border: #1e2a24;
+  --color-fd-ring: #a9ffc9;
 }
 
 @theme inline {
