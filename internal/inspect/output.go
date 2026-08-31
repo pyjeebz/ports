@@ -142,7 +142,13 @@ func uptime(s Service) string {
 	if s.Started.IsZero() {
 		return "?"
 	}
-	d := time.Since(s.Started)
+	return durationString(time.Since(s.Started))
+}
+
+// durationString rounds a duration the way the table does — one unit,
+// the coarsest that hasn't passed — shared by uptime and the snapshot
+// age so they can't drift apart.
+func durationString(d time.Duration) string {
 	switch {
 	case d < time.Minute:
 		return fmt.Sprintf("%ds", int(d.Seconds()))
