@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
@@ -16,6 +17,8 @@ var (
 	dryRun           bool
 	format           string
 	showTree         bool
+	watch            bool
+	watchInterval    time.Duration
 	filterPorts      string
 	filterFrameworks string
 	filterProjects   string
@@ -163,6 +166,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
 	rootCmd.PersistentFlags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
 	rootCmd.PersistentFlags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
+	rootCmd.PersistentFlags().BoolVarP(&watch, "watch", "w", false, "Live refresh: rescan and redraw until interrupted")
+	rootCmd.PersistentFlags().DurationVar(&watchInterval, "interval", time.Second, "Rescan interval for --watch (min 250ms)")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
@@ -170,6 +175,9 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	if watch {
+		return runWatch()
+	}
 	// validate the arguments before paying for a scan
 	sort, err := resolveSort()
 	if err != nil {

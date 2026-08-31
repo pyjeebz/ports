@@ -12,6 +12,9 @@ var findCmd = &cobra.Command{
 	Short: "Filter by framework, process, or project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if watch {
+			return errWatchNotList
+		}
 		q := args[0]
 		// validate the arguments before paying for a scan
 		sort, err := resolveSort()
