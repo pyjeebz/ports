@@ -13,6 +13,9 @@ var freeCmd = &cobra.Command{
 	Short: "Kill whatever holds a port",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if watch {
+			return errWatchNotList
+		}
 		arg := args[0]
 		port, err := strconv.ParseUint(arg, 10, 16)
 		if err != nil {
@@ -25,7 +28,7 @@ var freeCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.Port == uint32(port) })
 		if len(matched) == 0 {
-			return fmt.Errorf("nothing listening on %d", port)
+			return fmt.Errorf("nothing listening on %d — run `ports doctor %d` to see what holds it", port, port)
 		}
 		code := stopAll(matched, force, dryRun, func(s inspect.Service, _ string) string {
 			if s.Container != "" {
