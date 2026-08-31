@@ -27,8 +27,19 @@ func match(services []inspect.Service, keep func(inspect.Service) bool) []inspec
 	return out
 }
 
-// writeReport renders services in the --format the user asked for.
-func writeReport(services []inspect.Service) error {
+// resolveSort validates --sort into the engine's sort mode. The empty
+// default is the project-grouped order; --sort only overrides when it
+// names one of port, uptime, process, or project.
+func resolveSort() (inspect.SortMode, error) {
+	mode, err := inspect.ParseSortMode(sortBy)
+	if err != nil {
+		return mode, exitError{code: 2, msg: err.Error()}
+	}
+	return mode, nil
+}
+
+// writeReport renders services in the --format and order the user asked for.
+func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	if jsonOut {
 		// --json is deprecated but still honored
 		return inspect.WriteJSON(services)
@@ -37,18 +48,23 @@ func writeReport(services []inspect.Service) error {
 	case "json":
 		return inspect.WriteJSON(services)
 	case "csv":
-		return inspect.WriteCSV(services)
+		return inspect.WriteCSV(services, sort)
 	case "tsv":
-		return inspect.WriteTSV(services)
+		return inspect.WriteTSV(services, sort)
+	case "snapshot":
+		// the versioned envelope `ports diff` reads back — rows exactly
+		// as json writes them, plus the moment they were true
+		return inspect.WriteSnapshot(services)
 	case "table":
 		if showTree {
+			// nesting carries the structure — --sort would scramble it
 			inspect.WriteTree(services)
 			return nil
 		}
-		inspect.WriteTable(services)
+		inspect.WriteTable(services, sort)
 		return nil
 	default:
-		return fmt.Errorf("unknown format %q (want table, json, csv, or tsv)", format)
+		return exitError{code: 2, msg: fmt.Sprintf("unknown format %q (want table, json, snapshot, csv, or tsv)", format)}
 	}
 }
 
@@ -89,6 +105,7 @@ func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(insp
 		}
 		if err := inspect.Stop(g.s, force); err != nil {
 			fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", inspect.ProcessName(g.s), ports, err)
+			fmt.Fprintf(os.Stderr, "  → run `ports doctor %s` to see why\n", strings.TrimPrefix(g.ports[0], ":"))
 			code = 1
 			continue
 		}

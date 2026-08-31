@@ -20,6 +20,7 @@ var (
 	filterFrameworks string
 	filterProjects   string
 	filterUptime     string
+	sortBy           string
 )
 
 var rootCmd = &cobra.Command{
@@ -54,10 +55,11 @@ what is running on this machine right now, and what does it belong to?
 func Execute(version string) {
 	rootCmd.Version = version
 
-	// Load config file
+	// Load config file. A file that exists but doesn't parse is a bad
+	// invocation — the user asked ports to run with input it can't read.
 	if err := loadConfig(); err != nil {
 		fmt.Fprintln(os.Stderr, "ports: config:", err)
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	// Bind flags to viper so they can be set via config file
@@ -65,6 +67,8 @@ func Execute(version string) {
 		fmt.Fprintln(os.Stderr, "ports: bind flags:", err)
 		os.Exit(1)
 	}
+
+	codifyExitCodes()
 
 	if err := rootCmd.Execute(); err != nil {
 		var ee exitError
@@ -77,6 +81,44 @@ func Execute(version string) {
 		}
 		fmt.Fprintln(os.Stderr, "ports:", err)
 		os.Exit(1)
+	}
+}
+
+
+// codifyExitCodes makes every unusable invocation exit 2 — the grammar
+// doctor already promised, uniform across commands. Cobra reports bad
+// flags and bad argument counts as plain errors, which would exit 1, so
+// wrap each command's validators and flag parsing in the code. What
+// remains a plain error is a genuine runtime failure, and stays 1.
+func codifyExitCodes() {
+	toBadArgs := func(err error) error {
+		return exitError{code: 2, msg: err.Error()}
+	}
+	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return toBadArgs(err)
+	})
+	for _, c := range rootCmd.Commands() {
+		sub := c
+		sub.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+			return toBadArgs(err)
+		})
+		if orig := sub.Args; orig != nil {
+			sub.Args = func(cmd *cobra.Command, args []string) error {
+				if err := orig(cmd, args); err != nil {
+					return toBadArgs(err)
+				}
+				return nil
+			}
+		}
+	}
+
+	// bare `ports` still lists; a stray positional is a command that
+	// doesn't exist, and says so with exit 2 like every other bad arg
+	rootCmd.Args = func(_ *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return exitError{code: 2, msg: fmt.Sprintf("unknown command %q — run `ports --help` for the list", args[0])}
+		}
+		return nil
 	}
 }
 
@@ -114,12 +156,13 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output (deprecated: use --format json)")
 	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
-	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, csv, tsv")
+	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, snapshot, csv, tsv")
 	rootCmd.PersistentFlags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
 	rootCmd.PersistentFlags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
 	rootCmd.PersistentFlags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
 	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
 	rootCmd.PersistentFlags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
+	rootCmd.PersistentFlags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
@@ -127,6 +170,11 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	// validate the arguments before paying for a scan
+	sort, err := resolveSort()
+	if err != nil {
+		return err
+	}
 	cfg := buildInspectConfig()
 	services, err := inspect.Scan(cfg)
 	if err != nil {
@@ -139,7 +187,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 	services = inspect.ApplyFilter(services, filter)
 
-	return writeReport(services)
+	return writeReport(services, sort)
 }
 
 func buildInspectConfig() *inspect.Config {

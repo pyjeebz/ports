@@ -13,6 +13,11 @@ var findCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		q := args[0]
+		// validate the arguments before paying for a scan
+		sort, err := resolveSort()
+		if err != nil {
+			return err
+		}
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
 		if err != nil {
@@ -22,7 +27,7 @@ var findCmd = &cobra.Command{
 		if len(matched) == 0 {
 			return fmt.Errorf("nothing matching %q", q)
 		}
-		return writeReport(matched)
+		return writeReport(matched, sort)
 	},
 }
 

@@ -21,43 +21,98 @@ func WriteJSON(services []Service) error {
 }
 
 // WriteCSV writes services as CSV to stdout.
-func WriteCSV(services []Service) error {
-	return writeDelimited(services, ',')
+func WriteCSV(services []Service, sort SortMode) error {
+	return writeDelimited(services, ',', sort)
 }
 
 // WriteTSV writes services as TSV to stdout.
-func WriteTSV(services []Service) error {
-	return writeDelimited(services, '\t')
+func WriteTSV(services []Service, sort SortMode) error {
+	return writeDelimited(services, '\t', sort)
 }
 
-// sortRows is the shared display order: rows with a project first, then
-// by project name and path, then by port — so a project's services
-// appear together regardless of which sockets the scan returned in.
-func sortRows(services []Service) []Service {
+// SortMode names a display order for the table and its delimited forms.
+// The zero value is the default order, not a third state — sorting is
+// never off, it just has a preferred arrangement unless --sort says
+// otherwise.
+type SortMode string
+
+const (
+	SortDefault SortMode = "" // project-grouped, the load-bearing default
+	SortPort    SortMode = "port"
+	SortUptime  SortMode = "uptime"
+	SortProcess SortMode = "process"
+	SortProject SortMode = "project"
+)
+
+// ParseSortMode validates a --sort value. "" passes through as the
+// default order; anything unknown is a bad argument.
+func ParseSortMode(s string) (SortMode, error) {
+	switch mode := SortMode(s); mode {
+	case SortDefault, SortPort, SortUptime, SortProcess, SortProject:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("invalid sort %q (want port, uptime, process, or project)", s)
+	}
+}
+
+// sortRows is the shared display order. The default groups by project —
+// rows with a project first, then by project name and path, then by port —
+// so a project's services appear together regardless of which sockets the
+// scan returned in. An explicit --sort replaces the arrangement; --tree
+// always uses the default, since nesting carries the structure instead.
+func sortRows(services []Service, sort SortMode) []Service {
 	rows := slices.Clone(services)
 	slices.SortStableFunc(rows, func(a, b Service) int {
-		if (a.ProjectName == "") != (b.ProjectName == "") {
-			if a.ProjectName != "" {
+		switch sort {
+		case SortPort:
+			return cmp.Compare(a.Port, b.Port)
+		case SortUptime:
+			// longest-lived first — ascending by start time; unknown start
+			// times sort last
+			if (a.Started.IsZero()) != (b.Started.IsZero()) {
+				if a.Started.IsZero() {
+					return 1
+				}
 				return -1
 			}
-			return 1
+			if c := a.Started.Compare(b.Started); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.Port, b.Port)
+		case SortProcess:
+			if c := strings.Compare(strings.ToLower(ProcessName(a)), strings.ToLower(ProcessName(b))); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.Port, b.Port)
+		case SortProject:
+			if c := strings.Compare(strings.ToLower(a.ProjectName), strings.ToLower(b.ProjectName)); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.Port, b.Port)
+		default:
+			if (a.ProjectName == "") != (b.ProjectName == "") {
+				if a.ProjectName != "" {
+					return -1
+				}
+				return 1
+			}
+			if c := strings.Compare(a.ProjectName, b.ProjectName); c != 0 {
+				return c
+			}
+			if c := strings.Compare(a.Project, b.Project); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.Port, b.Port)
 		}
-		if c := strings.Compare(a.ProjectName, b.ProjectName); c != 0 {
-			return c
-		}
-		if c := strings.Compare(a.Project, b.Project); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Port, b.Port)
 	})
 	return rows
 }
 
-func writeDelimited(services []Service, delim rune) error {
+func writeDelimited(services []Service, delim rune, sort SortMode) error {
 	if len(services) == 0 {
 		return nil
 	}
-	rows := sortRows(services)
+	rows := sortRows(services, sort)
 
 	w := csv.NewWriter(os.Stdout)
 	w.Comma = delim
@@ -81,12 +136,12 @@ func writeDelimited(services []Service, delim rune) error {
 }
 
 // WriteTable writes services as a formatted table to stdout.
-func WriteTable(services []Service) {
+func WriteTable(services []Service, sort SortMode) {
 	if len(services) == 0 {
 		fmt.Println("no listening TCP ports")
 		return
 	}
-	rows := sortRows(services)
+	rows := sortRows(services, sort)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
@@ -174,13 +229,15 @@ func DockerName(s Service) string {
 // under their parent, matched on pid → parent pid. Only host processes
 // participate: a row whose parent is not itself in the scan is a root,
 // and container / windows rows are always roots — their parent on the
-// other side of a boundary is not another scanned row's child.
+// other side of a boundary is not another scanned row's child. The tree
+// always renders in the default order — --sort would scramble the
+// parent/child walk for no gain.
 func WriteTree(services []Service) {
 	if len(services) == 0 {
 		fmt.Println("no listening TCP ports")
 		return
 	}
-	rows := sortRows(services)
+	rows := sortRows(services, SortDefault)
 
 	type node struct {
 		s        *Service

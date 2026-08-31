@@ -3,8 +3,10 @@ package inspect
 import (
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // captureStdout runs f with os.Stdout redirected and returns what f wrote.
@@ -90,5 +92,53 @@ func TestWriteTreeContainersAndWindowsAreRoots(t *testing.T) {
 	got := captureTree(t, services)
 	if len(got) != 2 || strings.Contains(got[0], "└─") || strings.Contains(got[1], "└─") {
 		t.Errorf("container and windows rows must be roots, got %q", got)
+	}
+}
+
+func TestParseSortMode(t *testing.T) {
+	for _, ok := range []string{"", "port", "uptime", "process", "project"} {
+		if mode, err := ParseSortMode(ok); err != nil || mode != SortMode(ok) {
+			t.Errorf("ParseSortMode(%q) = %q, %v; want it accepted", ok, mode, err)
+		}
+	}
+	if _, err := ParseSortMode("name"); err == nil || !strings.Contains(err.Error(), "invalid sort") {
+		t.Errorf("ParseSortMode(\"name\") = %v, want an invalid-sort error", err)
+	}
+}
+
+// scan order is deliberately scrambled: every mode has to re-arrange it.
+// The container and unattributed rows carry no ProjectName — the modes
+// disagree on where those land, which is half of what's being tested.
+var sortFixture = []Service{
+	{Port: 5173, Framework: "Vite", ProjectName: "admin", Project: "/x/admin", Started: time.Now().Add(-3 * time.Hour)},
+	{Port: 3000, Framework: "Next.js", ProjectName: "shop", Project: "/x/shop", Started: time.Now().Add(-14 * time.Minute)},
+	{Port: 5432, Framework: "PostgreSQL", Container: "shop-db", Started: time.Now().Add(-48 * time.Hour)},
+	{Port: 9229, Framework: "Node.js", Started: time.Time{}},
+}
+
+func TestSortRows(t *testing.T) {
+	cases := []struct {
+		sort SortMode
+		want []int // ports, in display order
+	}{
+		// default: project rows first grouped by name, projectless last
+		{SortDefault, []int{5173, 3000, 5432, 9229}},
+		{SortPort, []int{3000, 5173, 5432, 9229}},
+		// longest-lived first: 2d, 3h, 14m, unknown last
+		{SortUptime, []int{5432, 5173, 3000, 9229}},
+		// process names case-insensitively: next.js, node.js, postgresql, vite
+		{SortProcess, []int{3000, 9229, 5432, 5173}},
+		// plain lexicographic by project — no projectless-last rule
+		{SortProject, []int{5432, 9229, 5173, 3000}},
+	}
+	for _, c := range cases {
+		rows := sortRows(sortFixture, c.sort)
+		got := make([]int, len(rows))
+		for i, r := range rows {
+			got[i] = int(r.Port)
+		}
+		if !slices.Equal(got, c.want) {
+			t.Errorf("sortRows(sort %q) = %v, want %v", c.sort, got, c.want)
+		}
 	}
 }
