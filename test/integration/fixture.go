@@ -176,6 +176,74 @@ func main() {
 	return NewFixture(t, "go-"+name, port, "go", "run", "main.go")
 }
 
+// ResetFixture listens and aborts every accepted connection with a RST
+// (SO_LINGER 0). Readiness probes therefore leave nothing in the socket
+// table — no TIME_WAIT, no CLOSE_WAIT — so a doctor run on this port
+// sees only the listener and reads clean. Use it for deterministic
+// all-✓ doctor tests.
+func ResetFixture(t *testing.T, port int) *Fixture {
+	return socketFixture(t, "reset", port, "c.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))")
+}
+
+// TimeWaitFixture listens and closes first on every accepted connection,
+// so its side of each connection lands in TIME_WAIT — the state that
+// makes a port look held after its listener is gone. Use it for
+// deterministic doctor warn tests.
+func TimeWaitFixture(t *testing.T, port int) *Fixture {
+	return socketFixture(t, "timewait", port, "")
+}
+
+// socketFixture runs a python listener whose accept loop closes every
+// connection, with an optional extra close-time socket option.
+func socketFixture(t *testing.T, name string, port int, onClose string) *Fixture {
+	dir := t.TempDir()
+	script := fmt.Sprintf(`import socket, struct
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("", %d))
+s.listen(64)
+while True:
+    c, _ = s.accept()
+    %s
+    c.close()
+`, port, onClose)
+	scriptPath := filepath.Join(dir, "server.py")
+	if err := os.WriteFile(scriptPath, []byte(script), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := "python3"
+	if runtime.GOOS == "windows" {
+		cmd = "python"
+	}
+	return NewFixture(t, "socket-"+name, port, cmd, scriptPath)
+}
+
+// onWSL reports whether the test is running inside WSL, where mirrored
+// networking forwards a Linux listener to the Windows side — doctor's
+// mirror warn is correct there, so exit-0 assertions can't hold.
+func onWSL() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	b, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return false
+	}
+	s := strings.ToLower(string(b))
+	return strings.Contains(s, "microsoft") || strings.Contains(s, "wsl")
+}
+
+// SkipIfWSL explains why a clean-port doctor test can't assert exit 0 on
+// this machine.
+func SkipIfWSL(t *testing.T) {
+	t.Helper()
+	if onWSL() {
+		t.Skip("WSL mirrors the listener into Windows — the mirror warn is correct here")
+	}
+}
+
 // FindFreePort finds an available TCP port.
 func FindFreePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -188,11 +256,7 @@ func FindFreePort() (int, error) {
 
 // RunPorts runs the ports binary and returns stdout, stderr, and exit code.
 func RunPorts(t *testing.T, args ...string) (string, string, int) {
-	binary := os.Getenv("PORTS_BINARY")
-	if binary == "" {
-		binary = filepath.Join(os.TempDir(), "ports-integration")
-	}
-	cmd := exec.Command(binary, args...)
+	cmd := exec.Command(portsBinaryPath(), args...)
 	cmd.Dir, _ = os.Getwd()
 
 	var stdout, stderr strings.Builder
@@ -210,6 +274,51 @@ func RunPorts(t *testing.T, args ...string) (string, string, int) {
 	}
 
 	return stdout.String(), stderr.String(), exitCode
+}
+
+func portsBinaryPath() string {
+	if binary := os.Getenv("PORTS_BINARY"); binary != "" {
+		return binary
+	}
+	return filepath.Join(os.TempDir(), "ports-integration")
+}
+
+// RunPortsInterrupted starts the binary, lets it run for the given window,
+// then sends SIGINT — the graceful path watch promises — and returns what
+// it printed. If it ignores the signal, it is killed and the test sees
+// a signal exit rather than hanging.
+func RunPortsInterrupted(t *testing.T, window time.Duration, args ...string) (string, string, int) {
+	cmd := exec.Command(portsBinaryPath(), args...)
+	cmd.Dir, _ = os.Getwd()
+
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(window)
+	_ = cmd.Process.Signal(os.Interrupt)
+
+	// grace period: a watch mid-scan finishes the scan, then exits
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		exitCode := 0
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else if err != nil {
+			exitCode = 1
+		}
+		return stdout.String(), stderr.String(), exitCode
+	case <-time.After(3 * time.Second):
+		_ = cmd.Process.Kill()
+		<-done
+		return stdout.String(), stderr.String(), -1
+	}
 }
 
 // AssertOutputContains checks if output contains expected strings.
