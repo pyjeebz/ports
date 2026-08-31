@@ -87,6 +87,10 @@ func Execute(version string) {
 	}
 }
 
+// Root exposes the built command tree. It exists for tools/genman, which
+// renders the man pages at release time — same tree, same flags, same
+// descriptions the binary ships with.
+func Root() *cobra.Command { return rootCmd }
 
 // codifyExitCodes makes every unusable invocation exit 2 — the grammar
 // doctor already promised, uniform across commands. Cobra reports bad

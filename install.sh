@@ -48,8 +48,17 @@ if [ -z "$bindir" ]; then
   if [ -w /usr/local/bin ]; then bindir=/usr/local/bin; else bindir="$HOME/.local/bin"; fi
 fi
 mkdir -p "$bindir"
-tar -xzf "$tmp/$name" -C "$tmp" ports
+tar -xzf "$tmp/$name" -C "$tmp"
 install -m 0755 "$tmp/ports" "$bindir/ports"
+
+# man pages — best effort, never a reason to fail the install
+mandir=/usr/local/share/man/man1
+[ "$bindir" = /usr/local/bin ] || mandir="$HOME/.local/share/man/man1"
+if [ -f "$tmp/ports.1" ] && mkdir -p "$mandir" 2>/dev/null && [ -w "$mandir" ]; then
+  if install -m 0644 "$tmp"/ports*.1 "$mandir"/ 2>/dev/null; then
+    echo "✓ man pages installed to $mandir"
+  fi
+fi
 
 echo "✓ installed ports $version to $bindir/ports"
 case ":$PATH:" in

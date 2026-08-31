@@ -2,6 +2,12 @@ version: 2
 
 project_name: ports
 
+# man pages are generated from the command tree being released, so they
+# document the exact flags that build ships with
+before:
+  hooks:
+    - go run ./tools/genman -dir man -version {{ .Version }}
+
 builds:
   - binary: ports
     env:
@@ -24,6 +30,10 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+    # man pages at the archive root, next to the binary they document
+    files:
+      - src: man/*.1
+        strip_parent: true
 
 homebrew_casks:
   - repository:

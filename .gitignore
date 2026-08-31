@@ -3,3 +3,4 @@
 *.test
 web/.next/
 test/integration/ports
+/man/
