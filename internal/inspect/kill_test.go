@@ -1,8 +1,11 @@
 package inspect
 
 import (
+	"bufio"
 	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,5 +99,76 @@ func TestStopRefusesWindows(t *testing.T) {
 func TestStopRefusesUnknownOwner(t *testing.T) {
 	if err := Stop(Service{Pid: 0, Process: "?"}, false); err == nil {
 		t.Fatal("Stop accepted pid 0; it must refuse")
+	}
+}
+
+// A scan an hour old cannot describe a process started seconds ago: the
+// pid was reused, and Stop must refuse rather than kill the newcomer.
+func TestStopRefusesReusedPid(t *testing.T) {
+	s := startVictim(t, "sleep", "30")
+	s.Started = s.Started.Add(-time.Hour)
+	err := Stop(s, false)
+	if err == nil || !strings.Contains(err.Error(), "another process") {
+		t.Fatalf("Stop accepted a reused pid: %v", err)
+	}
+	if p, err := gproc.NewProcess(s.Pid); err != nil || isGone(p) {
+		t.Fatalf("pid %d died — the refusal was not advisory", s.Pid)
+	}
+}
+
+// startZombie leaves an unreaped exited child behind: sh backgrounds a
+// short sleep, echoes its pid, then execs a long one — the exec'd process
+// never calls wait, so the dead child stays a zombie until the test ends.
+// It returns the zombie's pid, for doctor's state checks to read.
+func startZombie(t *testing.T) int32 {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("zombies need unix semantics")
+	}
+	cmd := exec.Command("sh", "-c", "sleep 1 & echo $!; exec sleep 60")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	line, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil {
+		t.Fatalf("child echoed %q, not its pid", line)
+	}
+	time.Sleep(1500 * time.Millisecond) // the child exits and goes unreaped
+	return int32(pid)
+}
+
+// The zombie is the answer to "free said it's stopped but the port's row
+// won't go away": doctor must read it as "already exited, effectively
+// free", never as a kill target.
+func TestDoctorReadsZombie(t *testing.T) {
+	zpid := startZombie(t)
+	p, err := gproc.NewProcess(zpid)
+	if err != nil {
+		t.Skipf("pid %d was reaped before doctor looked", zpid)
+	}
+	s := Service{Pid: zpid, Process: "sleep", Port: 3999}
+	if ct, err := p.CreateTime(); err == nil && ct > 0 {
+		s.Started = time.UnixMilli(ct)
+	}
+
+	f := factsFor(s)
+	if !f.exists || !f.fresh || len(f.states) == 0 {
+		t.Errorf("factsFor on a zombie: exists=%v fresh=%v states=%v", f.exists, f.fresh, f.states)
+	}
+	got := stateFindings(s, f)
+	if len(got) != 1 || got[0].Status != CheckWarn || !strings.Contains(got[0].Message, "zombie") {
+		t.Fatalf("zombie findings: %+v", got)
+	}
+	if !strings.Contains(got[0].Message, "effectively free") {
+		t.Errorf("zombie finding doesn't say the port is free: %q", got[0].Message)
 	}
 }

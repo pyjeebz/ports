@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -216,6 +217,60 @@ func TestDetectRuntime(t *testing.T) {
 		detectRuntime()
 		if dockerSocket != "/tmp/missing.sock" {
 			t.Errorf("got %q, want the DOCKER_HOST path", dockerSocket)
+		}
+	})
+}
+
+// probeRuntime classifies every way the engine can fail to answer, and
+// doctor reports that classification — each case must survive a probe.
+func TestProbeRuntime(t *testing.T) {
+	old := dockerSocket
+	t.Cleanup(func() { dockerSocket = old })
+
+	t.Run("engine answers", func(t *testing.T) {
+		fakeDocker(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/_ping" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		if p := probeRuntime(); p.Status != RuntimeOK {
+			t.Errorf("engine answering /_ping read as %q", p.Status)
+		}
+	})
+
+	t.Run("no socket", func(t *testing.T) {
+		dockerSocket = filepath.Join(t.TempDir(), "absent.sock")
+		if p := probeRuntime(); p.Status != RuntimeNoSocket {
+			t.Errorf("missing socket read as %q", p.Status)
+		}
+	})
+
+	t.Run("permission denied", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("unix socket permissions")
+		}
+		if os.Geteuid() == 0 {
+			t.Skip("root ignores socket permissions")
+		}
+		sock := mountSocket(t, "denied.sock")
+		if err := os.Chmod(sock, 0); err != nil {
+			t.Fatal(err)
+		}
+		dockerSocket = sock
+		if p := probeRuntime(); p.Status != RuntimePermission {
+			t.Errorf("chmod-000 socket read as %q", p.Status)
+		}
+	})
+
+	t.Run("daemon hung", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("waits out the 2s probe timeout")
+		}
+		dockerSocket = mountSocket(t, "hung.sock") // exists, accepts nothing, answers nothing
+		if p := probeRuntime(); p.Status != RuntimeTimeout {
+			t.Errorf("silent socket read as %q", p.Status)
 		}
 	})
 }

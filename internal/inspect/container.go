@@ -3,6 +3,7 @@ package inspect
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -118,6 +119,60 @@ func dockerHTTP(timeout time.Duration) *http.Client {
 			},
 		},
 	}
+}
+
+// RuntimeStatus classifies the container engine's reachability. The scan
+// itself is silent-fail — no daemon just means no enrichment — but doctor
+// has to say *why* the engine is unreachable, and "no socket installed"
+// and "socket there, permission denied" are different problems.
+type RuntimeStatus string
+
+const (
+	RuntimeOK          RuntimeStatus = "ok"
+	RuntimeNoSocket    RuntimeStatus = "no-socket"    // no engine installed
+	RuntimePermission  RuntimeStatus = "permission"   // socket exists, access denied
+	RuntimeTimeout     RuntimeStatus = "timeout"      // daemon hung
+	RuntimeUnreachable RuntimeStatus = "unreachable"  // socket exists, no answer
+)
+
+// RuntimeProbe is the classified answer to "can ports reach the engine?".
+type RuntimeProbe struct {
+	Runtime string // docker, podman, … — the engine this machine prefers
+	Socket  string
+	Status  RuntimeStatus
+}
+
+// probeRuntime pings the engine over its socket and classifies the
+// outcome. It follows detectRuntime's pick, including an authoritative
+// DOCKER_HOST: a named socket that isn't there is worth reporting.
+func probeRuntime() RuntimeProbe {
+	p := RuntimeProbe{Runtime: containerRuntime, Socket: dockerSocket}
+	if !socketExists(dockerSocket) {
+		p.Status = RuntimeNoSocket
+		return p
+	}
+	resp, err := dockerHTTP(2 * time.Second).Get("http://docker/_ping")
+	if err == nil {
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode == http.StatusOK {
+			p.Status = RuntimeOK
+		} else {
+			p.Status = RuntimeUnreachable
+		}
+		return p
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		p.Status = RuntimeTimeout
+		return p
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) && errors.Is(opErr.Err, os.ErrPermission) {
+		p.Status = RuntimePermission
+		return p
+	}
+	p.Status = RuntimeUnreachable
+	return p
 }
 
 // listContainers returns the running containers, or nil when no daemon

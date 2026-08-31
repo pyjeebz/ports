@@ -38,10 +38,8 @@ func Stop(s Service, force bool) error {
 		return nil // already gone
 	}
 	// only kill the process observed at scan time, not a reused pid
-	if !s.Started.IsZero() {
-		if ct, err := p.CreateTime(); err == nil && ct > 0 && !time.UnixMilli(ct).Equal(s.Started) {
-			return fmt.Errorf("pid %d now belongs to another process", s.Pid)
-		}
+	if !sameProcess(p, s.Started) {
+		return fmt.Errorf("pid %d now belongs to another process", s.Pid)
 	}
 	if !force {
 		if err := p.Terminate(); err == nil && waitGone(p, stopWait) {
@@ -70,6 +68,21 @@ func waitGone(p *gproc.Process, d time.Duration) bool {
 		time.Sleep(stopPoll)
 	}
 	return false
+}
+
+// sameProcess reports whether p is still the process a scan observed at
+// `started`, guarding the kill path (and doctor's findings) against pid
+// reuse. When the start time can't be established either way, it errs on
+// the side of "same" — no evidence of reuse is not evidence.
+func sameProcess(p *gproc.Process, started time.Time) bool {
+	if started.IsZero() {
+		return true
+	}
+	ct, err := p.CreateTime()
+	if err != nil || ct == 0 {
+		return true
+	}
+	return time.UnixMilli(ct).Equal(started)
 }
 
 // isGone treats zombies as gone: the process has exited and its sockets
