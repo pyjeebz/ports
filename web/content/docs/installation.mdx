@@ -41,3 +41,7 @@ ports <version>
   That's it — there is no step two. Run `ports` and you'll see everything
   listening on your machine.
 </Callout>
+
+## Man pages
+
+Every release archive carries man(1) pages for the whole command tree — `ports.1`, `ports-doctor.1`, and friends — generated from the exact command definitions the release was built with, so they can't drift from the flags it ships. The curl installer copies them onto your `MANPATH` when it can; out of an archive they're readable directly with `man -l ports.1`. Homebrew and Scoop installs don't include them — everything they say lives on these pages too.

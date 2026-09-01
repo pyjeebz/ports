@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: Four commands and two flags. That's the whole tool.
+description: Four commands, a doctor, a diff, and a handful of flags. That's the whole tool.
 ---
 
 {/* stable anchors — the landing's command table links here */}
@@ -52,14 +52,114 @@ $ ports kill shop
 ✓ stopped PostgreSQL (container shop-db)
 ```
 
+<span id="cmd-doctor" />
+
+## ports doctor \[port\]
+
+Explain what a port's row means, and why a stop failed when one did. Doctor never acts — every finding is an observation, every fix is a command for you to run.
+
+```sh
+$ ports free 3000
+✗ Next.js (:3000): pid 48391 survived SIGKILL
+  → run `ports doctor 3000` to see why
+
+$ ports doctor 3000
+:3000  Next.js  pid 48391  ~/projects/shop  up 14m
+✗ pid 48391 is in uninterruptible sleep (state D) — signals, SIGKILL included, are held until its I/O returns
+  → wait out the I/O, or reboot — this process cannot be killed
+✓ pid 48391 still matches the scan — no pid reuse
+✓ nothing else holds :3000 — no stray sockets
+```
+
+What it checks:
+
+| Finding | What it means |
+| ------- | ------------- |
+| `listener` | Whether anything is listening — and, when nothing is, what holds the port instead (TIME_WAIT sockets, another user's process). |
+| `http` | When the listener answers an HTTP request, the URL it verified: `✓ responds to HTTP → http://localhost:3000`. A port that doesn't speak HTTP — postgres, redis — gets no finding. |
+| `multiplicity` | More than one process on the port (SO_REUSEPORT). `ports free <port>` stops all of them. |
+| `state` | The kernel's process state — uninterruptible sleep (state D, why SIGKILL didn't land), zombie (the port is effectively free), suspended. |
+| `pid-freshness` | Whether the pid still belongs to the process the scan saw — a stale row means the pid was reused. |
+| `container` | A docker-proxy with no container behind it, and whether the engine is reachable to ask. |
+| `sockets` | Everything else on the port: TIME_WAIT (ages out in ~60s), CLOSE_WAIT (a leak hint in the app), live client connections. |
+| `windows` / `mirror` | On WSL2: a listener on the Windows side signals can't reach, and the same port held on both sides. |
+
+Bare `ports doctor` runs the machine-wide subset — the container engine, every proxy row that didn't resolve, every port shared by more than one process, and every listener a plain scan can't attribute.
+
+Exit codes are grep-style: `0` when every finding is ✓, `1` when anything is ⚠ or ✗ — so `ports doctor 3000 && ./deploy.sh` gates naturally — and `2` for bad arguments. `--format json` emits the findings as an array of `{check, status, message, fix}` objects.
+
+<span id="cmd-diff" />
+
+## ports diff \<snapshot\>
+
+Answer "what changed since I looked?" — save a moment of the machine, then read the same table against it.
+
+```sh
+$ ports --format snapshot > before.json
+$ ports diff before.json
+PORT    CHANGE   PROCESS     PROJECT          NOTE
+:3000   new      Next.js     ~/projects/shop  listening now — not in the snapshot
+:5432   gone     PostgreSQL  docker: shop-db  in the snapshot, no longer listening
+:8000   changed  FastAPI     ~/projects/shop  restarted — pid 48391 → 51234
+```
+
+The port is the key: the same pid listening now is unchanged, a new pid is a restart, a different process is a takeover, and a vanished port is gone. Fields that drift by nature — uptime above all — never count as changes. The same filters scope both sides of the comparison, so `ports diff before.json --port 3000-9000` asks about one range: rows outside it are left out, never reported gone. A plain `--format json` capture loads too, with no timestamp to report; a snapshot written by a newer ports refuses with exit 2 rather than guess.
+
+Exit codes: `0` when the machine matches, `1` when anything changed — grep-style, so `ports diff before.json || ./investigate.sh` gates naturally — and `2` for a bad invocation. `--format json` emits the changes as an array of `{port, change, process, project, message}` objects; a clean diff is `[]`.
+
 <span id="flags" />
 
 ## Flags
 
-| Flag     | Effect                                                                                          |
-| -------- | ----------------------------------------------------------------------------------------------- |
-| `--json`  | Receive a JSON array instead of the table. Use this when you want to pipe ports output into other tools or scripts. |
-| `--force` | Skip SIGTERM and kill immediately.                                                              |
+All flags are persistent — they compose with `ports` and `ports find` alike.
+
+| Flag | Effect |
+| ---- | ------ |
+| `--format table\|json\|snapshot\|csv\|tsv` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. |
+| `--json` | Deprecated alias for `--format json`, still honored. |
+| `--tree` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
+| `--port` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
+| `--framework` | Filter by framework(s): `nextjs,vite`. |
+| `--project` | Filter by project name or path: `shop`, `~/projects/shop`. |
+| `--uptime` | Filter by uptime: `>1h`, `<30m`, `2h`. |
+| `--sort port\|uptime\|process\|project` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
+| `--watch` / `-w` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
+| `--interval` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
+| `--force` | Skip SIGTERM and kill immediately. |
+| `--dry-run` | Show what would be stopped, without stopping it. |
+
+## Config
+
+None is required — every row is inferred from the machine itself, and the tool is fully useful sixty seconds after install with no file anywhere. But `ports-config.yaml` is an opt-in extension layer for the two things a scan can't guess: your own framework names and your own project markers. It's looked up in `.`, `~/.config/ports`, and `/etc/ports`:
+
+```yaml
+# frameworks you run that the built-in table doesn't know — same rules
+# the detector uses: exe prefixes, exact bin names, cmdline substrings
+frameworks:
+  - name: Vend
+    exe: ["vend"]
+  - name: Internal CLI
+    bin: ["devcli"]
+    cmd: ["internal-cli"]
+
+# extra marker files that make a directory read as a project root
+projects:
+  markers: [".vendroot", "vendor.json"]
+```
+
+A custom framework rule wins over the built-in table; custom markers join the built-in set (`.git`, `go.mod`, `package.json`, `Cargo.toml`, and friends). If the file exists but doesn't parse, ports says so and exits rather than guessing. Nothing else reads config — flags, filters, and commands are set on the command line, always.
+
+## Exit codes
+
+The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deploy.sh` gates naturally and `ports find redis || echo "not running"` reads like the grep you already know.
+
+| Code | Meaning |
+| ---- | ------- |
+| `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, a stop failed, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `2` | The invocation itself was unusable — an unknown command or flag, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
+
+Errors report on stderr; stdout stays clean for whatever's piping it.
 
 ## Permissions
 
