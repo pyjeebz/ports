@@ -52,7 +52,7 @@ export function ogImageAlt(parts: string[]): string {
 }
 
 const LOGO = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke="#a9ffc9" stroke-width="14" fill="none"/><line x1="12" y1="88" x2="88" y2="12" stroke="#05080a" stroke-width="18" stroke-linecap="square"/><circle cx="38" cy="38" r="6" fill="#a9ffc9"/><circle cx="62" cy="62" r="6" fill="#a9ffc9"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke="#ededed" stroke-width="14" fill="none"/><line x1="12" y1="88" x2="88" y2="12" stroke="#0a0a0a" stroke-width="18" stroke-linecap="square"/><circle cx="38" cy="38" r="6" fill="#ededed"/><circle cx="62" cy="62" r="6" fill="#ededed"/></svg>',
 )}`;
 
 export function makeOgImage({
@@ -73,8 +73,8 @@ export function makeOgImage({
           flexDirection: "column",
           width: "100%",
           height: "100%",
-          background: "#05080a",
-          color: "#e4efe7",
+          background: "#0a0a0a",
+          color: "#ededed",
           padding: "72px 80px",
           justifyContent: "space-between",
           fontFamily: "Geist",
@@ -92,7 +92,7 @@ export function makeOgImage({
             height: "640px",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid #1e2a24",
+            border: "1px solid #262626",
             borderRadius: "9999px",
           }}
         >
@@ -101,7 +101,7 @@ export function makeOgImage({
               display: "flex",
               width: "440px",
               height: "440px",
-              border: "1px solid #1e2a24",
+              border: "1px solid #262626",
               borderRadius: "9999px",
               alignItems: "center",
               justifyContent: "center",
@@ -112,7 +112,7 @@ export function makeOgImage({
                 display: "flex",
                 width: "240px",
                 height: "240px",
-                border: "1px solid #1e2a24",
+                border: "1px solid #262626",
                 borderRadius: "9999px",
               }}
             />
@@ -123,7 +123,7 @@ export function makeOgImage({
             display: "flex",
             width: "10px",
             height: "10px",
-            background: "#33e581",
+            background: "#0070f3",
             borderRadius: "9999px",
             position: "absolute",
             right: "300px",
@@ -155,7 +155,7 @@ export function makeOgImage({
                 fontWeight: 600,
                 letterSpacing: "-0.04em",
                 lineHeight: 1.04,
-                color: i === lines.length - 1 ? "#9db3a7" : "#e4efe7",
+                color: i === lines.length - 1 ? "#a1a1a1" : "#ededed",
               }}
             >
               {line}
@@ -169,11 +169,11 @@ export function makeOgImage({
             justifyContent: "space-between",
             alignItems: "center",
             fontSize: 26,
-            color: "#9db3a7",
+            color: "#a1a1a1",
           }}
         >
           <div style={{ display: "flex" }}>{footnote}</div>
-          <div style={{ display: "flex", color: "#33e581" }}>ports.tools</div>
+          <div style={{ display: "flex", color: "#0070f3" }}>ports.tools</div>
         </div>
       </div>
     ),

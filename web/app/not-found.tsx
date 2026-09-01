@@ -6,10 +6,10 @@ export default function NotFound() {
       <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">
         404 · no listener
       </p>
-      <h1 className="mt-3 font-mono text-3xl">Contact not found</h1>
+      <h1 className="mt-3 font-mono text-3xl">Nothing on this port</h1>
       <p className="mt-3 max-w-md text-sm text-muted">
         Nothing is listening at this URL. Check the address, or head back to
-        the radar.
+        ports.tools.
       </p>
       <Link
         href="/"

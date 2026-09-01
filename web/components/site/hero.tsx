@@ -1,101 +1,57 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 
-import { CONTACTS, SITE } from "@/lib/site";
+import { SITE } from "@/lib/site";
+import { PortsMachine } from "@/components/site/ports-machine";
 
-import { RadarBoard } from "./radar/radar-board";
-import { ContactsLegend } from "./radar/contacts";
-
+/**
+ * The hero: the question, then the product as a machine the visitor
+ * wakes up — empty, a scan, rows arriving at their berths, rows that
+ * open into what ports resolved. Not an illustration, not a video: the
+ * site behaves like ports.
+ */
 export function Hero() {
-  const [selected, setSelected] = useState<number | null>(null);
-  const ct = CONTACTS.find((c) => c.port === selected) ?? null;
-
   return (
-    <section className="relative overflow-hidden border-b border-line-soft">
-      {/* static plotting grid behind the radar panel only */}
-      <div className="plot absolute inset-0 opacity-70" aria-hidden="true" />
+    <section className="relative overflow-hidden border-b border-line">
+      {/* faint top glow — the one Vercel-style gradient on the page */}
       <div
-        className="relative mx-auto grid max-w-[1160px] items-center gap-14 px-8 pb-20 pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:pb-24 lg:pt-24"
-      >
-        <div>
-          <p className="eyebrow">
-            ▸ radar · localhost
-            <span className="ml-3 text-faint">CONTACTS {CONTACTS.length}</span>
-            <span className="ml-3 text-faint">SWEEP 6.0S</span>
-          </p>
-          <h1 className="mt-5 max-w-[16ch] text-balance font-sans text-[clamp(2.4rem,5.2vw,4rem)] font-semibold leading-[1.04] tracking-[-0.035em] text-strong">
-            See what&apos;s running on your machine, by project.
-          </h1>
-          <p className="mt-6 max-w-[52ch] text-[16px] leading-relaxed text-muted">
-            ports is a zero-config CLI that shows every listening port with its
-            framework, project, and uptime — and lets you stop things by name.
-            No PID hunting, no <code className="font-mono text-[0.85em] text-foreground">lsof</code> incantations.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-4">
-            <Link
-              href="/docs/installation"
-              className="rounded-md bg-accent px-5 py-2.5 text-[14px] font-medium text-[#04150b] transition-colors hover:bg-accent-bright"
-            >
-              Install ports
-            </Link>
-            <Link
-              href="/docs"
-              className="rounded-md border border-line px-5 py-2.5 font-mono text-[13px] text-muted transition-colors hover:border-faint hover:text-foreground"
-            >
-              Read the docs →
-            </Link>
-          </div>
-          <CopyPill />
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[400px]"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 100% at 50% -20%, rgba(0, 112, 243, 0.08), transparent 70%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-[1160px] px-8 pb-24 pt-20">
+        <p className="eyebrow">ports.tools</p>
+        <h1 className="mt-4 max-w-[24ch] text-balance text-[clamp(2.2rem,5.4vw,3.6rem)] font-semibold leading-[1.06] tracking-[-0.045em] text-strong">
+          What&rsquo;s running on your machine?
+        </h1>
+        <p className="mt-5 max-w-[54ch] text-[15px] leading-relaxed text-muted">
+          <code className="font-mono text-[13.5px] text-foreground">ports</code> shows everything
+          listening — which framework is running, which project owns it, which container it lives
+          in, and how long it&rsquo;s been up. Run it below. One static binary. One command.
+        </p>
+        <div className="mt-7 flex flex-wrap items-center gap-3">
+          <Link
+            href="/docs/quickstart"
+            className="rounded-md bg-strong px-4 py-2 font-mono text-[12.5px] font-medium text-background transition-opacity hover:opacity-90"
+          >
+            Get started
+          </Link>
+          <a
+            href={SITE.links.github}
+            className="rounded-md border border-line bg-panel px-3.5 py-2 font-mono text-[12.5px] text-muted transition-colors hover:border-strong/40 hover:text-foreground"
+          >
+            GitHub ↗
+          </a>
+          <span className="readout hidden sm:inline">zero config · one static binary</span>
         </div>
 
-        <div className="flex flex-col items-center gap-6">
-          <RadarBoard contacts={CONTACTS} selected={selected} onSelect={setSelected} />
-          <p className="readout h-[1.2em] tabular-nums" aria-live="polite">
-            {ct ? (
-              <span>
-                <b>CONTACT {ct.port}</b> · {ct.framework} · {ct.project} · {ct.uptime}
-              </span>
-            ) : (
-              <span>
-                <b>CONTACTS {CONTACTS.length}</b> · hover a blip or the legend
-              </span>
-            )}
-          </p>
-          <ContactsLegend contacts={CONTACTS} selected={selected} onSelect={setSelected} />
+        {/* the artwork: the machine itself, at display size */}
+        <div className="mt-12">
+          <PortsMachine />
         </div>
       </div>
     </section>
-  );
-}
-
-const CMD = SITE.installCurl;
-
-function CopyPill() {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(CMD);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch {
-      /* clipboard unavailable */
-    }
-  }
-
-  return (
-    <div className="mt-8 flex h-10 w-fit max-w-full items-center gap-3.5 rounded-md border border-line bg-panel pl-4 pr-2.5 font-mono text-[13px]">
-      <span className="select-none text-accent">$</span>
-      <span className="truncate">{CMD}</span>
-      <button
-        type="button"
-        onClick={copy}
-        className="shrink-0 cursor-pointer rounded-[5px] border border-line bg-panel-2 px-[9px] py-1 text-[11px] text-muted transition-colors hover:text-foreground"
-      >
-        {copied ? "copied" : "copy"}
-      </button>
-    </div>
   );
 }

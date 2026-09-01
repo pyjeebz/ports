@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { RootProvider } from "fumadocs-ui/provider/next";
+import { SITE } from "@/lib/site";
 import "./globals.css";
 
-const title = "ports — see every port, stop it by name";
-const description =
-  "A zero-config CLI that shows every listening port with its framework, project, and uptime — and lets you stop things by name.";
+// Drawn from SITE so the layout, OG images and manifest can't drift.
+const title = `ports — ${SITE.tagline}`;
+const description = SITE.description;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ports.tools"),
@@ -32,11 +33,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="antialiased">
-        {/* Static CRT texture: scanlines + vignette. The only animated
-            pixels on the site are the radar sweep and the flap board. */}
-        <div className="crt" aria-hidden="true" />
         {/* The site is a single dark palette; keep next-themes from
-            flipping it. Fumadocs tokens are overridden to phosphor in CSS. */}
+            flipping it. Fumadocs tokens are overridden to neutral in CSS. */}
         <RootProvider theme={{ defaultTheme: "dark", enableSystem: false }}>
           {children}
         </RootProvider>
