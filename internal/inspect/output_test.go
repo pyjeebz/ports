@@ -3,6 +3,7 @@ package inspect
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -35,6 +36,43 @@ func captureTree(t *testing.T, services []Service) []string {
 	out := captureStdout(t, func() { WriteTree(services) })
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	return lines[1:] // drop the header
+}
+
+// A nil scan is [] in JSON — the shape consumers script against, not null.
+func TestWriteJSONEmptyIsArray(t *testing.T) {
+	out := captureStdout(t, func() {
+		if err := WriteJSON(nil); err != nil {
+			t.Error(err)
+		}
+	})
+	if strings.TrimSpace(out) != "[]" {
+		t.Errorf("WriteJSON(nil) = %q, want []", out)
+	}
+}
+
+// Only a path *under* home gets the ~ — a sibling like /home/dev-tools
+// would otherwise collapse into "~-tools" and rename the project.
+func TestProjectHomeSiblingBoundary(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home) // os.UserHomeDir reads this
+	sibling := home + "-tools"
+	_ = os.MkdirAll(filepath.Join(sibling, "api"), 0o755)
+
+	out := captureStdout(t, func() {
+		WriteTable([]Service{
+			{Port: 3000, Pid: 1, Process: "node", Project: filepath.Join(home, "shop")},
+			{Port: 4000, Pid: 2, Process: "node", Project: filepath.Join(sibling, "api")},
+		}, SortDefault)
+	})
+	if !strings.Contains(out, "~/shop") {
+		t.Errorf("a project under home should shorten to ~: %q", out)
+	}
+	if short := "~-tools"; strings.Contains(out, short) {
+		t.Errorf("a sibling of home must not shorten: %q contains %q", out, short)
+	}
+	if !strings.Contains(out, sibling+"/api") {
+		t.Errorf("a sibling of home should print in full: %q", out)
+	}
 }
 
 func TestWriteTreeNestsChildren(t *testing.T) {

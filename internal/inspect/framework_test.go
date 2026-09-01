@@ -80,6 +80,21 @@ func TestDetectFramework(t *testing.T) {
 		{"bun", "bun run dev", "Bun"},
 		{"deno", "deno run --allow-net server.ts", "Deno"},
 		{"java", "java -jar target/app-server.jar", "Java"},
+		// the letter-suffixed binaries the table names explicitly
+		{"mysqld", "mysqld --datadir /var/lib/mysql", "MySQL"},
+		{"mariadbd", "mariadbd --datadir /var/lib/mysql", "MariaDB"},
+		{"mongod", "/usr/bin/mongod --bind_ip 127.0.0.1", "MongoDB"},
+		{"mongos", "mongos --configdb cfg/rs0", "MongoDB"},
+		{"nodejs", "nodejs server.js", "Node.js"},
+		{"javaw", "javaw -jar app.jar", "Java"},
+		// hyphens and underscores end a match — these are different
+		// programs, never Node.js, never stoppable as such
+		{"node_exporter", "/usr/bin/node_exporter --web.listen-address=:9100", ""},
+		{"node-exporter", "quay.io/prometheus/node-exporter", ""},
+		{"redis_exporter", "redis_exporter --redis.addr redis:6379", ""},
+		// versions and extensions still count
+		{"node.exe", "node.exe server.js", "Node.js"},
+		{"python3", "python3 -m http.server", ""}, // no Python rule: exe alone is not a signal
 	}
 	for _, c := range cases {
 		if got := DetectFramework(c.exe, c.cmd); got != c.want {

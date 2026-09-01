@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,10 +28,10 @@ func init() { detectRuntime() }
 // detectRuntime picks the socket to talk to. A DOCKER_HOST unix path is
 // authoritative, as the docker CLI treats it; otherwise the well-known
 // Podman sockets are probed before the Docker default. CONTAINER_RUNTIME
-// narrows the probe to one engine — an explicit choice should not
-// silently fall through to docker's socket. Nothing found leaves the
-// defaults, and scanning silently skips container enrichment, as it
-// already does without a daemon.
+// narrows the probe to one engine — an explicit choice is honored even
+// when nothing is found, and never silently falls through to docker's
+// socket. Nothing found leaves the defaults, and scanning silently skips
+// container enrichment, as it already does without a daemon.
 func detectRuntime() {
 	dockerSocket, containerRuntime = "/var/run/docker.sock", "docker"
 
@@ -41,7 +42,16 @@ func detectRuntime() {
 				return
 			}
 		}
-		return // named engine only; don't fall through
+		// named engine, nothing found: keep the choice anyway. Docker
+		// keeps its one well-known path so doctor can name where it
+		// looked; podman's depends on the XDG dir and an unknown engine
+		// has none at all, so both report a socket-less runtime rather
+		// than naming a path that was only a guess.
+		containerRuntime = prefer
+		if prefer != "docker" {
+			dockerSocket = ""
+		}
+		return
 	}
 
 	// nerdctl is not here on purpose: it fronts containerd, whose raw
@@ -109,16 +119,31 @@ type ContainerPort struct {
 	Type       string `json:"Type"`
 }
 
+// dockerTransports pools one keep-alive transport per socket, so repeated
+// calls — a --watch tick above all — reuse one connection instead of
+// stranding a fresh transport, its socket, and its read loop per call.
+var dockerTransports sync.Map // socket path → *http.Transport
+
 func dockerHTTP(timeout time.Duration) *http.Client {
 	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "unix", dockerSocket)
-			},
+		Timeout:   timeout,
+		Transport: dockerTransport(dockerSocket),
+	}
+}
+
+func dockerTransport(socket string) *http.Transport {
+	if t, ok := dockerTransports.Load(socket); ok {
+		return t.(*http.Transport)
+	}
+	t := &http.Transport{
+		IdleConnTimeout: time.Minute,
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", socket)
 		},
 	}
+	actual, _ := dockerTransports.LoadOrStore(socket, t)
+	return actual.(*http.Transport)
 }
 
 // RuntimeStatus classifies the container engine's reachability. The scan
@@ -212,7 +237,11 @@ func StopContainer(id string, force bool) error {
 		return nil
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-	return fmt.Errorf("%s: stop %s: %s", containerRuntime, shortID(id), strings.TrimSpace(string(body)))
+	detail := strings.TrimSpace(string(body))
+	if detail == "" {
+		detail = resp.Status // a body-less refusal still deserves a cause
+	}
+	return fmt.Errorf("%s: stop %s: %s", containerRuntime, shortID(id), detail)
 }
 
 // enrichDocker fills docker-proxy and owner-unknown rows with the

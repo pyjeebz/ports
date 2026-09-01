@@ -34,6 +34,48 @@ func TestParseTasklist(t *testing.T) {
 	}
 }
 
+// The state column localizes with the Windows display language; listeners
+// must still be found positionally when it does.
+const netstatGermanOut = "\r\nAktive Verbindungen\r\n\r\n  Protokoll  Lokale Adresse         Remoteadresse          Status           PID\r\n" +
+	"  TCP    0.0.0.0:135            0.0.0.0:0              ABHÖREN          1180\r\n" +
+	"  TCP    127.0.0.1:3000         127.0.0.1:54321        HERGESTELLT      8765\r\n" +
+	"  TCP    0.0.0.0:8080           0.0.0.0:0              ABHÖREN          2468\r\n"
+
+func TestParseNetstatGermanLocale(t *testing.T) {
+	socks := parseNetstat(netstatGermanOut)
+	if len(socks) != 2 {
+		t.Fatalf("got %d sockets, want 2 (ABHÖREN rows, HERGESTELLT skipped): %+v", len(socks), socks)
+	}
+	if socks[1].port != 8080 || socks[1].pid != 2468 {
+		t.Errorf("second sock: %+v", socks[1])
+	}
+}
+
+// A Windows row reads through the same framework table as its Linux
+// twin: the image name stands in for both exe and cmdline, so a bin rule
+// (next, not just node.exe) fires for Windows rows too.
+func TestWindowsListenersMatchFrameworkRules(t *testing.T) {
+	out := "\r\nActive Connections\r\n\r\n  Proto  Local Address          Foreign Address        State           PID\r\n" +
+		"  TCP    0.0.0.0:3000           0.0.0.0:0              LISTENING       8765\r\n"
+	tl := `"next.exe","8765","Console","1","120,000 K"` + "\r\n"
+	old := runWin
+	runWin = func(exe string, _ ...string) ([]byte, error) {
+		if exe == "netstat.exe" {
+			return []byte(out), nil
+		}
+		return []byte(tl), nil
+	}
+	t.Cleanup(func() { runWin = old })
+
+	rows := windowsListeners()
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1: %+v", len(rows), rows)
+	}
+	if rows[0].Framework != "Next.js" {
+		t.Errorf("next.exe framework = %q, want Next.js", rows[0].Framework)
+	}
+}
+
 func TestWindowsListeners(t *testing.T) {
 	old := runWin
 	runWin = func(exe string, _ ...string) ([]byte, error) {

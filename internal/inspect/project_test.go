@@ -75,15 +75,37 @@ func TestDetectProject(t *testing.T) {
 		t.Errorf("Test 6: DetectProject(%q) = %q, want %q", goSub, got, goRoot)
 	}
 
-	// Test 7: Cargo.workspace
+	// Test 7: Cargo [workspace]
 	cargoRoot := filepath.Join(tmpDir, "cargowork")
 	cargoSub := filepath.Join(cargoRoot, "crates", "core")
 	_ = os.MkdirAll(cargoSub, 0o755)
-	_ = os.WriteFile(filepath.Join(cargoRoot, "Cargo.toml"), []byte(`[workspace]\nmembers = ["crates/*"]`), 0o644)
-	_ = os.WriteFile(filepath.Join(cargoSub, "Cargo.toml"), []byte(`[package]\nname = "core"`), 0o644)
+	_ = os.WriteFile(filepath.Join(cargoRoot, "Cargo.toml"), []byte("[workspace]\nmembers = [\"crates/*\"]\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(cargoSub, "Cargo.toml"), []byte("[package]\nname = \"core\"\n"), 0o644)
 
 	if got := DetectProject(cargoSub); got != cargoRoot {
 		t.Errorf("Test 7: DetectProject(%q) = %q, want %q", cargoSub, got, cargoRoot)
+	}
+
+	// Test 7b: [workspace.dependencies] is a section member, not a root
+	cargoMember := filepath.Join(tmpDir, "cargomember")
+	cargoMemberSub := filepath.Join(cargoMember, "crates", "core")
+	_ = os.MkdirAll(cargoMemberSub, 0o755)
+	_ = os.WriteFile(filepath.Join(cargoMember, "Cargo.toml"), []byte("[workspace.dependencies]\nserde = \"1\"\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(cargoMemberSub, "Cargo.toml"), []byte("[package]\nname = \"core\"\n"), 0o644)
+
+	if got := DetectProject(cargoMemberSub); got != cargoMemberSub {
+		t.Errorf("Test 7b: DetectProject(%q) = %q, want the crate itself (member manifests are not workspace roots)", cargoMemberSub, got)
+	}
+
+	// Test 7c: nested workspaces — outermost wins, like .git
+	nestedRoot := filepath.Join(tmpDir, "nestedwork")
+	nestedSub := filepath.Join(nestedRoot, "apps", "web")
+	_ = os.MkdirAll(nestedSub, 0o755)
+	_ = os.WriteFile(filepath.Join(nestedRoot, "pnpm-workspace.yaml"), []byte("packages:\n  - apps/*\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(nestedSub, "pnpm-workspace.yaml"), []byte("packages:\n  - .\n"), 0o644)
+
+	if got := DetectProject(nestedSub); got != nestedRoot {
+		t.Errorf("Test 7c: DetectProject(%q) = %q, want %q (outermost workspace marker wins)", nestedSub, got, nestedRoot)
 	}
 
 	// Test 8: home directory is never a project

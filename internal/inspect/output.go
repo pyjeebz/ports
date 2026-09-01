@@ -13,8 +13,12 @@ import (
 	"text/tabwriter"
 )
 
-// WriteJSON writes services as JSON to stdout.
+// WriteJSON writes services as JSON to stdout. A nil slice renders as [],
+// the shape every consumer — the diff included — expects, not null.
 func WriteJSON(services []Service) error {
+	if services == nil {
+		services = []Service{}
+	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(services)
@@ -186,7 +190,10 @@ func project(s Service) string {
 		return "—"
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		if rel, ok := strings.CutPrefix(s.Project, home); ok {
+		// the home itself and siblings of it both cut cleanly — only a
+		// path *under* home gets the ~, so ~/ports and ports-tools stay
+		// distinct projects
+		if rel, ok := strings.CutPrefix(s.Project, home); ok && (rel == "" || strings.HasPrefix(rel, "/")) {
 			return "~" + rel
 		}
 	}

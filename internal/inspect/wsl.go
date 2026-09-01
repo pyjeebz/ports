@@ -74,10 +74,13 @@ func windowsListeners() []Service {
 		}
 		short := strings.TrimSuffix(name, ".exe")
 		services = append(services, Service{
-			Port:       w.port,
-			Addr:       w.addr,
-			Process:    short,
-			Framework:  DetectFramework(strings.ToLower(short), strings.ToLower(name)),
+			Port:      w.port,
+			Addr:      w.addr,
+			Process:   short,
+			// the image name stands in for both the exe and the cmdline,
+			// so bin and cmd rules fire for Windows rows too — next.exe
+			// reads as Next.js, same as its Linux twin
+			Framework:  DetectFramework(short, short),
 			Windows:    true,
 			WindowsPid: w.pid,
 		})
@@ -85,14 +88,18 @@ func windowsListeners() []Service {
 	return services
 }
 
-// parseNetstat picks the LISTENING rows out of `netstat -ano -p TCP`
+// parseNetstat picks the listening rows out of `netstat -ano -p TCP`
 // output, one per port (v4/v6 duplicates collapse like the linux scan).
+// The state column localizes with the Windows display language (ABHÖREN,
+// HERGESTELLT, …), so listeners are recognized positionally instead:
+// nothing can connect *from* port 0, so a foreign address ending in :0
+// marks a listening row in every locale.
 func parseNetstat(out string) []winSock {
 	seen := map[uint32]bool{}
 	var socks []winSock
 	for line := range strings.Lines(out) {
 		f := strings.Fields(line)
-		if len(f) < 5 || f[0] != "TCP" || f[3] != "LISTENING" {
+		if len(f) < 5 || f[0] != "TCP" || !strings.HasSuffix(f[2], ":0") {
 			continue
 		}
 		i := strings.LastIndex(f[1], ":")

@@ -11,7 +11,7 @@ import (
 // generic runtimes they run on (a Next.js process is a node process).
 type frameworkRule struct {
 	name string   // display name
-	exe  []string // exe basename prefixes; empty = any exe
+	exe  []string // exe basenames, versions and extensions allowed (node, node.exe, python3); empty = any exe
 	bin  []string // exact basename (script extension stripped) of any cmdline token
 	cmd  []string // raw cmdline substrings
 }
@@ -56,27 +56,28 @@ var frameworkRules = []frameworkRule{
 	{name: "Chi", bin: []string{"chi"}, cmd: []string{"github.com/go-chi/chi"}},
 	{name: "Fiber", bin: []string{"fiber"}, cmd: []string{"github.com/gofiber/fiber"}},
 	{name: "PocketBase", bin: []string{"pocketbase"}, cmd: []string{"pocketbase"}},
-	// databases & servers — prefixes match both the host binary and the
-	// docker image name (mysqld / mysql:8, redis-server / redis:7, …)
+	// databases & servers — each rule names the engine's real binaries,
+	// versions allowed, so the same list reads both the host binary and
+	// the docker image name (mysqld, mysql:8; redis-server, redis:7)
 	{name: "SurrealDB", exe: []string{"surreal"}},
-	{name: "ClickHouse", exe: []string{"clickhouse"}},
+	{name: "ClickHouse", exe: []string{"clickhouse", "clickhouse-server"}},
 	{name: "Dragonfly", exe: []string{"dragonfly"}},
 	{name: "PostgreSQL", exe: []string{"postgres"}},
-	{name: "MySQL", exe: []string{"mysql"}},
-	{name: "MariaDB", exe: []string{"mariadb"}},
-	{name: "Redis", exe: []string{"redis"}},
-	{name: "MongoDB", exe: []string{"mongo"}},
+	{name: "MySQL", exe: []string{"mysql", "mysqld"}},
+	{name: "MariaDB", exe: []string{"mariadb", "mariadbd"}},
+	{name: "Redis", exe: []string{"redis", "redis-server", "redis-sentinel"}},
+	{name: "MongoDB", exe: []string{"mongo", "mongod", "mongos"}},
 	{name: "nginx", exe: []string{"nginx"}},
 	{name: "Apache", exe: []string{"httpd", "apache2"}},
-	{name: "Valkey", exe: []string{"valkey"}},
+	{name: "Valkey", exe: []string{"valkey", "valkey-server"}},
 	{name: "Memcached", exe: []string{"memcached"}},
 	{name: "etcd", exe: []string{"etcd"}},
-	{name: "NATS", exe: []string{"nats"}},
+	{name: "NATS", exe: []string{"nats", "nats-server"}},
 	{name: "MinIO", exe: []string{"minio"}},
 	{name: "Consul", exe: []string{"consul"}},
 	// erlang & the jvm — before their generic runtimes
-	{name: "Phoenix", exe: []string{"beam", "erl"}, cmd: []string{"phx.server"}},
-	{name: "RabbitMQ", exe: []string{"beam", "rabbitmq"}, cmd: []string{"rabbit"}},
+	{name: "Phoenix", exe: []string{"beam", "beam.smp", "erl"}, cmd: []string{"phx.server"}},
+	{name: "RabbitMQ", exe: []string{"beam", "beam.smp", "rabbitmq"}, cmd: []string{"rabbit"}},
 	{name: "Spring Boot", exe: []string{"java"}, cmd: []string{"spring-boot", "springframework.boot"}},
 	{name: ".NET", exe: []string{"dotnet"}},
 	// local kubernetes & dev conveniences
@@ -91,11 +92,11 @@ var frameworkRules = []frameworkRule{
 	{name: "Axum", bin: []string{"axum"}, cmd: []string{"axum"}},
 	{name: "Actix-web", bin: []string{"actix-web"}, cmd: []string{"actix-web"}},
 	// generic runtimes last
-	{name: "Java", exe: []string{"java"}},
+	{name: "Java", exe: []string{"java", "javaw"}},
 	{name: "Bun", exe: []string{"bun"}},
 	{name: "Deno", exe: []string{"deno"}},
 	{name: "Go (go run)", cmd: []string{"/go-build"}},
-	{name: "Node.js", exe: []string{"node"}},
+	{name: "Node.js", exe: []string{"node", "nodejs"}},
 }
 
 // script extensions stripped before comparing a cmdline token against bin
@@ -120,7 +121,7 @@ func detectFramework(rules []frameworkRule, process, cmdline string) string {
 }
 
 func (r frameworkRule) matches(exe, cmd string) bool {
-	if len(r.exe) > 0 && !hasPrefixIn(exe, r.exe) {
+	if len(r.exe) > 0 && !matchesBase(exe, r.exe) {
 		return false
 	}
 	// bin and cmd are alternative positive signals: if either list is
@@ -139,9 +140,21 @@ func (r frameworkRule) matches(exe, cmd string) bool {
 	return false
 }
 
-func hasPrefixIn(s string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if strings.HasPrefix(s, p) {
+// matchesBase reports whether s names one of the bases — the name itself,
+// or a versioned or extension-bearing build of it (node.exe, python3,
+// beam.smp). Hyphens and underscores end the match: node_exporter and
+// node-exporter are different programs, not builds of node, and must never
+// read as — or be stopped as — Node.js.
+func matchesBase(s string, bases []string) bool {
+	for _, b := range bases {
+		if !strings.HasPrefix(s, b) {
+			continue
+		}
+		rest := s[len(b):]
+		if rest == "" {
+			return true
+		}
+		if c := rest[0]; c == '.' || (c >= '0' && c <= '9') {
 			return true
 		}
 	}

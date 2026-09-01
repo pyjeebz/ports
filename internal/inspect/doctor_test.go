@@ -274,6 +274,43 @@ func TestDiagnosePortMessages(t *testing.T) {
 			t.Errorf("permission finding doesn't suggest the group fix: %v", f)
 		}
 	})
+
+	t.Run("an engine with no well-known path is named, not guessed", func(t *testing.T) {
+		f := diagnosePort(port, []Service{{Port: port, Pid: 1, Process: "docker-proxy", Container: "x", ContainerID: "a"}}, []rowFacts{{states: []string{"S"}, fresh: true, exists: true}}, listen, false, false, false,
+			RuntimeProbe{Runtime: "nerdctl", Socket: "", Status: RuntimeNoSocket})
+		if !contains(f, "runtime", "nerdctl") || contains(f, "runtime", "found at ") {
+			t.Errorf("socket-less runtime finding must name the engine without a path: %v", f)
+		}
+	})
+}
+
+// A mirror needs both sides: a Windows row alone is not a mirror, and a
+// local row alone is not either. The netstat fixture is German so the
+// check rides the locale-proof parse on its way to windowsHolds.
+func TestMirrorHeldNeedsBothSides(t *testing.T) {
+	const winNetstat = "\r\n  TCP    0.0.0.0:3000           0.0.0.0:0              ABHÖREN          8765\r\n"
+	const winTasklist = `"node.exe","8765","Console","1","98,304 K"` + "\r\n"
+	old := runWin
+	runWin = func(exe string, _ ...string) ([]byte, error) {
+		if exe == "netstat.exe" {
+			return []byte(winNetstat), nil
+		}
+		return []byte(winTasklist), nil
+	}
+	t.Cleanup(func() { runWin = old })
+
+	windowsOnly := []Service{{Port: 3000, Process: "node", Windows: true, WindowsPid: 8765}}
+	if mirrorHeld(windowsOnly, 3000) {
+		t.Error("a Windows row alone is not a mirror — the Linux twin is what makes it one")
+	}
+
+	both := append([]Service{devRow(3000, 48391)}, windowsOnly...)
+	if !mirrorHeld(both, 3000) {
+		t.Error("both sides hold the port: a mirror")
+	}
+	if mirrorHeld(both, 3001) {
+		t.Error("a different port is not held on the Windows side")
+	}
 }
 
 func contains(findings []Finding, check, substr string) bool {

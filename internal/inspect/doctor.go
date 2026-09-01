@@ -125,7 +125,7 @@ func Diagnose(cfg *Config, port uint32) ([]Service, []Finding, error) {
 		facts[i] = factsFor(s)
 	}
 	dialOpen := len(rows) == 0 && portAnswers(port)
-	winMirror := len(rows) > 0 && onWSL() && windowsHolds(port)
+	winMirror := onWSL() && mirrorHeld(rows, port)
 	servesHTTP := len(rows) > 0 && httpAnswers(port)
 
 	probe := RuntimeProbe{Runtime: containerRuntime, Socket: dockerSocket, Status: RuntimeOK}
@@ -307,6 +307,12 @@ func probeNeeded(rows []Service) bool {
 // runtimeFinding says why the engine can't be reached — the scan stays
 // silent about this by design; doctor is where it surfaces.
 func runtimeFinding(p RuntimeProbe) Finding {
+	// an engine ports doesn't know has no well-known path to name
+	if p.Socket == "" {
+		return warn("runtime",
+			fmt.Sprintf("no %s socket to talk to — ports speaks the Docker API over docker and podman sockets", p.Runtime),
+			"point CONTAINER_RUNTIME at docker or podman, or unset it")
+	}
 	switch p.Status {
 	case RuntimePermission:
 		return warn("runtime",
@@ -446,6 +452,15 @@ func windowsHolds(port uint32) bool {
 		}
 	}
 	return false
+}
+
+// mirrorHeld reports whether a mirror is real: the port must be held on
+// *both* sides. A Windows row alone is not a mirror — the Linux twin is
+// what makes it one, so a scan that only sees the Windows side says
+// nothing.
+func mirrorHeld(rows []Service, port uint32) bool {
+	local := slices.ContainsFunc(rows, func(s Service) bool { return !s.Windows })
+	return local && windowsHolds(port)
 }
 
 // PortHeader is the one-line idiom of the table, for doctor's header:

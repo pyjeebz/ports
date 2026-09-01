@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -219,6 +220,53 @@ func TestDetectRuntime(t *testing.T) {
 			t.Errorf("got %q, want the DOCKER_HOST path", dockerSocket)
 		}
 	})
+
+	t.Run("CONTAINER_RUNTIME names an engine ports doesn't know", func(t *testing.T) {
+		t.Setenv("CONTAINER_RUNTIME", "nerdctl")
+		detectRuntime()
+		if containerRuntime != "nerdctl" || dockerSocket != "" {
+			t.Errorf("got %q at %q, want nerdctl with no socket — an unknown engine has no well-known path", containerRuntime, dockerSocket)
+		}
+	})
+
+	t.Run("CONTAINER_RUNTIME=podman absent has no path to name", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+		t.Setenv("CONTAINER_RUNTIME", "podman")
+		detectRuntime()
+		if containerRuntime != "podman" || dockerSocket != "" {
+			t.Errorf("got %q at %q, want podman with no socket — its path depends on the XDG dir, so naming one would be a guess", containerRuntime, dockerSocket)
+		}
+	})
+}
+
+// One transport per socket, for the socket's lifetime: every call — each
+// --watch tick above all — must reuse it instead of stranding a fresh one.
+func TestDockerTransportPooled(t *testing.T) {
+	old := dockerSocket
+	dockerSocket = "/pool-test.sock"
+	t.Cleanup(func() { dockerSocket = old })
+
+	same := dockerHTTP(2*time.Second).Transport
+	if again := dockerHTTP(15 * time.Second).Transport; again != same {
+		t.Error("dockerHTTP built a second transport for one socket")
+	}
+	other := "/pool-test-other.sock"
+	if dockerTransport(other) == same {
+		t.Error("different sockets must not share a transport")
+	}
+}
+
+func TestStopContainerBodylessRefusal(t *testing.T) {
+	fakeDocker(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError) // no body, no cause
+	}))
+	err := StopContainer("aaaabbbbccccdddd", false)
+	if err == nil {
+		t.Fatal("expected error on 500")
+	}
+	if !strings.Contains(err.Error(), "500 Internal Server Error") {
+		t.Errorf("a body-less refusal should fall back to the status: %v", err)
+	}
 }
 
 // probeRuntime classifies every way the engine can fail to answer, and

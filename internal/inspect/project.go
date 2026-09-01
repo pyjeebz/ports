@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // A directory holding any of these is a monorepo workspace root, so
@@ -63,7 +64,7 @@ func detectProject(cwd string, markers markerSet) string {
 			if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 				gitRoot = dir // keep walking: outermost wins
 			}
-			if workspaceRoot == "" && markers.hasWorkspace(dir) {
+			if markers.hasWorkspace(dir) {
 				workspaceRoot = dir // keep walking: outermost wins
 			}
 			if markerRoot == "" && markers.hasRegular(dir) {
@@ -110,5 +111,12 @@ func hasCargoWorkspace(dir string) bool {
 	if err != nil {
 		return false
 	}
-	return bytes.Contains(data, []byte("[workspace]"))
+	// a whole [workspace] line, not a substring — [workspace.dependencies]
+	// and friends are section members, not the workspace root
+	for line := range bytes.Lines(data) {
+		if strings.TrimSpace(string(line)) == "[workspace]" {
+			return true
+		}
+	}
+	return false
 }
