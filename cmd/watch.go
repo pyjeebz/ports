@@ -82,7 +82,7 @@ func runWatch() error {
 	// fail before any output, not mid-loop.
 	filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
 	if err != nil {
-		return err
+		return exitError{code: 2, msg: err.Error()}
 	}
 	cfg := buildInspectConfig()
 	asJSON := jsonOut || format == "json"

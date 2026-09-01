@@ -37,7 +37,7 @@ that doesn't parse, or one from a newer ports.`,
 		// validate the arguments before paying for a scan
 		filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
 		if err != nil {
-			return err
+			return exitError{code: 2, msg: err.Error()}
 		}
 		snap, err := inspect.LoadSnapshot(args[0])
 		if err != nil {

@@ -65,12 +65,6 @@ func Execute(version string) {
 		os.Exit(2)
 	}
 
-	// Bind flags to viper so they can be set via config file
-	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
-		fmt.Fprintln(os.Stderr, "ports: bind flags:", err)
-		os.Exit(1)
-	}
-
 	codifyExitCodes()
 
 	if err := rootCmd.Execute(); err != nil {
@@ -187,16 +181,16 @@ func runList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
+	if err != nil {
+		return exitError{code: 2, msg: err.Error()}
+	}
 	cfg := buildInspectConfig()
 	services, err := inspect.Scan(cfg)
 	if err != nil {
 		return err
 	}
 
-	filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
-	if err != nil {
-		return err
-	}
 	services = inspect.ApplyFilter(services, filter)
 
 	return writeReport(services, sort)
