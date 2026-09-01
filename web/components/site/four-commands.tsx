@@ -24,10 +24,9 @@ const freeLine = (ct: Contact) =>
     ? `✓ stopped ${ct.framework} (container ${containerName(ct)}) — port ${ct.port} is free`
     : `✓ killed ${ct.framework} (pid ${CONTACT_PIDS[ct.port]}) — port ${ct.port} is free`;
 
-const killLine = (ct: Contact) =>
-  isContainer(ct)
-    ? `✓ stopped ${ct.framework} (container ${containerName(ct)})`
-    : `✓ stopped ${ct.framework} (:${ct.port})`;
+// kill names the ports it freed — a container row gets the same line as
+// any other, because that's what the binary prints.
+const killLine = (ct: Contact) => `✓ stopped ${ct.framework} (:${ct.port})`;
 
 const SURFACE = "the whole surface: ports · find · free · kill · doctor · diff";
 
