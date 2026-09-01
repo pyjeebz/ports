@@ -2,8 +2,11 @@ package inspect
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,8 +63,13 @@ func TestStopEscalatesWhenTermIgnored(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("escalation needs unix signal semantics")
 	}
-	s := startVictim(t, "sh", "-c", `trap "" TERM; while :; do sleep 0.2; done`)
-	time.Sleep(100 * time.Millisecond) // let the trap install
+	// the trap is installed before the marker is written, so waiting for
+	// the file proves TERM is ignorable — no guessed sleep racing sh's
+	// startup
+	marker := filepath.Join(t.TempDir(), "trapped")
+	s := startVictim(t, "sh", "-c",
+		`trap "" TERM; touch `+marker+`; while :; do sleep 0.2; done`)
+	waitForFile(t, marker)
 	start := time.Now()
 	if err := Stop(s, false); err != nil {
 		t.Fatal(err)
@@ -116,6 +124,20 @@ func TestStopRefusesReusedPid(t *testing.T) {
 	}
 }
 
+// waitForFile blocks until path exists — the readiness handshake for
+// victims that signal setup completion by touching a file.
+func waitForFile(t *testing.T, path string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", path)
+}
+
 // startZombie leaves an unreaped exited child behind: sh backgrounds a
 // short sleep, echoes its pid, then execs a long one — the exec'd process
 // never calls wait, so the dead child stays a zombie until the test ends.
@@ -142,8 +164,21 @@ func startZombie(t *testing.T) int32 {
 	if err != nil {
 		t.Fatalf("child echoed %q, not its pid", line)
 	}
-	time.Sleep(1500 * time.Millisecond) // the child exits and goes unreaped
-	return int32(pid)
+	// the child exits on its own schedule — poll for the kernel's verdict
+	// (state Z) instead of sleeping past a guessed exit time
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		p, err := gproc.NewProcess(int32(pid))
+		if err != nil {
+			t.Fatalf("zombie %d vanished before it could zombie", pid)
+		}
+		if st, err := p.Status(); err == nil && slices.Contains(st, gproc.Zombie) {
+			return int32(pid)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("pid %d never became a zombie", pid)
+	return 0
 }
 
 // The zombie is the answer to "free said it's stopped but the port's row

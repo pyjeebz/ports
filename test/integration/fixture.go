@@ -304,7 +304,10 @@ func RunPortsInterrupted(t *testing.T, window time.Duration, args ...string) (st
 	time.Sleep(window)
 	_ = cmd.Process.Signal(os.Interrupt)
 
-	// grace period: a watch mid-scan finishes the scan, then exits
+	// grace period: a watch interrupted mid-scan finishes the scan first —
+	// the graceful exit it promises — and a scan legitimately takes seconds
+	// (the WSL interop probe alone allows 3s, docker calls 2s each), so the
+	// grace must top the worst case or the test kills a healthy watch
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
@@ -316,7 +319,7 @@ func RunPortsInterrupted(t *testing.T, window time.Duration, args ...string) (st
 			exitCode = 1
 		}
 		return stdout.String(), stderr.String(), exitCode
-	case <-time.After(3 * time.Second):
+	case <-time.After(10 * time.Second):
 		_ = cmd.Process.Kill()
 		<-done
 		return stdout.String(), stderr.String(), -1

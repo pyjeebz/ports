@@ -68,6 +68,10 @@ func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	}
 }
 
+// stopOne is the seam stopAll runs through — tests swap it to observe
+// stops without sending signals.
+var stopOne = inspect.Stop
+
 // stopAll stops one process per pid — or one container per id, however
 // many ports it publishes — and prints a line per stop. Returns the exit
 // code. If dryRun is true, only shows what would be stopped without doing it.
@@ -103,7 +107,7 @@ func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(insp
 			fmt.Printf("would stop %s (%s)\n", inspect.ProcessName(g.s), ports)
 			continue
 		}
-		if err := inspect.Stop(g.s, force); err != nil {
+		if err := stopOne(g.s, force); err != nil {
 			fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", inspect.ProcessName(g.s), ports, err)
 			fmt.Fprintf(os.Stderr, "  → run `ports doctor %s` to see why\n", strings.TrimPrefix(g.ports[0], ":"))
 			code = 1

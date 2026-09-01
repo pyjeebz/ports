@@ -75,6 +75,33 @@ func TestProjectHomeSiblingBoundary(t *testing.T) {
 	}
 }
 
+// The TSV bytes are a contract — a spreadsheet or awk script pins its
+// columns to them, so the render is pinned here to catch drift.
+func TestWriteTSVPinsRender(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	out := captureStdout(t, func() {
+		if err := WriteTSV([]Service{
+			{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js",
+				Project: filepath.Join(home, "shop"), Started: time.Now().Add(-2 * time.Hour)},
+		}, SortPort); err != nil {
+			t.Error(err)
+		}
+	})
+
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("want header + 1 row, got %d lines: %q", len(lines), out)
+	}
+	if lines[0] != "PORT\tPROCESS\tPROJECT\tUPTIME" {
+		t.Errorf("header = %q", lines[0])
+	}
+	want := "3000\tNext.js\t~/shop\t2h"
+	if lines[1] != want {
+		t.Errorf("row = %q, want %q", lines[1], want)
+	}
+}
+
 func TestWriteTreeNestsChildren(t *testing.T) {
 	services := []Service{
 		{Port: 3000, Pid: 100, ParentPid: 90, Process: "next-server"},

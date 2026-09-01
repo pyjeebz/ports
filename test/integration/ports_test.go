@@ -139,6 +139,46 @@ func TestKillCommand(t *testing.T) {
 	}
 }
 
+// A kill that names nothing is a find that failed, not a broken command —
+// grep-style exit 1, so `ports kill x || …` branches without parsing text.
+func TestKillNoMatchExitsOne(t *testing.T) {
+	stdout, stderr, code := RunPorts(t, "kill", "no-such-project-anywhere")
+	if code != 1 {
+		t.Errorf("exit = %d, want 1 (nothing matched)", code)
+	}
+	if !strings.Contains(stderr, "no-such-project-anywhere") {
+		t.Errorf("the refusal should name what it couldn't find: %q", stderr)
+	}
+	if strings.Contains(stdout, "stopped") {
+		t.Errorf("nothing matched, but output claims a stop: %q", stdout)
+	}
+}
+
+// `ps` is list's other name — same table, same exit code.
+func TestListPsAlias(t *testing.T) {
+	stdout, stderr, code := RunPorts(t, "ps")
+	if code != 0 {
+		t.Fatalf("ports ps failed: %s", stderr)
+	}
+	AssertOutputContains(t, stdout, "PORT", "PROCESS", "PROJECT", "UPTIME")
+}
+
+// Machine-wide doctor renders JSON like every other --format json — the
+// scripts that gate on it parse findings, not the table.
+func TestDoctorMachineWideJSON(t *testing.T) {
+	stdout, stderr, code := RunPorts(t, "doctor", "--format", "json")
+	if code != 0 && code != 1 {
+		t.Fatalf("ports doctor --format json exited %d: %s", code, stderr)
+	}
+	var findings []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
+		t.Fatalf("machine-wide doctor JSON does not parse: %v\n%s", err, stdout)
+	}
+	if len(findings) == 0 {
+		t.Error("machine-wide doctor should report at least the runtime probe")
+	}
+}
+
 func TestOutputFormats(t *testing.T) {
 	port, err := FindFreePort()
 	if err != nil {

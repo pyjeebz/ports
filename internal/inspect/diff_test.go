@@ -210,6 +210,15 @@ func TestParseSnapshot(t *testing.T) {
 			t.Errorf("empty error = %v", err)
 		}
 	})
+
+	// a snapshot from a newer ports is a format this one can't read —
+	// the refusal is the whole point of pinning a version
+	t.Run("a newer version refuses to load", func(t *testing.T) {
+		_, err := ParseSnapshot([]byte(`{"version": 99, "generated_at": "2026-09-01T00:00:00Z", "services": []}`))
+		if err == nil || !strings.Contains(err.Error(), "this ports reads version") {
+			t.Errorf("newer version error = %v", err)
+		}
+	})
 }
 
 func TestLoadSnapshotMissingFile(t *testing.T) {
