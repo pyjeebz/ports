@@ -122,8 +122,10 @@ func TestKillCommand(t *testing.T) {
 	defer fixture.Stop()
 	fixture.WaitReady(t)
 
-	// kill uses exact matching on framework name
-	stdout, stderr, code := RunPorts(t, "kill", "Node.js", "--force")
+	// Kill by the fixture's own project name — the tempdir's package.json
+	// makes it a project no other listener shares. Matching the framework
+	// instead ("Node.js") would stop every Node.js process on the machine.
+	stdout, stderr, code := RunPorts(t, "kill", fixture.Project, "--force")
 	if code != 0 {
 		t.Fatalf("ports kill failed: %s", stderr)
 	}

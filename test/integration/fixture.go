@@ -22,12 +22,16 @@ type Fixture struct {
 	Cmd      *exec.Cmd
 	Cancel   context.CancelFunc
 	Ready    chan struct{}
+	// Project is the project name the scan reads for this fixture — the
+	// handle a test can target with `ports kill` without touching any
+	// real listener on the machine.
+	Project  string
 	mu       sync.Mutex
 	StartErr error
 }
 
-// NewFixture creates a new test fixture.
-func NewFixture(t *testing.T, name string, port int, command string, args ...string) *Fixture {
+// NewFixture creates a new test fixture running in dir.
+func NewFixture(t *testing.T, name, dir string, port int, command string, args ...string) *Fixture {
 	ctx, cancel := context.WithCancel(context.Background())
 	f := &Fixture{
 		Name:   name,
@@ -36,6 +40,7 @@ func NewFixture(t *testing.T, name string, port int, command string, args ...str
 		Cancel: cancel,
 		Ready:  make(chan struct{}),
 	}
+	f.Cmd.Dir = dir // must be set before Start: exec reads it there
 
 	f.Cmd.Stdout = os.Stdout
 	f.Cmd.Stderr = os.Stderr
@@ -44,12 +49,12 @@ func NewFixture(t *testing.T, name string, port int, command string, args ...str
 		t.Fatalf("failed to start %s: %v", name, err)
 	}
 
-	go f.waitReady(t)
+	go f.waitReady()
 	return f
 }
 
 // waitReady waits for the process to start listening on the port.
-func (f *Fixture) waitReady(t *testing.T) {
+func (f *Fixture) waitReady() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -114,19 +119,17 @@ func HTTPFixture(t *testing.T, port int) *Fixture {
 		args = []string{"-m", "http.server", strconv.Itoa(port)}
 	}
 
-	f := NewFixture(t, "http", port, cmd, args...)
-	f.Cmd.Dir = dir
-	return f
+	return NewFixture(t, "http", dir, port, cmd, args...)
 }
 
-// TCPFixture creates a simple TCP listener fixture.
-func TCPFixture(t *testing.T, port int) *Fixture {
-	return NewFixture(t, "tcp", port, "nc", "-l", strconv.Itoa(port))
-}
-
-// NodeFixture creates a Node.js process fixture.
+// NodeFixture creates a Node.js process fixture with a project marker in
+// its directory, so the row carries a Project no other listener shares
+// and a test can kill it by name alone.
 func NodeFixture(t *testing.T, port int, script string) *Fixture {
 	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte("{\"name\": \"fixture\"}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	scriptPath := filepath.Join(dir, "server.js")
 	content := fmt.Sprintf(`
 const http = require('http');
@@ -142,38 +145,9 @@ server.listen(%d, () => {
 		t.Fatal(err)
 	}
 
-	return NewFixture(t, "node-"+script, port, "node", scriptPath)
-}
-
-// GoFixture creates a Go process fixture.
-func GoFixture(t *testing.T, port int, name string) *Fixture {
-	dir := t.TempDir()
-	mainGo := filepath.Join(dir, "main.go")
-	content := fmt.Sprintf(`package main
-
-import (
-	"fmt"
-	"net/http"
-)
-
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello from %s")
-	})
-	fmt.Printf("Listening on port %%d\n", %d)
-	http.ListenAndServe(":%d", nil)
-}
-`, name, port, port)
-	if err := os.WriteFile(mainGo, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	goMod := filepath.Join(dir, "go.mod")
-	if err := os.WriteFile(goMod, []byte("module test\n\ngo 1.23\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	return NewFixture(t, "go-"+name, port, "go", "run", "main.go")
+	f := NewFixture(t, "node-"+script, dir, port, "node", scriptPath)
+	f.Project = filepath.Base(dir)
+	return f
 }
 
 // ResetFixture listens and aborts every accepted connection with a RST
@@ -217,7 +191,7 @@ while True:
 	if runtime.GOOS == "windows" {
 		cmd = "python"
 	}
-	return NewFixture(t, "socket-"+name, port, cmd, scriptPath)
+	return NewFixture(t, "socket-"+name, dir, port, cmd, scriptPath)
 }
 
 // onWSL reports whether the test is running inside WSL, where mirrored
@@ -254,10 +228,37 @@ func FindFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
+// hermeticEnv builds the child's environment: a throwaway HOME, and none
+// of the machine's ports choices — PORTS_* settings, CONTAINER_RUNTIME,
+// DOCKER_HOST — so the suite asserts the binary, not the developer's
+// ~/.config/ports and environment. Everything else passes through
+// untouched (PATH above all), since the child is a normal program.
+func hermeticEnv(t *testing.T) []string {
+	t.Helper()
+	home, err := os.MkdirTemp("", "ports-home")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(home) })
+
+	env := []string{"HOME=" + home}
+	for _, kv := range os.Environ() {
+		key, _, _ := strings.Cut(kv, "=")
+		if key == "HOME" || key == "PORTS_BINARY" ||
+			strings.HasPrefix(key, "PORTS_") ||
+			key == "CONTAINER_RUNTIME" || key == "DOCKER_HOST" {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return env
+}
+
 // RunPorts runs the ports binary and returns stdout, stderr, and exit code.
 func RunPorts(t *testing.T, args ...string) (string, string, int) {
 	cmd := exec.Command(portsBinaryPath(), args...)
 	cmd.Dir, _ = os.Getwd()
+	cmd.Env = hermeticEnv(t)
 
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -290,6 +291,7 @@ func portsBinaryPath() string {
 func RunPortsInterrupted(t *testing.T, window time.Duration, args ...string) (string, string, int) {
 	cmd := exec.Command(portsBinaryPath(), args...)
 	cmd.Dir, _ = os.Getwd()
+	cmd.Env = hermeticEnv(t)
 
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
