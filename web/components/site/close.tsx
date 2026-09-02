@@ -3,6 +3,8 @@ import Link from "next/link";
 import { INSTALL_METHODS, SITE } from "@/lib/site";
 import { CopyPill } from "./copy-pill";
 import { SectionHead } from "./section-head";
+import { ButtonLink } from "@/components/ui/button";
+import { Highlighter } from "@/components/ui/highlighter";
 
 const brew = INSTALL_METHODS[0].lines[0];
 
@@ -17,37 +19,35 @@ export function Close() {
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="get started"
-          title="Sixty seconds from install to answers."
+          title={
+            <>
+              Sixty seconds from <Highlighter color="yellow">install</Highlighter> to answers.
+            </>
+          }
           sub="Install it, run it, see your machine. Nothing to configure first."
         />
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <div className="mt-10 flex flex-wrap items-center gap-4">
           <CopyPill text={brew} ariaLabel="Copy the Homebrew install command" />
-          <a
-            href={SITE.links.github}
-            className="rounded-md bg-strong px-4 py-2 font-mono text-[12.5px] font-medium text-background transition-opacity hover:opacity-90"
-          >
+          <ButtonLink variant="secondary" href={SITE.links.github}>
             GitHub ↗
-          </a>
-          <Link
-            href={SITE.links.docs}
-            className="rounded-md border border-line bg-panel px-3.5 py-2 font-mono text-[12.5px] text-muted transition-colors hover:border-strong/40 hover:text-foreground"
-          >
+          </ButtonLink>
+          <ButtonLink variant="secondary" href={SITE.links.docs}>
             Documentation
-          </Link>
+          </ButtonLink>
         </div>
 
-        <p className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-1.5 font-mono text-[12px] text-muted">
+        <p className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-[13px] text-charcoal-light">
           <span className="readout">also</span>
           <Link
             href="/docs/installation"
-            className="text-foreground underline-offset-4 transition-colors hover:text-strong hover:underline"
+            className="underline-offset-4 transition-colors hover:text-charcoal hover:underline"
           >
             curl — any POSIX machine
           </Link>
           <Link
             href="/docs/installation"
-            className="text-foreground underline-offset-4 transition-colors hover:text-strong hover:underline"
+            className="underline-offset-4 transition-colors hover:text-charcoal hover:underline"
           >
             Scoop — Windows
           </Link>

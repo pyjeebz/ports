@@ -6,6 +6,7 @@ import { DOCKER_TRACE, SHOWCASE } from "@/lib/site";
 import { useMotionAllowed } from "@/lib/motion";
 import { SectionHead } from "./section-head";
 import { TerminalBlock } from "./terminal-block";
+import { Arrow } from "@/components/ui/arrow";
 
 const findOutput = SHOWCASE.find((e) => e.id === "find")!.output;
 
@@ -32,16 +33,16 @@ export function DockerTrace() {
   };
 
   const chip = (i: number) => {
-    if (i === 0) return "border-line bg-panel text-foreground";
-    if (i === 1) return "border-dashed border-line text-muted";
-    if (!ports) return "border-dashed border-line text-faint"; // the invisible slots
+    if (i === 0) return "border-charcoal bg-white text-charcoal";
+    if (i === 1) return "border-charcoal border-dashed bg-white text-charcoal-light";
+    if (!ports) return "border-charcoal-light border-dashed bg-transparent text-faint"; // the invisible slots
     return i === DOCKER_TRACE.length - 1
-      ? "border-accent/50 bg-accent-soft text-accent"
-      : "border-line bg-panel text-foreground";
+      ? "border-charcoal bg-highlighter-green/60 text-charcoal"
+      : "border-charcoal bg-white text-charcoal";
   };
 
   return (
-    <section className="border-b border-line py-24">
+    <section className="py-24">
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="docker"
@@ -49,22 +50,22 @@ export function DockerTrace() {
           sub="docker-proxy is all the OS reports. Behind it is the container you actually care about — toggle what each tool sees."
         />
 
-        <div className="mt-12 flex flex-wrap items-center gap-3">
+        <div className="mt-12 flex flex-wrap items-center gap-4">
           {(
             [
-              ["os", "the OS view"],
-              ["ports", "the ports view"],
+              ["os", "the OS view", "-rotate-1"],
+              ["ports", "the ports view", "rotate-1"],
             ] as const
-          ).map(([id, label]) => (
+          ).map(([id, label, rotate]) => (
             <button
               key={id}
               type="button"
               aria-pressed={view === id}
               onClick={() => switchTo(id)}
-              className={`rounded-md border px-4 py-2 font-mono text-[12.5px] transition-colors ${
+              className={`cursor-pointer border-[1.5px] border-charcoal px-4 py-2 font-mono text-[12.5px] transition-colors ${rotate} ${
                 view === id
-                  ? "border-accent/60 bg-accent-soft text-accent"
-                  : "border-line bg-panel text-muted hover:border-strong/40 hover:text-foreground"
+                  ? "bg-highlighter-yellow/70 text-charcoal"
+                  : "bg-white text-charcoal-light hover:bg-highlighter-yellow/30 hover:text-charcoal"
               }`}
             >
               {label}
@@ -86,18 +87,19 @@ export function DockerTrace() {
                 {i > 0 && (
                   <span
                     aria-hidden
-                    data-draw={ports && i > 1 ? true : undefined}
-                    className={`mx-5 h-px w-10 shrink-0 ${
-                      ports || i === 1 ? "bg-line" : "bg-line-soft"
+                    className={`mx-4 inline-flex shrink-0 ${
+                      ports || i === 1 ? "text-charcoal-light" : "text-faint/50"
                     }`}
-                  />
+                  >
+                    <Arrow className="w-10" />
+                  </span>
                 )}
                 <div className="shrink-0 text-center">
                   {i === 1 && !ports ? (
                     <button
                       type="button"
                       onClick={() => switchTo("ports")}
-                      className="inline-block cursor-pointer rounded-md border border-dashed border-line px-4 py-3 font-mono text-[13.5px] text-muted transition-colors hover:border-accent/60 hover:text-accent"
+                      className="inline-block cursor-pointer border-[1.5px] border-dashed border-charcoal px-4 py-3 font-mono text-[13.5px] text-charcoal-light transition-colors hover:bg-highlighter-yellow/60 hover:text-charcoal"
                     >
                       {n.node} ↠
                     </button>
@@ -107,12 +109,14 @@ export function DockerTrace() {
                       style={
                         ports && i > 1 ? { animationDelay: `${(i - 2) * 0.12}s` } : undefined
                       }
-                      className={`inline-block rounded-md border px-4 py-3 font-mono text-[13.5px] ${chip(i)}`}
+                      className={`inline-block border-[1.5px] px-4 py-3 font-mono text-[13.5px] ${chip(i)}`}
                     >
                       {ports ? n.node : i > 1 ? "?" : n.node}
                     </span>
                   )}
-                  <p className="readout mt-2.5">{ports ? n.label : i === 1 ? "the wall" : i > 1 ? "invisible" : n.label}</p>
+                  <p className="readout mt-2.5">
+                    {ports ? n.label : i === 1 ? "the wall" : i > 1 ? "invisible" : n.label}
+                  </p>
                 </div>
               </Fragment>
             ))}
@@ -136,17 +140,17 @@ export function DockerTrace() {
               ))}
             </TerminalBlock>
           ) : (
-            <p className="max-w-[46ch] text-[14px] leading-relaxed text-muted">
+            <p className="max-w-[46ch] text-[15px] leading-relaxed text-charcoal-light">
               lsof stops at docker-proxy. To reach the container you would need to know
-              docker is involved, remember the right <code className="font-mono text-[13px] text-foreground">docker ps</code>{" "}
+              docker is involved, remember the right{" "}
+              <code className="font-mono text-[13px] text-charcoal">docker ps</code>{" "}
               incantation, and match the socket by hand — every time.
             </p>
           )}
         </div>
 
-        <p className="mt-10 max-w-[46ch] text-[clamp(1.05rem,1.8vw,1.35rem)] font-medium leading-[1.4] text-muted">
-          <span className="text-strong">ports follows the connection</span> to the thing actually
-          running it.
+        <p className="mt-10 max-w-[46ch] font-display text-[clamp(1.2rem,2.2vw,1.6rem)] leading-[1.4] text-charcoal">
+          ports follows the connection to the thing actually running it.
         </p>
         <p className="readout mt-4">
           containers stop through the Docker daemon — never docker-proxy

@@ -6,9 +6,19 @@ import { useInView } from "@/lib/use-in-view";
 import { PortsTable } from "./ports-table";
 import { SectionHead } from "./section-head";
 import { TerminalBlock } from "./terminal-block";
+import { Stamp } from "@/components/ui/stamp";
 
 const BREW = INSTALL_METHODS[0].lines[0];
 const RUN = "ports";
+
+// Each negation lands as a stamp, none of them hung straight, inks
+// alternating so the row reads like a page of rubber stamps.
+const STAMP_STYLES = [
+  { ink: "red", rotate: "-2" },
+  { ink: "charcoal", rotate: "1" },
+  { ink: "red", rotate: "1" },
+  { ink: "charcoal", rotate: "-2" },
+] as const;
 
 /**
  * The binary section: the zero-footprint statement, then the proof —
@@ -28,7 +38,7 @@ export function OneBinary() {
   const typing = active && typed < RUN.length;
 
   return (
-    <section ref={ref} className="border-b border-line py-24">
+    <section ref={ref} className="py-24">
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="the binary"
@@ -36,12 +46,14 @@ export function OneBinary() {
           sub="One static Go binary. It scans when you run it and exits when it&rsquo;s done — useful sixty seconds after install, on a machine in whatever state it&rsquo;s in."
         />
 
-        <p className="mt-12 font-mono text-[clamp(2.4rem,7vw,5rem)] font-semibold leading-none tracking-[-0.04em] text-strong">
+        <p className="mt-12 font-display text-[clamp(2.6rem,7.5vw,5.5rem)] leading-none text-charcoal">
           ONE BINARY
         </p>
-        <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 font-mono text-[13px] tracking-[0.14em] text-faint">
-          {NEGATIONS.map((n) => (
-            <span key={n}>{n}</span>
+        <div className="mt-8 flex flex-wrap items-center gap-6">
+          {NEGATIONS.map((n, i) => (
+            <Stamp key={n} ink={i % 2 ? "charcoal" : "red"} rotate={STAMP_STYLES[i].rotate}>
+              {n}
+            </Stamp>
           ))}
         </div>
 

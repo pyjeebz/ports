@@ -6,14 +6,16 @@ import { PIPELINES } from "@/lib/site";
 import { useMotionAllowed } from "@/lib/motion";
 import { useInView } from "@/lib/use-in-view";
 import { SectionHead } from "./section-head";
+import { Card } from "@/components/ui/card";
+import { Arrow } from "@/components/ui/arrow";
 
 const STAGGER = 0.12;
 
 /**
- * One horizontal pipeline: bordered mono nodes joined by hairlines that
- * draw left to right. The final node — the live measurement — carries
- * the slow accent pulse. Pure CSS under the section's data-motion arm;
- * the static frame is the fully drawn chain.
+ * One horizontal pipeline: mono nodes on hand-drawn cards joined by
+ * pen arrows that appear left to right. The final node — the live
+ * measurement — carries the slow pulse. Pure CSS under the section's
+ * data-motion arm; the static frame is the fully drawn chain.
  */
 function Pipeline({
   nodes,
@@ -28,22 +30,26 @@ function Pipeline({
         const delay = `${baseDelay + i * STAGGER}s`;
         const last = i === nodes.length - 1;
         const box = (
-          <span
+          <Card
             {...(last ? { "data-pulse": true } : {})}
-            className={`shrink-0 rounded-md border border-line bg-panel px-4 py-3 text-[13.5px] text-foreground`}
+            rotate={i % 2 ? "1" : "-1"}
+            bg="white"
+            className="shrink-0 px-4 py-3 text-[13.5px] text-charcoal"
           >
             {node}
-          </span>
+          </Card>
         );
         return (
           <Fragment key={node}>
             {i > 0 && (
               <span
-                data-draw
+                data-appear
                 aria-hidden
-                className="mx-4 h-px w-8 shrink-0 bg-line"
+                className="mx-4 inline-flex shrink-0"
                 style={{ animationDelay: delay }}
-              />
+              >
+                <Arrow />
+              </span>
             )}
             {/* wrapper: data-appear handles the entrance, the inner box
                 carries data-pulse — two animations, two elements */}
@@ -68,11 +74,7 @@ export function SocketPipeline() {
   const armed = inView && motion;
 
   return (
-    <section
-      ref={ref}
-      data-motion={armed ? "on" : undefined}
-      className="border-b border-line py-24"
-    >
+    <section ref={ref} data-motion={armed ? "on" : undefined} className="py-24">
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="the system"
@@ -91,9 +93,9 @@ export function SocketPipeline() {
           </div>
         </div>
 
-        <p className="mt-12 max-w-[52ch] text-[clamp(1.05rem,1.8vw,1.35rem)] font-medium leading-[1.4] text-muted">
+        <p className="mt-12 max-w-[52ch] text-[clamp(1.05rem,1.8vw,1.35rem)] font-medium leading-[1.4] text-charcoal-light">
           A port is the start of the chain, not the answer.{" "}
-          <span className="text-strong">ports walks it to the end.</span>
+          <span className="text-charcoal">ports walks it to the end.</span>
         </p>
       </div>
     </section>

@@ -8,6 +8,7 @@ import { useMotionAllowed, useTimedSteps } from "@/lib/motion";
 import { SectionHead } from "./section-head";
 import { PortsTable } from "./ports-table";
 import { TerminalBlock } from "./terminal-block";
+import { Tape } from "@/components/ui/tape";
 
 const TYPE_MS = 45;
 const LINE_MS = 90;
@@ -330,7 +331,7 @@ export function FourCommands() {
   );
 
   return (
-    <section data-motion={live !== null && motion ? "on" : undefined} className="border-b border-line py-24">
+    <section data-motion={live !== null && motion ? "on" : undefined} className="py-24">
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="the interface"
@@ -340,20 +341,24 @@ export function FourCommands() {
 
         <div className="mt-10 grid items-start gap-12 lg:grid-cols-[1fr_560px] lg:gap-14">
           <div>
-            {SHOWCASE.map((entry) => (
+            {SHOWCASE.map((entry, i) => (
               <button
                 key={entry.id}
                 type="button"
                 onClick={() => run(entry.cmd)}
                 className="group block w-full border-t border-line-soft py-7 text-left last:border-b"
               >
-                <p className="flex flex-wrap items-baseline gap-x-4 font-mono text-[clamp(1.35rem,3vw,2.1rem)] font-semibold leading-[1.15] tracking-[-0.02em] text-strong transition-colors group-hover:text-accent">
+                <p
+                  className={`flex flex-wrap items-baseline gap-x-4 font-mono text-[clamp(1.35rem,3vw,2.1rem)] font-semibold leading-[1.15] text-charcoal transition-all group-hover:-rotate-1 group-hover:bg-highlighter-yellow/40 ${
+                    i % 2 ? "rotate-[0.4deg]" : "-rotate-[0.4deg]"
+                  }`}
+                >
                   {entry.cmd}
                   <span className="readout opacity-0 transition-opacity group-hover:opacity-100">
                     run ↵
                   </span>
                 </p>
-                <p className="mt-2.5 text-[15px] text-muted">{entry.line}</p>
+                <p className="mt-2.5 text-[15px] text-charcoal-light">{entry.line}</p>
               </button>
             ))}
 
@@ -361,7 +366,7 @@ export function FourCommands() {
               <span>
                 <Link
                   href="/docs/commands#flags"
-                  className="text-foreground underline-offset-4 transition-colors hover:text-strong hover:underline"
+                  className="text-charcoal underline-offset-4 transition-colors hover:text-charcoal hover:underline"
                 >
                   --json
                 </Link>{" "}
@@ -370,7 +375,7 @@ export function FourCommands() {
               <span>
                 <Link
                   href="/docs/commands#flags"
-                  className="text-foreground underline-offset-4 transition-colors hover:text-strong hover:underline"
+                  className="text-charcoal underline-offset-4 transition-colors hover:text-charcoal hover:underline"
                 >
                   --force
                 </Link>{" "}
@@ -382,7 +387,8 @@ export function FourCommands() {
             </p>
           </div>
 
-          <div>
+          <div className="relative">
+            <Tape color="pink" className="-top-3 right-10 rotate-2" />
             <TerminalBlock
               cmd="ports — your machine"
               label={status}
@@ -407,7 +413,7 @@ export function FourCommands() {
                 <button
                   type="button"
                   onClick={() => run("reset")}
-                  className="readout transition-colors hover:text-foreground"
+                  className="readout transition-colors hover:text-charcoal"
                 >
                   ↺ reset the machine
                 </button>

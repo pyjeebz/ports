@@ -4,6 +4,7 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layo
 
 import { source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
+import { DrawnLine } from "@/components/ui/drawn-line";
 
 export function generateStaticParams() {
   return source.generateParams();
@@ -43,8 +44,12 @@ export default async function DocPage(props: PageProps<"/docs/[[...slug]]">) {
 
   return (
     <DocsPage toc={page.data.toc}>
-      <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsTitle className="font-display font-normal text-charcoal">
+        {page.data.title}
+      </DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
+      {/* the drawn rule stands in for fumadocs' invisible page top border */}
+      <DrawnLine className="mb-10" />
       <DocsBody>
         <MDX components={getMDXComponents()} />
       </DocsBody>

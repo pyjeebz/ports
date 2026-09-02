@@ -60,7 +60,7 @@ export function PortsTable({
 
         const className = `-mx-2 block px-2 transition-opacity duration-300 ${
           machine ? "machine-row" : ""
-        } ${hot ? "bg-accent-soft" : ""} ${dimmed ? "opacity-0" : "opacity-100"} ${
+        } ${hot ? "bg-highlighter-yellow/60" : ""} ${dimmed ? "opacity-0" : "opacity-100"} ${
           machine ? "cursor-pointer text-left font-mono" : "cursor-default"
         }`;
 

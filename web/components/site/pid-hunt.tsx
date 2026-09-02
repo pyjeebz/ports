@@ -29,16 +29,16 @@ export function PidHunt() {
   // motion, and the state the counter returns to.
   const shown = lsofActive ? step : PID_HUNT.length;
 
-  const tab = (id: Way, label: string) => (
+  const tab = (id: Way, label: string, rotate: string) => (
     <button
       key={id}
       type="button"
       aria-pressed={way === id}
       onClick={() => setWay(id)}
-      className={`rounded-md border px-4 py-2 font-mono text-[12.5px] transition-colors ${
+      className={`cursor-pointer border-[1.5px] border-charcoal px-4 py-2 font-mono text-[12.5px] transition-colors ${rotate} ${
         way === id
-          ? "border-accent/60 bg-accent-soft text-accent"
-          : "border-line bg-panel text-muted hover:border-strong/40 hover:text-foreground"
+          ? "bg-highlighter-yellow/70 text-charcoal"
+          : "bg-white text-charcoal-light hover:bg-highlighter-yellow/30 hover:text-charcoal"
       }`}
     >
       {label}
@@ -46,7 +46,7 @@ export function PidHunt() {
   );
 
   return (
-    <section className="border-b border-line py-24">
+    <section className="py-24">
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="the problem"
@@ -55,12 +55,12 @@ export function PidHunt() {
         />
 
         <div className="mt-12 max-w-[760px]">
-          <div className="flex flex-wrap items-center gap-3">
-            {tab("lsof", "the lsof way")}
-            {tab("ports", "ports find shop")}
+          <div className="flex flex-wrap items-center gap-4">
+            {tab("lsof", "the lsof way", "-rotate-1")}
+            {tab("ports", "ports find shop", "rotate-1")}
           </div>
 
-          <div className="mt-5">
+          <div className="mt-6">
             {way === "ports" ? (
               <TerminalBlock
                 cmd="ports find shop"
@@ -85,7 +85,7 @@ export function PidHunt() {
                     key={s.step}
                     className={`block transition-opacity duration-300 ${
                       i < shown ? "opacity-100" : "opacity-0"
-                    } ${i === PID_HUNT.length - 1 ? "text-alert" : "text-muted"}`}
+                    } ${i === PID_HUNT.length - 1 ? "text-danger" : "text-charcoal-light"}`}
                   >
                     {s.step}
                   </span>
@@ -95,7 +95,7 @@ export function PidHunt() {
           </div>
         </div>
 
-        <p className="mt-14 max-w-[46ch] text-[clamp(1.15rem,2vw,1.5rem)] font-semibold leading-[1.3] tracking-[-0.02em] text-strong">
+        <p className="mt-16 max-w-[46ch] font-display text-[clamp(1.3rem,2.4vw,1.8rem)] leading-[1.4] text-charcoal">
           One command. Context everywhere.
         </p>
       </div>

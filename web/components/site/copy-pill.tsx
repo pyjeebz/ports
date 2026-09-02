@@ -29,10 +29,10 @@ export function CopyPill({
       type="button"
       onClick={copy}
       aria-label={ariaLabel}
-      className="flex h-9 cursor-pointer items-center gap-2.5 rounded-md border border-line bg-panel px-3.5 font-mono text-[12.5px] text-muted transition-colors hover:border-strong/40 hover:text-foreground"
+      className="flex h-10 cursor-pointer items-center gap-2.5 border-[1.5px] border-charcoal bg-white px-4 font-mono text-[12.5px] text-charcoal-light transition-colors hover:bg-highlighter-yellow/50 hover:text-charcoal"
     >
-      <span className="text-foreground">{text}</span>
-      <span className={copied ? "text-accent" : "text-faint"}>
+      <span className="text-charcoal">{text}</span>
+      <span className={copied ? "text-charcoal font-bold" : "text-faint"}>
         {copied ? "copied" : "copy"}
       </span>
     </button>

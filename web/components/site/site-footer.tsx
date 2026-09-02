@@ -2,15 +2,17 @@ import Link from "next/link";
 
 import { PortsLogo } from "./ports-logo";
 import { SITE } from "@/lib/site";
+import { DrawnLine } from "@/components/ui/drawn-line";
 
 /**
- * Prompt 4: the bottom of a high-quality open-source docs site — a table of
- * contents on the left, project links on the right, small and subdued.
+ * The bottom of the page — a table of contents on the left, project
+ * links on the right, small and subdued, above one final drawn rule.
  */
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line py-16">
+    <footer className="py-16">
       <div className="mx-auto max-w-[1160px] px-8">
+        <DrawnLine className="mb-14" />
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-[1fr_auto] sm:items-end">
           {/* table-of-contents columns */}
           <nav
@@ -24,14 +26,14 @@ export function SiteFooter() {
               { title: "The API", href: "/docs/commands#flags", items: ["--json", "--force", "Piping", "Agents"] },
             ].map((col) => (
               <div key={col.title}>
-                <h5 className="text-[12px] font-semibold text-foreground">
-                  <Link href={col.href} className="hover:text-strong">
+                <h5 className="text-[13px] font-bold text-charcoal">
+                  <Link href={col.href} className="hover:underline">
                     {col.title}
                   </Link>
                 </h5>
                 <ul className="mt-2.5 flex flex-col gap-1.5">
                   {col.items.map((item) => (
-                    <li key={item} className="text-[12px] text-faint">
+                    <li key={item} className="text-[12.5px] text-faint">
                       {item}
                     </li>
                   ))}
@@ -42,26 +44,26 @@ export function SiteFooter() {
 
           {/* project links */}
           <div className="flex flex-col items-start gap-4 sm:items-end">
-            <span className="flex items-center gap-2.5 text-[13px] font-semibold text-foreground">
+            <span className="flex items-center gap-2.5 text-[14px] font-bold text-charcoal">
               <PortsLogo className="h-[16px] w-[16px]" />
               ports
             </span>
-            <p className="max-w-[320px] text-[12px] leading-relaxed text-faint sm:text-right">
+            <p className="max-w-[320px] text-[12.5px] leading-relaxed text-faint sm:text-right">
               ports never starts, supervises, or installs anything. It reads
               your machine and — when you ask — stops a thing you name.
             </p>
-            <div className="flex gap-4 font-mono text-[11.5px] text-muted">
-              <a href={SITE.links.github} className="hover:text-strong">
+            <div className="flex gap-4 font-mono text-[11.5px] text-charcoal-light">
+              <a href={SITE.links.github} className="hover:text-charcoal">
                 GitHub ↗
               </a>
-              <a href={SITE.links.releases} className="hover:text-strong">
+              <a href={SITE.links.releases} className="hover:text-charcoal">
                 Releases ↗
               </a>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 flex items-center justify-between border-t border-line-soft pt-6">
+        <div className="mt-12 flex items-center justify-between">
           <span className="readout">MIT LICENSE</span>
           <span className="readout">{SITE.domain.replace("https://", "")}</span>
         </div>

@@ -78,7 +78,7 @@ export function PortsMachine() {
             <button
               type="button"
               onClick={run}
-              className="mt-5 rounded-md border border-line bg-panel px-4 py-2 font-mono text-[12.5px] text-foreground transition-colors hover:border-accent/60 hover:text-accent"
+              className="mt-5 cursor-pointer border-[1.5px] border-charcoal bg-white px-4 py-2 font-mono text-[12.5px] text-charcoal transition-colors hover:bg-highlighter-yellow/60"
             >
               Run ports
             </button>
