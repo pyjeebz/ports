@@ -327,11 +327,20 @@ func TestProbeRuntime(t *testing.T) {
 // socket file; the listener stays open for the test's duration.
 func mountSocket(t *testing.T, name string) string {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "podman")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	// t.TempDir embeds the test name plus a random suffix of varying
+	// length; on darwin that can push the socket path past the ~104-char
+	// sockaddr limit and bind fails with EINVAL, so use a short temp dir.
+	// The podman subdir stays: TestDetectRuntime derives the runtime dir
+	// as the path two levels up from the socket.
+	dir, err := os.MkdirTemp("", "ports")
+	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, name)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if err := os.MkdirAll(filepath.Join(dir, "podman"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "podman", name)
 	l, err := net.Listen("unix", path)
 	if err != nil {
 		t.Fatal(err)

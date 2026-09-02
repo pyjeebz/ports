@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -55,6 +56,9 @@ func TestWriteJSONEmptyIsArray(t *testing.T) {
 func TestProjectHomeSiblingBoundary(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home) // os.UserHomeDir reads this
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home) // ...but reads USERPROFILE here
+	}
 	sibling := home + "-tools"
 	_ = os.MkdirAll(filepath.Join(sibling, "api"), 0o755)
 
@@ -80,6 +84,9 @@ func TestProjectHomeSiblingBoundary(t *testing.T) {
 func TestWriteTSVPinsRender(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home) // os.UserHomeDir reads USERPROFILE there
+	}
 	out := captureStdout(t, func() {
 		if err := WriteTSV([]Service{
 			{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js",
