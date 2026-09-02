@@ -74,7 +74,7 @@ func TestProjectHomeSiblingBoundary(t *testing.T) {
 	if short := "~-tools"; strings.Contains(out, short) {
 		t.Errorf("a sibling of home must not shorten: %q contains %q", out, short)
 	}
-	if !strings.Contains(out, sibling+"/api") {
+	if !strings.Contains(out, filepath.Join(sibling, "api")) {
 		t.Errorf("a sibling of home should print in full: %q", out)
 	}
 }

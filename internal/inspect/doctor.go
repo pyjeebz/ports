@@ -439,7 +439,7 @@ func httpAnswers(port uint32) bool {
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return true
 }
 

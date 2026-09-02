@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -192,9 +193,11 @@ func project(s Service) string {
 	if home, err := os.UserHomeDir(); err == nil {
 		// the home itself and siblings of it both cut cleanly — only a
 		// path *under* home gets the ~, so ~/ports and ports-tools stay
-		// distinct projects
-		if rel, ok := strings.CutPrefix(s.Project, home); ok && (rel == "" || strings.HasPrefix(rel, "/")) {
-			return "~" + rel
+		// distinct projects. Windows builds the tree with \, so the guard
+		// and the render both go through the separator, not a literal /.
+		sep := string(filepath.Separator)
+		if rel, ok := strings.CutPrefix(s.Project, home); ok && (rel == "" || strings.HasPrefix(rel, sep)) {
+			return "~" + filepath.ToSlash(rel)
 		}
 	}
 	return s.Project
