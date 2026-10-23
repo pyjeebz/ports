@@ -89,6 +89,10 @@ func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(insp
 			key = "c:" + s.ContainerID
 		case s.Known():
 			key = fmt.Sprintf("p:%d", s.Pid)
+		case s.Unit != "":
+			// another user's service, no pid to group by — one unit is
+			// one stop, however many ports it holds
+			key = "u:" + s.Unit
 		}
 		if g, ok := byKey[key]; ok && key != "" {
 			g.ports = append(g.ports, fmt.Sprintf(":%d", s.Port))

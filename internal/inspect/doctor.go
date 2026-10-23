@@ -198,9 +198,7 @@ func diagnosePort(port uint32, rows []Service, facts []rowFacts, conns []gnet.Co
 				fmt.Sprintf("the listener is on the Windows side (%s, pid %d) — signals from here cannot reach it", s.Process, s.WindowsPid),
 				fmt.Sprintf("stop it from Windows: taskkill /PID %d /F", s.WindowsPid)))
 		case !s.Known():
-			f = append(f, warn("owner",
-				fmt.Sprintf("the listener on :%d belongs to another user's process — its pid is hidden from this scan", port),
-				fmt.Sprintf("run `sudo ports free %d`", port)))
+			f = append(f, ownerFinding(s))
 		case s.Process == "docker-proxy" && s.ContainerID == "":
 			f = append(f, fail("container",
 				fmt.Sprintf("docker-proxy holds :%d but no matching container appears in the engine", port),
@@ -355,7 +353,7 @@ func diagnoseMachine(services []Service, probe RuntimeProbe, wsl bool) []Finding
 		if s.Known() {
 			shared[s.Port]++
 		}
-		if !s.Known() && !s.Windows && s.Container == "" {
+		if s.Anonymous() {
 			unowned++
 		}
 		if s.Windows {
@@ -463,6 +461,31 @@ func mirrorHeld(rows []Service, port uint32) bool {
 	return local && windowsHolds(port)
 }
 
+// ownerFinding explains a listener another user owns: what it was
+// traced to, if anything, and the command that stops it — systemctl for
+// a service, since a signal from ports would only race its restart
+// policy.
+func ownerFinding(s Service) Finding {
+	who := "another user's process"
+	if s.User != "" {
+		who = "a process of user " + s.User
+	}
+	switch {
+	case s.Unit != "":
+		return warn("owner",
+			fmt.Sprintf(":%d is %s, run by systemd unit %s.service as %s — its pid is hidden from this scan", s.Port, ProcessName(s), s.Unit, s.User),
+			fmt.Sprintf("stop it with `sudo systemctl stop %s`", s.Unit))
+	case !s.Anonymous():
+		return warn("owner",
+			fmt.Sprintf(":%d is %s, running as %s — its pid is hidden from this scan", s.Port, ProcessName(s), s.User),
+			fmt.Sprintf("run `sudo ports free %d`", s.Port))
+	default:
+		return warn("owner",
+			fmt.Sprintf("the listener on :%d belongs to %s — its pid is hidden from this scan", s.Port, who),
+			fmt.Sprintf("run `sudo ports free %d`", s.Port))
+	}
+}
+
 // PortHeader is the one-line idiom of the table, for doctor's header:
 // the port, the process as a developer knows it, who owns it, where.
 func PortHeader(s Service) string {
@@ -471,8 +494,10 @@ func PortHeader(s Service) string {
 		return fmt.Sprintf(":%d  %s  container %s  up %s", s.Port, ProcessName(s), DockerName(s), uptime(s))
 	case s.Windows:
 		return fmt.Sprintf(":%d  %s  windows pid %d  up %s", s.Port, ProcessName(s), s.WindowsPid, uptime(s))
+	case s.Anonymous():
+		return fmt.Sprintf(":%d  ?  another user's process  %s  up %s", s.Port, project(s), uptime(s))
 	case !s.Known():
-		return fmt.Sprintf(":%d  ?  another user's process  up %s", s.Port, uptime(s))
+		return fmt.Sprintf(":%d  %s  %s  up %s", s.Port, ProcessName(s), project(s), uptime(s))
 	default:
 		return fmt.Sprintf(":%d  %s  pid %d  %s  up %s", s.Port, ProcessName(s), s.Pid, project(s), uptime(s))
 	}

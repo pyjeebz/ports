@@ -31,6 +31,12 @@ func Stop(s Service, force bool) error {
 		return fmt.Errorf("%s-backed — could not resolve the container; use `%s stop`", containerRuntime, containerRuntime)
 	}
 	if !s.Known() {
+		if s.Unit != "" {
+			return fmt.Errorf("a systemd service running as %s — stop it with `sudo systemctl stop %s`", s.User, s.Unit)
+		}
+		if s.User != "" {
+			return fmt.Errorf("owned by user %s — run with sudo", s.User)
+		}
 		return errors.New("owner unknown — run with sudo")
 	}
 	p, err := gproc.NewProcess(s.Pid)
