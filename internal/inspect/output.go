@@ -152,7 +152,7 @@ func WriteTable(services []Service, sort SortMode) {
 	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
 	for _, s := range rows {
-		if !s.Known() && s.Container == "" && !s.Windows {
+		if s.Anonymous() {
 			unknown = true
 		}
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
@@ -186,6 +186,12 @@ func project(s Service) string {
 			runtime = "docker"
 		}
 		return runtime + ": " + DockerName(s)
+	}
+	if s.Unit != "" {
+		return "systemd: " + s.Unit
+	}
+	if s.User != "" {
+		return "user: " + s.User
 	}
 	if s.Project == "" {
 		return "—"

@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"path/filepath"
+	"slices"
 	"sort"
 	"time"
 
@@ -33,9 +34,13 @@ func Scan(cfg *Config) ([]Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	// another user's sockets come back without a pid; their owner's uid
+	// tells them apart, read only when there are such sockets to tell
+	var owners map[sockKey]uint32
 	type key struct {
 		pid  int32
 		port uint32
+		uid  uint32
 	}
 	seen := make(map[key]bool)
 	services := []Service{}
@@ -43,14 +48,25 @@ func Scan(cfg *Config) ([]Service, error) {
 		if c.Status != "LISTEN" {
 			continue
 		}
-		k := key{c.Pid, c.Laddr.Port}
+		s := describe(c, env)
+		if !s.Known() {
+			if owners == nil {
+				owners = socketOwners()
+			}
+			s.ownerUID, s.hasOwner = ownerOf(owners, c.Laddr.IP, c.Laddr.Port)
+		}
+		k := key{c.Pid, c.Laddr.Port, s.ownerUID}
 		if seen[k] {
 			continue
 		}
 		seen[k] = true
-		services = append(services, describe(c, env))
+		services = append(services, s)
 	}
 	enrichDocker(services, listContainers())
+	if slices.ContainsFunc(services, Service.Anonymous) {
+		attribute(services, listProcs(), env.rules, lookupUser)
+		services = collapseUnowned(services)
+	}
 
 	// merge windows rows; a port also held inside WSL keeps its WSL row
 	// (mirrored mode shows one socket from both sides, and forwarders

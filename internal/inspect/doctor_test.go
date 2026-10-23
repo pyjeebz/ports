@@ -371,6 +371,12 @@ func TestDiagnoseMachine(t *testing.T) {
 			want:     []string{"runtime:ok", "owner:warn"},
 		},
 		{
+			name:     "listeners traced to a service are attributable",
+			services: []Service{{Port: 3306, Pid: 0, Process: "mysqld", Framework: "MySQL", Unit: "mysql", User: "mysql"}},
+			probe:    probeOK,
+			want:     []string{"runtime:ok", "machine:ok"},
+		},
+		{
 			name:     "windows rows only count on WSL",
 			services: []Service{{Port: 3000, Process: "node", Windows: true, WindowsPid: 1}},
 			probe:    probeOK,

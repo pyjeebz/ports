@@ -100,6 +100,25 @@ func TestStopAllGroupsPortsByContainer(t *testing.T) {
 	}
 }
 
+// Another user's service has no pid to group by, but one unit is one
+// stop — mysqld on :3306 and :33060 is a single line, not two.
+func TestStopAllGroupsUnownedPortsByUnit(t *testing.T) {
+	rows := []inspect.Service{
+		{Port: 3306, Process: "mysqld", Framework: "MySQL", Unit: "mysql", User: "mysql"},
+		{Port: 33060, Process: "mysqld", Framework: "MySQL", Unit: "mysql", User: "mysql"},
+	}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	out := captureStdout(t, func() {
+		_ = stopAll(rows, false, false, okLine)
+	})
+	if len(stops()) != 1 {
+		t.Fatalf("stop called %d times, want 1 (one unit, two ports)", len(stops()))
+	}
+	if !strings.Contains(out, ":3306, :33060") {
+		t.Errorf("line should name both ports: %q", out)
+	}
+}
+
 // Two pids on one port (SO_REUSEPORT) are two processes — both stopped,
 // neither collapsed into the other.
 func TestStopAllKeepsDistinctPids(t *testing.T) {

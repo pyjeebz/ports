@@ -68,6 +68,12 @@ func windowsListeners() []Service {
 
 	var services []Service
 	for _, w := range socks {
+		// pid 0 is Windows declining to name an owner — tasklist calls it
+		// "System Idle Process", which owns nothing. No name, no taskkill
+		// target: a row would only be noise.
+		if w.pid == 0 {
+			continue
+		}
 		name := names[w.pid]
 		if name == "" || winSystemProcs[name] {
 			continue

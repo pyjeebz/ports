@@ -101,3 +101,26 @@ func TestWindowsListeners(t *testing.T) {
 		t.Errorf("node row: %+v", node)
 	}
 }
+
+// pid 0 is Windows declining to name an owner; tasklist labels it
+// "System Idle Process". Those rows can be neither named nor stopped.
+func TestWindowsListenersSkipPidZero(t *testing.T) {
+	out := "\r\nActive Connections\r\n\r\n  Proto  Local Address          Foreign Address        State           PID\r\n" +
+		"  TCP    127.0.0.1:50473        127.0.0.1:0            LISTENING       0\r\n" +
+		"  TCP    0.0.0.0:3000           0.0.0.0:0              LISTENING       8765\r\n"
+	tl := `"System Idle Process","0","Services","0","8 K"` + "\r\n" +
+		`"node.exe","8765","Console","1","98,304 K"` + "\r\n"
+	old := runWin
+	runWin = func(exe string, _ ...string) ([]byte, error) {
+		if exe == "netstat.exe" {
+			return []byte(out), nil
+		}
+		return []byte(tl), nil
+	}
+	t.Cleanup(func() { runWin = old })
+
+	rows := windowsListeners()
+	if len(rows) != 1 || rows[0].Port != 3000 {
+		t.Fatalf("got %+v, want only the node row", rows)
+	}
+}
