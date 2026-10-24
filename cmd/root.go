@@ -17,6 +17,7 @@ var (
 	jsonOut          bool
 	force            bool
 	dryRun           bool
+	expect           string
 	format           string
 	showTree         bool
 	watch            bool
@@ -238,8 +239,15 @@ func listingFlags(c *cobra.Command) {
 }
 
 func stopFlags(c *cobra.Command) {
+	formatFlags(c, "table, json")
 	c.Flags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	c.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be stopped without stopping it")
+	c.Flags().StringVar(&expect, "expect", "", "Stop only if everything matched is this project, framework, container, or process — else stop nothing")
+}
+
+// stopOptions gathers the stop flags for stopAll.
+func stopOptions() stopOpts {
+	return stopOpts{force: force, dryRun: dryRun, expect: expect}
 }
 
 func runList(cmd *cobra.Command, args []string) error {

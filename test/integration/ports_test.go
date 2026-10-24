@@ -749,6 +749,7 @@ func TestExitCodes(t *testing.T) {
 		{"wait --http on a name exits 2", []string{"wait", "shop", "--http"}, 2},
 		{"wait --http --gone exits 2", []string{"wait", "1", "--http", "--gone"}, 2},
 		{"here on a file exits 2", []string{"here", "ports_test.go"}, 2},
+		{"free with a csv report exits 2", []string{"free", "1", "--format", "csv"}, 2},
 		{"diff with a missing snapshot exits 2", []string{"diff", "/no/such/before.json"}, 2},
 		{"diff with a second file exits 2", []string{"diff", "a.json", "b.json"}, 2},
 		{"invalid sort exits 2", []string{"--sort", "name"}, 2},
@@ -878,5 +879,51 @@ func TestWaitTimeoutAndInterrupt(t *testing.T) {
 	stdout, _, code = RunPortsInterrupted(t, time.Second, "wait", strconv.Itoa(port), "--timeout", "0")
 	if code != 130 || stdout != "" {
 		t.Errorf("interrupt: exit %d, stdout %q, want 130 and nothing", code, stdout)
+	}
+}
+
+// --expect is all or nothing: a guard that doesn't match leaves the
+// server running and says what holds the port; one that matches stops
+// it, and --json reports the stop as a result object.
+func TestFreeExpect(t *testing.T) {
+	port, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := NodeFixture(t, port, "guarded")
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+
+	stdout, stderr, code := RunPorts(t, "free", strconv.Itoa(port), "--expect", "postgres")
+	if code != 1 || stdout != "" || !strings.Contains(stderr, `not "postgres"`) || !strings.Contains(stderr, "nothing was stopped") {
+		t.Fatalf("mismatched guard: exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if _, _, code := RunPorts(t, "wait", strconv.Itoa(port), "--timeout", "1s"); code != 0 {
+		t.Fatal("a refused free must leave the server running")
+	}
+
+	stdout, stderr, code = RunPorts(t, "free", strconv.Itoa(port), "--expect", fixture.Project, "--json")
+	if code != 0 {
+		t.Fatalf("matching guard exited %d: %s", code, stderr)
+	}
+	var results []map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		t.Fatalf("free --json: %v\n%s", err, stdout)
+	}
+	if len(results) != 1 || results[0]["action"] != "stopped" {
+		t.Fatalf("free --json = %v, want one stopped result", results)
+	}
+	svc, _ := results[0]["service"].(map[string]interface{})
+	if svc == nil || int(svc["port"].(float64)) != port {
+		t.Errorf("the result should carry the stopped row: %v", results[0])
+	}
+	if _, _, code := RunPorts(t, "wait", strconv.Itoa(port), "--gone", "--timeout", "5s"); code != 0 {
+		t.Error("the port should be free after a matching free")
+	}
+
+	// nothing left to free: [] under --json, exit 1
+	stdout, _, code = RunPorts(t, "free", strconv.Itoa(port), "--json")
+	if code != 1 || strings.TrimSpace(stdout) != "[]" {
+		t.Errorf("free on an idle port: exit %d, stdout %q", code, stdout)
 	}
 }

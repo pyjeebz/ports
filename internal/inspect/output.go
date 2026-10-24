@@ -176,6 +176,10 @@ func ProcessName(s Service) string {
 	}
 }
 
+// ProjectLabel is the PROJECT column's text for a row: a path, a
+// container, a systemd unit, windows, or —.
+func ProjectLabel(s Service) string { return project(s) }
+
 func project(s Service) string {
 	if s.Windows {
 		return "windows"

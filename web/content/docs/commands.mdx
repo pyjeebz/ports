@@ -84,6 +84,43 @@ $ ports free 3000
 
 Stop all processes that belong to a named project or service. Docker-backed ports stop the container via the API — never docker-proxy.
 
+<span id="expect" />
+
+### Guarded stops: --expect
+
+`free` and `kill` stop whatever matches — `--expect <name>` makes them check first. Every target has to match the name the way `ports kill` matches one (project, framework, container, systemd unit, or process); if any doesn't, nothing is stopped and ports says what is actually there:
+
+```sh
+$ ports free 3000 --expect nextjs
+✗ :3000 is PostgreSQL (docker: shop-db), not "nextjs"
+  → nothing was stopped — drop --expect to stop regardless, or `ports doctor 3000` to look closer
+```
+
+It's the guard to put on any stop a script or an agent runs: "free :3000" becomes "free :3000 if it's still my dev server". A listener whose owner is hidden can't prove what it is, so the guard refuses it.
+
+### Results as JSON
+
+With `--json`, `free` and `kill` report one object per target — a process, container, or service, however many ports it held:
+
+```json
+[
+  {
+    "action": "stopped",
+    "ports": [3000, 3001],
+    "service": { "port": 3000, "pid": 48391, "framework": "Next.js", "project": "/home/dev/projects/shop", … }
+  },
+  {
+    "action": "failed",
+    "ports": [3306],
+    "service": { "port": 3306, "pid": 0, "framework": "MySQL", "unit": "mysql", … },
+    "error": "a systemd service running as mysql — stop it with `sudo systemctl stop mysql`",
+    "fix": "sudo systemctl stop mysql"
+  }
+]
+```
+
+`action` is `stopped`, `would_stop` (under `--dry-run`), `failed`, or `refused` (by `--expect`); `service` is the row exactly as `ports --json` prints it; `fix` is the command that moves a failure along. Nothing to stop prints `[]` and exits `1`.
+
 ```sh
 $ ports kill shop
 ✓ stopped Next.js (:3000)
@@ -154,8 +191,8 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, and `wait` take `table` or `json`. |
-| `--json` | `ports`, `find`, `here`, `wait`, `doctor`, `diff` | Short for `--format json`. |
+| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, `wait`, `free`, and `kill` take `table` or `json`. |
+| `--json` | every command but `completion` | Short for `--format json`. `free` and `kill` report [result objects](#expect). |
 | `--port` | `ports`, `find`, `here`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
 | `--framework` | `ports`, `find`, `here`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
 | `--project` | `ports`, `find`, `here`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
@@ -166,6 +203,7 @@ Each command takes the flags it uses and no others. A flag given to a command th
 | `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
 | `--force` | `free`, `kill` | Skip SIGTERM and kill immediately. |
 | `--dry-run` | `free`, `kill` | Show what would be stopped, without stopping it. |
+| `--expect` | `free`, `kill` | Stop only if every target matches this name — otherwise stop nothing. See [guarded stops](#expect). |
 | `--timeout` | `wait` | Give up after this long (default `30s`; `0` waits forever). |
 | `--http` | `wait` | Wait until the port answers HTTP, not just connections. Ports only. |
 | `--gone` | `wait` | Wait until the port or service is free instead. |
@@ -201,7 +239,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
 
 An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
@@ -218,7 +256,14 @@ ports here --port 3000 --json || (npm run dev &)
 ports wait 3000 --http --timeout 60s
 ```
 
-Stopping is just as explicit: `ports free 3000 --dry-run` previews what would stop, and `ports doctor 3000` explains a stop that failed — every finding with the command that fixes it, never an action taken on its own.
+Stopping is just as explicit. Guard every stop with what you expect to find, and read the result instead of parsing lines:
+
+```sh
+# free :3000 only if it's still this project's Next.js — never someone's database
+ports free 3000 --expect nextjs --json
+```
+
+`--dry-run` previews the targets, and `ports doctor 3000` explains a stop that failed — every finding with the command that fixes it, never an action taken on its own.
 
 ## Permissions
 

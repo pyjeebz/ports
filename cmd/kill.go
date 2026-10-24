@@ -13,6 +13,9 @@ var killCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		q := args[0]
+		if err := stopFormat(); err != nil {
+			return err
+		}
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
 		if err != nil {
@@ -20,9 +23,9 @@ var killCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesName(q) })
 		if len(matched) == 0 {
-			return fmt.Errorf("nothing matching %q — try `ports find %s`", q, q)
+			return noneFound(fmt.Sprintf("nothing matching %q — try `ports find %s`", q, q))
 		}
-		code := stopAll(matched, force, dryRun, func(s inspect.Service, ports string) string {
+		code := stopAll(matched, stopOptions(), func(s inspect.Service, ports string) string {
 			return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
 		})
 		if code != 0 {
