@@ -102,3 +102,28 @@ func TestDetectFramework(t *testing.T) {
 		}
 	}
 }
+
+// Bare-word cmd fragments match whole words only: a project directory
+// named for the framework still reads as it, a word that merely
+// contains the name does not.
+func TestCmdFragmentsAreWords(t *testing.T) {
+	cases := []struct {
+		process, cmdline, want string
+	}{
+		{"node", "node /home/u/my-hono-app/dist/index.js", "Hono"},
+		{"node", "node /home/u/phonograph/server.js", "Node.js"},
+		{"python3", "python3 /srv/quarterly/report.py", ""},
+		{"python3", "python3 -m quart run", "Quart"},
+		{"python3", "python3 /srv/sanicware/app.py", ""},
+		{"bun", "bun run /home/u/elysia_api/src/index.ts", "Elysia"},
+		{"node", "node /app/node_modules/next/dist/server/next-server.js", "Next.js"},
+		{"node", "node /app/node_modules/@remix-run/serve/dist/cli.js", "Remix"},
+		{"python3", "python3 manage.py runserver", "Django"},
+		{"python3", "python3 /home/u/djangoish/app.py", ""},
+	}
+	for _, c := range cases {
+		if got := DetectFramework(c.process, c.cmdline); got != c.want {
+			t.Errorf("DetectFramework(%q, %q) = %q, want %q", c.process, c.cmdline, got, c.want)
+		}
+	}
+}
