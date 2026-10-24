@@ -1,5 +1,10 @@
 package inspect
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Config holds optional configuration for scanning. Everything in it
 // extends the built-in detection; nothing here is required.
 type Config struct {
@@ -13,6 +18,21 @@ type FrameworkRule struct {
 	Exe  []string
 	Bin  []string
 	Cmd  []string
+}
+
+// Validate rejects rules that would mislabel the table: a rule with no
+// name renders as a blank, and one with no exe, bin, or cmd matches every
+// process on the machine.
+func (cfg *Config) Validate() error {
+	for i, r := range cfg.CustomFrameworks {
+		if strings.TrimSpace(r.Name) == "" {
+			return fmt.Errorf("frameworks[%d]: needs a name", i)
+		}
+		if len(r.Exe) == 0 && len(r.Bin) == 0 && len(r.Cmd) == 0 {
+			return fmt.Errorf("frameworks[%d] (%s): needs at least one of exe, bin, or cmd — with none it would match every process", i, r.Name)
+		}
+	}
+	return nil
 }
 
 // DefaultConfig returns a config with built-in defaults.
