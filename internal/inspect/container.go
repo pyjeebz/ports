@@ -154,10 +154,10 @@ type RuntimeStatus string
 
 const (
 	RuntimeOK          RuntimeStatus = "ok"
-	RuntimeNoSocket    RuntimeStatus = "no-socket"    // no engine installed
-	RuntimePermission  RuntimeStatus = "permission"   // socket exists, access denied
-	RuntimeTimeout     RuntimeStatus = "timeout"      // daemon hung
-	RuntimeUnreachable RuntimeStatus = "unreachable"  // socket exists, no answer
+	RuntimeNoSocket    RuntimeStatus = "no-socket"   // no engine installed
+	RuntimePermission  RuntimeStatus = "permission"  // socket exists, access denied
+	RuntimeTimeout     RuntimeStatus = "timeout"     // daemon hung
+	RuntimeUnreachable RuntimeStatus = "unreachable" // socket exists, no answer
 )
 
 // RuntimeProbe is the classified answer to "can ports reach the engine?".

@@ -246,7 +246,7 @@ func TestDockerTransportPooled(t *testing.T) {
 	dockerSocket = "/pool-test.sock"
 	t.Cleanup(func() { dockerSocket = old })
 
-	same := dockerHTTP(2*time.Second).Transport
+	same := dockerHTTP(2 * time.Second).Transport
 	if again := dockerHTTP(15 * time.Second).Transport; again != same {
 		t.Error("dockerHTTP built a second transport for one socket")
 	}

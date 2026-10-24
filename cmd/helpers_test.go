@@ -187,6 +187,7 @@ func TestStopAllFailureExitsOne(t *testing.T) {
 		t.Errorf("failure report incomplete: %q", out)
 	}
 }
+
 // A flag another command owns names that command; a flag nobody owns
 // stays cobra's plain "unknown flag".
 func TestMisplacedFlag(t *testing.T) {
