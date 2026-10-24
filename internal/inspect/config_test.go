@@ -42,3 +42,15 @@ func TestCustomFrameworksTakePriority(t *testing.T) {
 		t.Fatalf("built-in framework = %q, want %q", got, "Next.js")
 	}
 }
+
+func TestValidate(t *testing.T) {
+	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: "Vend", Cmd: []string{"vend"}}}}).Validate(); err != nil {
+		t.Errorf("a named rule with a matcher is valid: %v", err)
+	}
+	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: " ", Exe: []string{"vend"}}}}).Validate(); err == nil {
+		t.Error("a blank name must be rejected")
+	}
+	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: "Vend"}}}).Validate(); err == nil {
+		t.Error("a rule with no exe, bin, or cmd matches everything and must be rejected")
+	}
+}

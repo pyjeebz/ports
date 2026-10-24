@@ -52,9 +52,6 @@ what is running on this machine right now, and what does it belong to?
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd, args)
 	},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return nil
-	},
 }
 
 func Execute(version string) {
@@ -153,23 +150,39 @@ func misplacedFlag(c *cobra.Command, err error) error {
 	return fmt.Errorf("%s doesn't apply to `%s` — it's a flag of %s", shown, c.CommandPath(), strings.Join(owners, ", "))
 }
 
+// scanConfig is the optional ports-config.yaml, read once at startup.
+var scanConfig inspect.Config
+
+// loadConfig reads ports-config.yaml from the first place it exists. No
+// file is the normal case; a file that exists but doesn't parse — or
+// whose values don't fit — fails the run rather than be half-applied.
 func loadConfig() error {
-	viper.SetConfigName("ports-config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.config/ports")
-	viper.AddConfigPath("/etc/ports")
+	v := viper.New()
+	v.SetConfigName("ports-config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	v.AddConfigPath("$HOME/.config/ports")
+	v.AddConfigPath("/etc/ports")
 
-	// Environment variable prefix
-	viper.SetEnvPrefix("PORTS")
-	viper.AutomaticEnv()
-
-	// If config file found, read it
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return err
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return nil
 		}
-		// Config file not found is OK
+		// three places are searched — say which file is broken
+		if where := v.ConfigFileUsed(); where != "" {
+			return fmt.Errorf("%s: %w", where, err)
+		}
+		return err
+	}
+	where := v.ConfigFileUsed()
+	if err := v.UnmarshalKey("frameworks", &scanConfig.CustomFrameworks); err != nil {
+		return fmt.Errorf("%s: frameworks: %w", where, err)
+	}
+	if err := v.UnmarshalKey("projects.markers", &scanConfig.CustomProjectMarkers); err != nil {
+		return fmt.Errorf("%s: projects.markers: %w", where, err)
+	}
+	if err := scanConfig.Validate(); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
 	}
 	return nil
 }
@@ -257,24 +270,8 @@ func runList(cmd *cobra.Command, args []string) error {
 	return writeReport(services, sort)
 }
 
+// buildInspectConfig hands a scan its own copy of the loaded config.
 func buildInspectConfig() *inspect.Config {
-	var cfg inspect.Config
-
-	// Custom frameworks
-	if viper.IsSet("frameworks") {
-		var custom []inspect.FrameworkRule
-		if err := viper.UnmarshalKey("frameworks", &custom); err == nil {
-			cfg.CustomFrameworks = custom
-		}
-	}
-
-	// Custom project markers
-	if viper.IsSet("projects.markers") {
-		var markers []string
-		if err := viper.UnmarshalKey("projects.markers", &markers); err == nil {
-			cfg.CustomProjectMarkers = markers
-		}
-	}
-
+	cfg := scanConfig
 	return &cfg
 }

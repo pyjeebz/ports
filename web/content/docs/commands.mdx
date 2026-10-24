@@ -150,7 +150,7 @@ projects:
   markers: [".vendroot", "vendor.json"]
 ```
 
-A custom framework rule wins over the built-in table; custom markers join the built-in set (`.git`, `go.mod`, `package.json`, `Cargo.toml`, and friends). If the file exists but doesn't parse, ports says so and exits rather than guessing. Nothing else reads config — flags, filters, and commands are set on the command line, always.
+A custom framework rule wins over the built-in table; custom markers join the built-in set (`.git`, `go.mod`, `package.json`, `Cargo.toml`, and friends). If the file exists but doesn't parse — or a framework rule has no name, or no `exe`, `bin`, or `cmd` and so would match every process — ports names the file and the problem and exits 2 rather than guessing. Nothing else reads config — flags, filters, and commands are set on the command line, always.
 
 ## Exit codes
 
