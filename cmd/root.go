@@ -192,6 +192,10 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	services = inspect.ApplyFilter(services, filter)
+	if noMatch(services, filter) {
+		fmt.Println(noMatchMsg)
+		return nil
+	}
 
 	return writeReport(services, sort)
 }

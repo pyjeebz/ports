@@ -68,7 +68,7 @@ func (s Service) Anonymous() bool { return s.unowned() && s.Process == "?" }
 // select every published container at once.
 func (s Service) MatchesName(q string) bool {
 	if (s.ProjectName != "" && strings.EqualFold(q, s.ProjectName)) ||
-		(s.Framework != "" && strings.EqualFold(q, s.Framework)) ||
+		(s.Framework != "" && FrameworkKey(q) == FrameworkKey(s.Framework)) ||
 		(s.Unit != "" && strings.EqualFold(q, s.Unit)) {
 		return true
 	}
@@ -80,8 +80,12 @@ func (s Service) MatchesName(q string) bool {
 }
 
 // MatchesQuery reports a case-insensitive substring match across the
-// recognizable context, for `ports find`.
+// recognizable context, for `ports find`. The framework also matches in
+// its typed form, so `ports find nextjs` finds Next.js.
 func (s Service) MatchesQuery(q string) bool {
+	if key := FrameworkKey(q); key != "" && strings.Contains(FrameworkKey(s.Framework), key) {
+		return true
+	}
 	q = strings.ToLower(q)
 	for _, hay := range []string{
 		s.Framework, s.Process, s.ProjectName, s.Project,

@@ -28,3 +28,14 @@ func TestMatchesQuery(t *testing.T) {
 		t.Error("MatchesQuery(postgres) = true, want false")
 	}
 }
+
+// kill and find take the framework the way it's typed, like the filter.
+func TestMatchesTypedFramework(t *testing.T) {
+	s := Service{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js"}
+	if !s.MatchesName("nextjs") || !s.MatchesQuery("nextjs") {
+		t.Error("nextjs should name and find Next.js")
+	}
+	if s.MatchesName("next") {
+		t.Error("kill names exactly — next is not Next.js")
+	}
+}

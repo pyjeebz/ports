@@ -38,6 +38,17 @@ func resolveSort() (inspect.SortMode, error) {
 	return mode, nil
 }
 
+// noMatchMsg is the empty table under an active filter. The machine may
+// well have listeners — just none the filter keeps — so "no listening
+// TCP ports" would be false.
+const noMatchMsg = "nothing listening matches the filter"
+
+// noMatch reports whether a table render would be empty only because of
+// the filter. Machine formats keep their empty shapes ([] and headers).
+func noMatch(services []inspect.Service, filter *inspect.Filter) bool {
+	return len(services) == 0 && filter.Active() && !jsonOut && format == "table"
+}
+
 // writeReport renders services in the --format and order the user asked for.
 func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	if jsonOut {
