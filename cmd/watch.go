@@ -99,6 +99,10 @@ func runWatch() error {
 		}
 		// clear the screen, then redraw — identical bytes to a one-shot run
 		fmt.Print("\033[2J\033[H")
+		if noMatch(services, filter) {
+			fmt.Println(noMatchMsg)
+			return nil
+		}
 		if showTree {
 			inspect.WriteTree(services)
 			return nil

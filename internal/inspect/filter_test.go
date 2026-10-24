@@ -209,3 +209,40 @@ func TestApplyFilter(t *testing.T) {
 		t.Errorf("ApplyFilter uptime min = %d, want 2", len(filtered))
 	}
 }
+
+// Framework names match in the form people type them: the help text's
+// own example, --framework nextjs, has to find Next.js.
+func TestFrameworkFilterTypedForms(t *testing.T) {
+	cases := map[string]string{
+		"nextjs":      "Next.js",
+		"Next.js":     "Next.js",
+		"NEXT.JS":     "Next.js",
+		"springboot":  "Spring Boot",
+		"spring-boot": "Spring Boot",
+		"react-cra":   "React (CRA)",
+	}
+	for typed, framework := range cases {
+		f, err := ParseFilter("", typed, "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !f.Matches(Service{Port: 3000, Framework: framework}) {
+			t.Errorf("--framework %s should match %s", typed, framework)
+		}
+	}
+	f, _ := ParseFilter("", "next", "", "")
+	if f.Matches(Service{Port: 3000, Framework: "Next.js"}) {
+		t.Error("the filter is exact on the typed form, not a prefix match")
+	}
+}
+
+func TestFilterActive(t *testing.T) {
+	var nilFilter *Filter
+	if nilFilter.Active() || (&Filter{}).Active() {
+		t.Error("an empty filter narrows nothing")
+	}
+	f, _ := ParseFilter("3000", "", "", "")
+	if !f.Active() {
+		t.Error("a port filter is active")
+	}
+}

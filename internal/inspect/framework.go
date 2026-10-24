@@ -103,6 +103,19 @@ var frameworkRules = []frameworkRule{
 // names, so node_modules/vite/bin/vite.js still reads as "vite".
 var scriptExts = []string{".js", ".mjs", ".cjs", ".ts", ".py"}
 
+// FrameworkKey is a framework name as people type it: case, spaces, and
+// punctuation fall away, so nextjs names Next.js, springboot names
+// Spring Boot, and react-cra names React (CRA).
+func FrameworkKey(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if ('a' <= r && r <= 'z') || ('0' <= r && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // DetectFramework names the framework behind a process from its exe
 // basename and cmdline. Returns "" when nothing in the table matches.
 func DetectFramework(process, cmdline string) string {
