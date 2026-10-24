@@ -9,6 +9,14 @@ import (
 	gproc "github.com/shirou/gopsutil/v4/process"
 )
 
+// A process's start time is its boot-relative tick count plus the boot
+// time, and the kernel recomputes the boot time on every read: it jitters
+// by a second on WSL and moves whenever the clock is stepped. Uncached,
+// the same process can read two start times a moment apart — and the
+// pid-reuse guard, IsRunning, and doctor's freshness check all compare
+// start times. One boot time per run keeps those comparisons honest.
+func init() { gproc.EnableBootTimeCache(true) }
+
 const (
 	stopWait = 2 * time.Second
 	stopPoll = 100 * time.Millisecond
