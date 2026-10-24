@@ -59,7 +59,7 @@ been running. That context is what turns "kill a random PID and hope" into
 - **Lists** every listening port with the framework, project directory, and uptime — not just a PID — grouped by project by default, or ordered with `--sort port|uptime|process|project`
 - **Groups** processes into the applications they belong to, so `frontend :3000`, `api :8000`, and `db :5432` read as one project
 - **Unwraps Docker**, naming the real container and compose service instead of `docker-proxy`
-- **Stops things safely by name** — `ports kill <project>`, `ports free <port>` — with graceful termination before force
+- **Stops things safely by name** — `ports kill <project>`, `ports free <port>` — with graceful termination before force. Add `--expect nextjs` and a stop only happens if that's really what holds the port — the guard for scripts and agents; `--json` reports each stop as a result object.
 - **Finds things** — `ports find postgres` → `5432`
 - **Knows your project** — `ports here` shows what's running for the directory you're in, so you (or your coding agent) reuse the dev server that's up instead of starting a second on :3001. Exit 1 when nothing is, so `ports here --port 3000 || npm run dev` just works.
 - **Waits for readiness** — `ports wait 3000 --http` blocks until the server actually answers, then prints its row; `--gone` waits until it's free. No sleep-and-retry loops.

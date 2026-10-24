@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -61,7 +62,7 @@ func TestStopAllGroupsPortsByPid(t *testing.T) {
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	var code int
 	out := captureStdout(t, func() {
-		code = stopAll(rows, false, false, func(s inspect.Service, ports string) string {
+		code = stopAll(rows, stopOpts{}, func(s inspect.Service, ports string) string {
 			return okLine(s, ports)
 		})
 	})
@@ -86,7 +87,7 @@ func TestStopAllGroupsPortsByContainer(t *testing.T) {
 	}
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	out := captureStdout(t, func() {
-		_ = stopAll(rows, false, false, okLine)
+		_ = stopAll(rows, stopOpts{}, okLine)
 	})
 
 	if len(stops()) != 1 {
@@ -109,7 +110,7 @@ func TestStopAllGroupsUnownedPortsByUnit(t *testing.T) {
 	}
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	out := captureStdout(t, func() {
-		_ = stopAll(rows, false, false, okLine)
+		_ = stopAll(rows, stopOpts{}, okLine)
 	})
 	if len(stops()) != 1 {
 		t.Fatalf("stop called %d times, want 1 (one unit, two ports)", len(stops()))
@@ -128,7 +129,7 @@ func TestStopAllKeepsDistinctPids(t *testing.T) {
 	}
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	captureStdout(t, func() {
-		_ = stopAll(rows, false, false, okLine)
+		_ = stopAll(rows, stopOpts{}, okLine)
 	})
 	if len(stops()) != 2 {
 		t.Fatalf("stop called %d times, want 2 (two pids share the port)", len(stops()))
@@ -145,7 +146,7 @@ func TestStopAllDryRunSignalsNothing(t *testing.T) {
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	var code int
 	out := captureStdout(t, func() {
-		code = stopAll(rows, false, true, okLine)
+		code = stopAll(rows, stopOpts{dryRun: true}, okLine)
 	})
 
 	if len(stops()) != 0 {
@@ -175,7 +176,7 @@ func TestStopAllFailureExitsOne(t *testing.T) {
 	})
 	var code int
 	out := captureStdout(t, func() {
-		code = stopAll(rows, true, false, okLine)
+		code = stopAll(rows, stopOpts{force: true}, okLine)
 	})
 
 	if code != 1 {
@@ -205,5 +206,141 @@ func TestMisplacedFlag(t *testing.T) {
 	}
 	if err := misplacedFlag(killCmd, errors.New("unknown flag: --nope")); err.Error() != "unknown flag: --nope" {
 		t.Errorf("unowned flag: %q", err)
+	}
+}
+
+// withJSON renders a test's stops as --format json.
+func withJSON(t *testing.T) {
+	t.Helper()
+	saved := jsonOut
+	jsonOut = true
+	t.Cleanup(func() { jsonOut = saved })
+}
+
+// --expect that matches every target is no obstacle: the stop runs.
+func TestStopAllExpectMatches(t *testing.T) {
+	rows := []inspect.Service{{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js", ProjectName: "shop"}}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	captureStdout(t, func() { code = stopAll(rows, stopOpts{expect: "nextjs"}, okLine) })
+	if code != 0 || len(stops()) != 1 {
+		t.Errorf("code %d, %d stops — want 0 and 1", code, len(stops()))
+	}
+}
+
+// The guard is all or nothing: one target that isn't what the caller
+// expected stops none of them, and the report names what is there.
+func TestStopAllExpectRefusesAll(t *testing.T) {
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js", ProjectName: "shop"},
+		{Port: 3000, Process: "docker-proxy", Container: "shop-db", ContainerID: "abc", Framework: "PostgreSQL", Runtime: "docker"},
+	}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	out := captureStdout(t, func() { code = stopAll(rows, stopOpts{expect: "nextjs"}, okLine) })
+	if len(stops()) != 0 {
+		t.Fatalf("a refused stop signalled %d targets, want 0", len(stops()))
+	}
+	if code != 1 {
+		t.Errorf("code = %d, want 1", code)
+	}
+	for _, want := range []string{`:3000 is PostgreSQL (docker: shop-db), not "nextjs"`, "nothing was stopped"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report %q missing %q", out, want)
+		}
+	}
+	if strings.Contains(out, "Next.js") {
+		t.Errorf("the matching target needs no line of its own: %q", out)
+	}
+}
+
+// A row whose owner is hidden can't prove it is what was expected — the
+// guard fails closed.
+func TestStopAllExpectFailsClosed(t *testing.T) {
+	rows := []inspect.Service{{Port: 3000, Process: "?"}}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	captureStdout(t, func() { code = stopAll(rows, stopOpts{expect: "nextjs"}, okLine) })
+	if code != 1 || len(stops()) != 0 {
+		t.Errorf("code %d, %d stops — an anonymous row must be refused", code, len(stops()))
+	}
+}
+
+func decodeResults(t *testing.T, out string) []stopResult {
+	t.Helper()
+	var results []stopResult
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("stop results are not JSON: %v\n%s", err, out)
+	}
+	return results
+}
+
+// --json reports one result per target: what happened, every port it
+// held, the row itself, and for a failure the error and the next step.
+func TestStopAllJSONResults(t *testing.T) {
+	withJSON(t)
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js"},
+		{Pid: 101, Port: 3001, Process: "node", Framework: "Next.js"},
+		{Pid: 202, Port: 8000, Process: "python", Framework: "FastAPI"},
+	}
+	swapStop(t, func(s inspect.Service, _ bool) error {
+		if s.Pid == 202 {
+			return errors.New("pid 202 survived SIGKILL")
+		}
+		return nil
+	})
+	var code int
+	out := captureStdout(t, func() { code = stopAll(rows, stopOpts{}, okLine) })
+	results := decodeResults(t, out)
+	if code != 1 || len(results) != 2 {
+		t.Fatalf("code %d, %d results — want 1 and 2:\n%s", code, len(results), out)
+	}
+	if r := results[0]; r.Action != actionStopped || len(r.Ports) != 2 || r.Service.Pid != 101 {
+		t.Errorf("first result: %+v", r)
+	}
+	if r := results[1]; r.Action != actionFailed || r.Error != "pid 202 survived SIGKILL" || r.Fix != "ports doctor 8000" {
+		t.Errorf("second result: %+v", r)
+	}
+	if strings.Contains(out, "✓") || strings.Contains(out, "✗") {
+		t.Errorf("JSON mode prints no lines: %q", out)
+	}
+}
+
+func TestStopAllJSONRefusedAndDryRun(t *testing.T) {
+	withJSON(t)
+	swapStop(t, func(inspect.Service, bool) error { return nil })
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js"},
+		{Pid: 202, Port: 3000, Process: "node", Framework: "Vite"},
+	}
+	out := captureStdout(t, func() { _ = stopAll(rows, stopOpts{expect: "vite"}, okLine) })
+	results := decodeResults(t, out)
+	if len(results) != 2 || results[0].Action != actionRefused || results[1].Action != actionRefused {
+		t.Fatalf("refused results: %+v", results)
+	}
+	if !strings.Contains(results[0].Error, `not "vite"`) || results[1].Error != refusedAlong {
+		t.Errorf("refusal reasons: %q / %q", results[0].Error, results[1].Error)
+	}
+
+	out = captureStdout(t, func() { _ = stopAll(rows[:1], stopOpts{dryRun: true}, okLine) })
+	if r := decodeResults(t, out); len(r) != 1 || r[0].Action != actionWouldStop {
+		t.Errorf("dry-run results: %+v", r)
+	}
+}
+
+func TestStopFix(t *testing.T) {
+	cases := []struct {
+		s    inspect.Service
+		want string
+	}{
+		{inspect.Service{Port: 3306, Process: "mysqld", Unit: "mysql", User: "mysql"}, "sudo systemctl stop mysql"},
+		{inspect.Service{Port: 3000, Process: "node", Windows: true, WindowsPid: 8765}, "taskkill /PID 8765 /F"},
+		{inspect.Service{Port: 3000, Pid: 101, Process: "node"}, "ports doctor 3000"},
+	}
+	for _, c := range cases {
+		if got := stopFix(c.s, c.s.Port); got != c.want {
+			t.Errorf("stopFix(%+v) = %q, want %q", c.s, got, c.want)
+		}
 	}
 }
