@@ -14,10 +14,6 @@ import (
 // costs more than the pause between rescans.
 const minWatchInterval = 250 * time.Millisecond
 
-// errWatchNotList answers --watch on a subcommand where it would silently
-// no-op: it only means something for listing.
-var errWatchNotList = exitError{code: 2, msg: "--watch only applies to listing (ports, ports list)"}
-
 // stdoutIsTTY reports whether stdout is an interactive terminal. Watch's
 // table mode clears the screen, which is noise in a pipe.
 func stdoutIsTTY() bool {
@@ -33,7 +29,7 @@ func validateWatch(interval time.Duration, format string, jsonOut, tty bool) err
 		return exitError{code: 2, msg: fmt.Sprintf("--interval must be at least %s, got %s", minWatchInterval, interval)}
 	}
 	if jsonOut {
-		format = "json" // --json is deprecated but still honored
+		format = "json" // --json is --format json
 	}
 	if format != "table" && format != "json" {
 		return exitError{code: 2, msg: fmt.Sprintf("--watch needs table or json output, got format %q", format)}
