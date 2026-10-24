@@ -47,10 +47,14 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
+      - name: Formatted
+        run: |
+          unformatted=$(gofmt -l main.go cmd internal test tools)
+          [ -z "$unformatted" ] || { echo "gofmt needed:"; echo "$unformatted"; exit 1; }
       - name: Vet
-        run: go vet ./internal/... ./cmd/... ./tools/...
+        run: go vet ./internal/... ./cmd/... ./test/... ./tools/...
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.13.2
-          args: ./internal/... ./cmd/... ./tools/...
+          args: ./internal/... ./cmd/... ./test/... ./tools/...

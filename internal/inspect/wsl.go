@@ -80,9 +80,9 @@ func windowsListeners() []Service {
 		}
 		short := strings.TrimSuffix(name, ".exe")
 		services = append(services, Service{
-			Port:      w.port,
-			Addr:      w.addr,
-			Process:   short,
+			Port:    w.port,
+			Addr:    w.addr,
+			Process: short,
 			// the image name stands in for both the exe and the cmdline,
 			// so bin and cmd rules fire for Windows rows too — next.exe
 			// reads as Next.js, same as its Linux twin
