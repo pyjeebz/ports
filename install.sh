@@ -1,6 +1,9 @@
 #!/bin/sh
-# ports installer — https://github.com/pyjeebz/ports
-# usage: curl -fsSL https://raw.githubusercontent.com/pyjeebz/ports/main/install.sh | sh
+# ports installer — https://ports.tools
+# usage: curl -fsSL https://ports.tools/install | sh
+# mirror: curl -fsSL https://raw.githubusercontent.com/pyjeebz/ports/main/install.sh | sh
+# This file and web/app/install/script.sh must stay byte-identical — CI
+# fails when they drift.
 set -eu
 
 REPO="pyjeebz/ports"
