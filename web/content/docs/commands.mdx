@@ -14,14 +14,14 @@ Display every listening TCP port with its framework, project directory, and upti
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | PORT     | The TCP port number.                                                                                           |
 | PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
-| PROJECT  | A local path, a `docker:` container reference, `windows`, or `—` when unknown.                                 |
+| PROJECT  | A local path, a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
 
 <span id="cmd-find" />
 
 ## ports find \<name\>
 
-Filter the table. Case-insensitive, matches substrings across framework, process, project, and container names.
+Filter the table. Case-insensitive, matches substrings across framework, process, project, container, and systemd unit names — framework names in their typed form too, so `ports find nextjs` finds Next.js. The listing filters (`--port`, `--framework`, `--project`, `--uptime`) narrow the matches further.
 
 ```sh
 $ ports find postgres
@@ -111,22 +111,24 @@ Exit codes: `0` when the machine matches, `1` when anything changed — grep-sty
 
 ## Flags
 
-All flags are persistent — they compose with `ports` and `ports find` alike.
+Each command takes the flags it uses and no others. A flag given to a command that wouldn't use it is an error (exit 2) that names the commands it belongs to — never silently ignored.
 
-| Flag | Effect |
-| ---- | ------ |
-| `--format table\|json\|snapshot\|csv\|tsv` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. |
-| `--json` | Deprecated alias for `--format json`, still honored. |
-| `--tree` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
-| `--port` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
-| `--framework` | Filter by framework(s): `nextjs,vite`. |
-| `--project` | Filter by project name or path: `shop`, `~/projects/shop`. |
-| `--uptime` | Filter by uptime: `>1h`, `<30m`, `2h`. |
-| `--sort port\|uptime\|process\|project` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
-| `--watch` / `-w` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
-| `--interval` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
-| `--force` | Skip SIGTERM and kill immediately. |
-| `--dry-run` | Show what would be stopped, without stopping it. |
+| Flag | Commands | Effect |
+| ---- | -------- | ------ |
+| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor` and `diff` take `table` or `json`. |
+| `--json` | `ports`, `find`, `doctor`, `diff` | Short for `--format json`. |
+| `--port` | `ports`, `find`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
+| `--framework` | `ports`, `find`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
+| `--project` | `ports`, `find`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
+| `--uptime` | `ports`, `find`, `diff` | Filter by uptime: `>1h`, `<30m`, `2h`. |
+| `--sort port\|uptime\|process\|project` | `ports`, `find` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
+| `--tree` | `ports`, `find` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
+| `--watch` / `-w` | `ports` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
+| `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
+| `--force` | `free`, `kill` | Skip SIGTERM and kill immediately. |
+| `--dry-run` | `free`, `kill` | Show what would be stopped, without stopping it. |
+
+When a filter leaves the table empty, `ports` says `nothing listening matches the filter` rather than claim nothing is listening.
 
 ## Config
 
@@ -157,7 +159,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
 | `1` | The invocation was fine, but there's something to report: `find` matched nothing, a stop failed, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
-| `2` | The invocation itself was unusable — an unknown command or flag, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
+| `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
 
 Errors report on stderr; stdout stays clean for whatever's piping it.
 

@@ -52,7 +52,8 @@ func noMatch(services []inspect.Service, filter *inspect.Filter) bool {
 // writeReport renders services in the --format and order the user asked for.
 func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	if jsonOut {
-		// --json is deprecated but still honored
+		// --json is --format json, kept short for the scripts and agents
+		// that reach for it first
 		return inspect.WriteJSON(services)
 	}
 	switch format {

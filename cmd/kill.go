@@ -12,9 +12,6 @@ var killCmd = &cobra.Command{
 	Short: "Stop a project or service by name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		q := args[0]
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
@@ -36,5 +33,6 @@ var killCmd = &cobra.Command{
 }
 
 func init() {
+	stopFlags(killCmd)
 	rootCmd.AddCommand(killCmd)
 }

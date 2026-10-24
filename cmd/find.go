@@ -12,20 +12,22 @@ var findCmd = &cobra.Command{
 	Short: "Filter by framework, process, or project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		q := args[0]
 		// validate the arguments before paying for a scan
 		sort, err := resolveSort()
 		if err != nil {
 			return err
 		}
+		filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
+		if err != nil {
+			return exitError{code: 2, msg: err.Error()}
+		}
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
 		if err != nil {
 			return err
 		}
+		services = inspect.ApplyFilter(services, filter)
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesQuery(q) })
 		if len(matched) == 0 {
 			return fmt.Errorf("nothing matching %q", q)
@@ -35,5 +37,8 @@ var findCmd = &cobra.Command{
 }
 
 func init() {
+	formatFlags(findCmd, allFormats)
+	tableFlags(findCmd)
+	filterFlags(findCmd)
 	rootCmd.AddCommand(findCmd)
 }

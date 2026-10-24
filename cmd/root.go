@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -95,14 +97,13 @@ func codifyExitCodes() {
 	toBadArgs := func(err error) error {
 		return exitError{code: 2, msg: err.Error()}
 	}
-	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return toBadArgs(err)
-	})
+	flagErr := func(c *cobra.Command, err error) error {
+		return toBadArgs(misplacedFlag(c, err))
+	}
+	rootCmd.SetFlagErrorFunc(flagErr)
 	for _, c := range rootCmd.Commands() {
 		sub := c
-		sub.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-			return toBadArgs(err)
-		})
+		sub.SetFlagErrorFunc(flagErr)
 		if orig := sub.Args; orig != nil {
 			sub.Args = func(cmd *cobra.Command, args []string) error {
 				if err := orig(cmd, args); err != nil {
@@ -121,6 +122,35 @@ func codifyExitCodes() {
 		}
 		return nil
 	}
+}
+
+// misplacedFlag turns "unknown flag" into where the flag does apply,
+// when another command owns it: `ports kill --watch` learns --watch is
+// a listing flag, not that it doesn't exist.
+func misplacedFlag(c *cobra.Command, err error) error {
+	msg := err.Error()
+	var lookup func(*cobra.Command) *pflag.Flag
+	var shown string
+	if name, ok := strings.CutPrefix(msg, "unknown flag: --"); ok {
+		lookup = func(o *cobra.Command) *pflag.Flag { return o.Flags().Lookup(name) }
+		shown = "--" + name
+	} else if rest, ok := strings.CutPrefix(msg, "unknown shorthand flag: '"); ok && rest != "" {
+		short := rest[:1]
+		lookup = func(o *cobra.Command) *pflag.Flag { return o.Flags().ShorthandLookup(short) }
+		shown = "-" + short
+	} else {
+		return err
+	}
+	var owners []string
+	for _, o := range append([]*cobra.Command{rootCmd}, rootCmd.Commands()...) {
+		if o != c && lookup(o) != nil {
+			owners = append(owners, "`"+o.CommandPath()+"`")
+		}
+	}
+	if len(owners) == 0 {
+		return err
+	}
+	return fmt.Errorf("%s doesn't apply to `%s` — it's a flag of %s", shown, c.CommandPath(), strings.Join(owners, ", "))
 }
 
 func loadConfig() error {
@@ -154,22 +184,49 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output (deprecated: use --format json)")
-	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
-	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, snapshot, csv, tsv")
-	rootCmd.PersistentFlags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
-	rootCmd.PersistentFlags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
-	rootCmd.PersistentFlags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
-	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
-	rootCmd.PersistentFlags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
-	rootCmd.PersistentFlags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
-	rootCmd.PersistentFlags().BoolVarP(&watch, "watch", "w", false, "Live refresh: rescan and redraw until interrupted")
-	rootCmd.PersistentFlags().DurationVar(&watchInterval, "interval", time.Second, "Rescan interval for --watch (min 250ms)")
+	listingFlags(rootCmd)
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
+	listingFlags(listCmd)
 	rootCmd.AddCommand(listCmd)
+}
+
+// Each command carries the flags it honors and no others: a flag a
+// command would ignore is an unknown flag there — exit 2, naming the
+// commands it belongs to — never a silent no-op.
+
+// allFormats is every render the listing commands can draw.
+const allFormats = "table, json, snapshot, csv, tsv"
+
+func formatFlags(c *cobra.Command, formats string) {
+	c.Flags().StringVar(&format, "format", "table", "Output format: "+formats)
+	c.Flags().BoolVar(&jsonOut, "json", false, "JSON output, same as --format json")
+}
+
+func filterFlags(c *cobra.Command) {
+	c.Flags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
+	c.Flags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
+	c.Flags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
+	c.Flags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
+}
+
+func tableFlags(c *cobra.Command) {
+	c.Flags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
+	c.Flags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
+}
+
+func listingFlags(c *cobra.Command) {
+	formatFlags(c, allFormats)
+	tableFlags(c)
+	filterFlags(c)
+	c.Flags().BoolVarP(&watch, "watch", "w", false, "Live refresh: rescan and redraw until interrupted")
+	c.Flags().DurationVar(&watchInterval, "interval", time.Second, "Rescan interval for --watch (min 250ms)")
+}
+
+func stopFlags(c *cobra.Command) {
+	c.Flags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
+	c.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be stopped without stopping it")
 }
 
 func runList(cmd *cobra.Command, args []string) error {

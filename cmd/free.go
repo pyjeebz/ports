@@ -13,9 +13,6 @@ var freeCmd = &cobra.Command{
 	Short: "Kill whatever holds a port",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		arg := args[0]
 		port, err := strconv.ParseUint(arg, 10, 16)
 		if err != nil {
@@ -44,5 +41,6 @@ var freeCmd = &cobra.Command{
 }
 
 func init() {
+	stopFlags(freeCmd)
 	rootCmd.AddCommand(freeCmd)
 }

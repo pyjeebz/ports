@@ -87,6 +87,39 @@ func TestFindCommand(t *testing.T) {
 	}
 }
 
+// find honors the listing filters: --port narrows the matches to the
+// port asked about, and a filter that excludes every match is no match.
+func TestFindHonorsFilters(t *testing.T) {
+	port, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := NodeFixture(t, port, "test-server")
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+
+	stdout, stderr, code := RunPorts(t, "find", "node", "--port", strconv.Itoa(port), "--format", "json")
+	if code != 0 {
+		t.Fatalf("ports find --port failed: %s", stderr)
+	}
+	var services []map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &services); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+	for _, s := range services {
+		if p, _ := s["port"].(float64); int(p) != port {
+			t.Errorf("--port %d let through port %v", port, s["port"])
+		}
+	}
+	if len(services) == 0 {
+		t.Errorf("expected the fixture on :%d", port)
+	}
+
+	if _, _, code := RunPorts(t, "find", "node", "--port", "1"); code != 1 {
+		t.Errorf("a filter excluding every match exited %d, want 1", code)
+	}
+}
+
 func TestFreeCommand(t *testing.T) {
 	port, err := FindFreePort()
 	if err != nil {
@@ -266,11 +299,11 @@ func TestWatchRejections(t *testing.T) {
 		{"tsv has no redraw story", []string{"--watch", "--format", "tsv"}, "table or json"},
 		{"interval below minimum", []string{"--watch", "--format", "json", "--interval", "100ms"}, "--interval must be at least"},
 		{"table in a pipe", []string{"--watch"}, "needs a terminal"},
-		{"watch on kill", []string{"kill", "--watch", "no-such-service"}, "only applies to listing"},
-		{"watch on free", []string{"free", "--watch", "1"}, "only applies to listing"},
-		{"watch on find", []string{"find", "--watch", "no-such-service"}, "only applies to listing"},
-		{"watch on doctor", []string{"doctor", "--watch", "1"}, "only applies to listing"},
-		{"watch on diff", []string{"diff", "--watch", "before.json"}, "only applies to listing"},
+		{"watch on kill", []string{"kill", "--watch", "no-such-service"}, "doesn't apply to"},
+		{"watch on free", []string{"free", "--watch", "1"}, "doesn't apply to"},
+		{"watch on find", []string{"find", "--watch", "no-such-service"}, "doesn't apply to"},
+		{"watch on doctor", []string{"doctor", "--watch", "1"}, "doesn't apply to"},
+		{"watch on diff", []string{"diff", "--watch", "before.json"}, "doesn't apply to"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -701,6 +734,9 @@ func TestExitCodes(t *testing.T) {
 		{"unknown command exits 2", []string{"frobnicate"}, 2},
 		{"unknown flag exits 2", []string{"--badflag"}, 2},
 		{"unknown flag on a subcommand exits 2", []string{"kill", "--badflag", "shop"}, 2},
+		{"a stop flag on doctor exits 2", []string{"doctor", "--force"}, 2},
+		{"a stop flag on the listing exits 2", []string{"--dry-run"}, 2},
+		{"a listing flag on free exits 2", []string{"free", "--tree", "1"}, 2},
 		{"flag missing its value exits 2", []string{"--format"}, 2},
 		{"kill with no name exits 2", []string{"kill"}, 2},
 		{"find with no name exits 2", []string{"find"}, 2},

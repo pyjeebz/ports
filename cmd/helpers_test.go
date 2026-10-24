@@ -187,3 +187,22 @@ func TestStopAllFailureExitsOne(t *testing.T) {
 		t.Errorf("failure report incomplete: %q", out)
 	}
 }
+// A flag another command owns names that command; a flag nobody owns
+// stays cobra's plain "unknown flag".
+func TestMisplacedFlag(t *testing.T) {
+	err := misplacedFlag(killCmd, errors.New("unknown flag: --watch"))
+	if want := "--watch doesn't apply to `ports kill` — it's a flag of `ports`, `ports list`"; err.Error() != want {
+		t.Errorf("got %q, want %q", err, want)
+	}
+	err = misplacedFlag(freeCmd, errors.New("unknown shorthand flag: 'w' in -w"))
+	if !strings.Contains(err.Error(), "-w doesn't apply to `ports free`") {
+		t.Errorf("shorthand: %q", err)
+	}
+	err = misplacedFlag(rootCmd, errors.New("unknown flag: --force"))
+	if !strings.Contains(err.Error(), "`ports free`, `ports kill`") {
+		t.Errorf("root: %q", err)
+	}
+	if err := misplacedFlag(killCmd, errors.New("unknown flag: --nope")); err.Error() != "unknown flag: --nope" {
+		t.Errorf("unowned flag: %q", err)
+	}
+}
