@@ -136,7 +136,8 @@ None is required — every row is inferred from the machine itself, and the tool
 
 ```yaml
 # frameworks you run that the built-in table doesn't know — same rules
-# the detector uses: exe prefixes, exact bin names, cmdline substrings
+# the detector uses: exe prefixes, exact bin names, cmdline words
+# (whole words; fragments with / @ . or spaces match as substrings)
 frameworks:
   - name: Vend
     exe: ["vend"]
