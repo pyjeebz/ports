@@ -38,6 +38,21 @@ func resolveSort() (inspect.SortMode, error) {
 	return mode, nil
 }
 
+// wantJSON reports whether the run renders JSON.
+func wantJSON() bool { return jsonOut || format == "json" }
+
+// noneFound is a query that matched nothing: exit 1, grep-style, with
+// the reason on stderr. JSON still prints its empty shape — a script or
+// agent parsing stdout gets [], never nothing.
+func noneFound(msg string) error {
+	if wantJSON() {
+		if err := inspect.WriteJSON(nil); err != nil {
+			return err
+		}
+	}
+	return exitError{code: 1, msg: msg}
+}
+
 // noMatchMsg is the empty table under an active filter. The machine may
 // well have listeners — just none the filter keeps — so "no listening
 // TCP ports" would be false.

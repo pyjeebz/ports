@@ -30,6 +30,7 @@ type Service struct {
 	Image          string `json:"image,omitempty"`
 	ComposeProject string `json:"compose_project,omitempty"`
 	ComposeService string `json:"compose_service,omitempty"`
+	ComposeDir     string `json:"compose_dir,omitempty"` // where `compose up` ran
 
 	// windows-side listener, seen across the WSL2 boundary; WindowsPid
 	// is a Windows pid — never a target for kill

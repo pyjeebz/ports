@@ -28,6 +28,45 @@ $ ports find postgres
 5432     PostgreSQL    docker: shop-db        2d
 ```
 
+<span id="cmd-here" />
+
+## ports here \[dir\]
+
+What's running for this project — the directory you're in, or the one named. Ask before starting a dev server, and reuse the one that's already up instead of starting a second on the next free port.
+
+```sh
+$ cd ~/projects/shop/web && ports here
+PORT   PROCESS      PROJECT             UPTIME
+3000   Next.js      ~/projects/shop     14m
+8000   FastAPI      ~/projects/shop     14m
+5432   PostgreSQL   docker: shop-db     2d
+```
+
+The project is found the way the PROJECT column finds it — the outermost `.git`, then workspace markers, then the nearest `package.json`, `go.mod`, and friends — so any subdirectory works. Compose containers belong when `docker compose up` ran inside the project. The listing filters and formats apply.
+
+Exits `0` when something is running and `1` when nothing is, so `ports here --port 3000 || npm run dev` starts a server only when none is up. With `--json`, nothing running prints `[]` — never empty output.
+
+<span id="cmd-wait" />
+
+## ports wait \<port|name\>
+
+Block until something listens, then print its row — the step between starting a server and using it, without a sleep-and-retry loop.
+
+```sh
+$ npm run dev &
+$ ports wait 3000 --http
+PORT   PROCESS   PROJECT           UPTIME
+3000   Next.js   ~/projects/shop   3s
+
+$ ports free 3000 && ports wait 3000 --gone
+✓ killed Next.js (pid 48391) — port 3000 is free
+✓ :3000 is free
+```
+
+A port waits for any listener on it; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
+
+Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
+
 <span id="cmd-free" />
 
 ## ports free \<port\>
@@ -115,18 +154,21 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor` and `diff` take `table` or `json`. |
-| `--json` | `ports`, `find`, `doctor`, `diff` | Short for `--format json`. |
-| `--port` | `ports`, `find`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
-| `--framework` | `ports`, `find`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
-| `--project` | `ports`, `find`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
-| `--uptime` | `ports`, `find`, `diff` | Filter by uptime: `>1h`, `<30m`, `2h`. |
-| `--sort port\|uptime\|process\|project` | `ports`, `find` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
-| `--tree` | `ports`, `find` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
+| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, and `wait` take `table` or `json`. |
+| `--json` | `ports`, `find`, `here`, `wait`, `doctor`, `diff` | Short for `--format json`. |
+| `--port` | `ports`, `find`, `here`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
+| `--framework` | `ports`, `find`, `here`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
+| `--project` | `ports`, `find`, `here`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
+| `--uptime` | `ports`, `find`, `here`, `diff` | Filter by uptime: `>1h`, `<30m`, `2h`. |
+| `--sort port\|uptime\|process\|project` | `ports`, `find`, `here` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
+| `--tree` | `ports`, `find`, `here` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
 | `--watch` / `-w` | `ports` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
 | `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
 | `--force` | `free`, `kill` | Skip SIGTERM and kill immediately. |
 | `--dry-run` | `free`, `kill` | Show what would be stopped, without stopping it. |
+| `--timeout` | `wait` | Give up after this long (default `30s`; `0` waits forever). |
+| `--http` | `wait` | Wait until the port answers HTTP, not just connections. Ports only. |
+| `--gone` | `wait` | Wait until the port or service is free instead. |
 
 When a filter leaves the table empty, `ports` says `nothing listening matches the filter` rather than claim nothing is listening.
 
@@ -159,10 +201,24 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, a stop failed, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
 
-Errors report on stderr; stdout stays clean for whatever's piping it.
+An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
+
+## Scripts and agents
+
+Every command speaks JSON (`--json`), reports errors on stderr, and exits grep-style, so a script or a coding agent can drive ports without parsing tables. The dev-server loop, without duplicate servers or sleep-and-retry:
+
+```sh
+# reuse the server if this project already runs one, else start it
+ports here --port 3000 --json || (npm run dev &)
+
+# block until it actually serves, then use it
+ports wait 3000 --http --timeout 60s
+```
+
+Stopping is just as explicit: `ports free 3000 --dry-run` previews what would stop, and `ports doctor 3000` explains a stop that failed — every finding with the command that fixes it, never an action taken on its own.
 
 ## Permissions
 

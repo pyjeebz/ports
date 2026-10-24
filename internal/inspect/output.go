@@ -196,17 +196,23 @@ func project(s Service) string {
 	if s.Project == "" {
 		return "—"
 	}
+	return ShortPath(s.Project)
+}
+
+// ShortPath renders a path the way the PROJECT column does: under the
+// home directory it reads as ~/…, anywhere else as itself.
+func ShortPath(path string) string {
 	if home, err := os.UserHomeDir(); err == nil {
 		// the home itself and siblings of it both cut cleanly — only a
 		// path *under* home gets the ~, so ~/ports and ports-tools stay
 		// distinct projects. Windows builds the tree with \, so the guard
 		// and the render both go through the separator, not a literal /.
 		sep := string(filepath.Separator)
-		if rel, ok := strings.CutPrefix(s.Project, home); ok && (rel == "" || strings.HasPrefix(rel, sep)) {
+		if rel, ok := strings.CutPrefix(path, home); ok && (rel == "" || strings.HasPrefix(rel, sep)) {
 			return "~" + filepath.ToSlash(rel)
 		}
 	}
-	return s.Project
+	return path
 }
 
 func uptime(s Service) string {

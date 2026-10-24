@@ -274,6 +274,7 @@ func enrichDocker(services []Service, containers []Container) {
 		s.Image = c.Image
 		s.ComposeProject = c.Labels["com.docker.compose.project"]
 		s.ComposeService = c.Labels["com.docker.compose.service"]
+		s.ComposeDir = c.Labels["com.docker.compose.project.working_dir"]
 		if s.ComposeProject != "" {
 			s.ProjectName = s.ComposeProject
 		} else {

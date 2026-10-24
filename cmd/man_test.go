@@ -28,7 +28,7 @@ func TestManTree(t *testing.T) {
 
 	// one page per command in the tree — a new command without a page
 	// fails here, so man pages can't silently fall behind
-	names := []string{"ports", "ports-list", "ports-find", "ports-free", "ports-kill", "ports-doctor", "ports-diff", "ports-completion"}
+	names := []string{"ports", "ports-list", "ports-find", "ports-here", "ports-wait", "ports-free", "ports-kill", "ports-doctor", "ports-diff", "ports-completion"}
 	pages := map[string]string{}
 	for _, name := range names {
 		page, err := os.ReadFile(filepath.Join(dir, name+".1"))
