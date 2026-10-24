@@ -3,11 +3,8 @@ package inspect
 import (
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"slices"
-	"time"
 
 	gnet "github.com/shirou/gopsutil/v4/net"
 	gproc "github.com/shirou/gopsutil/v4/process"
@@ -412,34 +409,12 @@ func connectionsOnPort(port uint32) []gnet.ConnectionStat {
 
 // portAnswers reports whether a TCP connection to the port succeeds —
 // the "listening but invisible to the scan" case.
-func portAnswers(port uint32) bool {
-	c, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 500*time.Millisecond)
-	if err != nil {
-		return false
-	}
-	_ = c.Close()
-	return true
-}
+func portAnswers(port uint32) bool { return dialable(port) }
 
-// httpAnswers reports whether the listener speaks HTTP — one HEAD request,
-// any answer counts (a 404 is as much proof as a 200). Non-HTTP listeners
-// answer garbage or nothing, and the parse fails; either way doctor stays
-// silent about a URL it hasn't verified. The probe hits 127.0.0.1; the
-// finding says localhost, the form people type.
-func httpAnswers(port uint32) bool {
-	client := &http.Client{
-		Timeout: 500 * time.Millisecond,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse // the first answer is the proof
-		},
-	}
-	resp, err := client.Head(fmt.Sprintf("http://127.0.0.1:%d/", port))
-	if err != nil {
-		return false
-	}
-	_ = resp.Body.Close()
-	return true
-}
+// httpAnswers reports whether the listener speaks HTTP; doctor stays
+// silent about a URL it hasn't verified. The finding says localhost, the
+// form people type.
+func httpAnswers(port uint32) bool { return ServesHTTP(port) }
 
 // windowsHolds reports whether the Windows side also listens on the port
 // (WSL2 mirrored mode can show the same port from both sides).
