@@ -366,7 +366,7 @@ func TestDoctorTimeWaitWarns(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(300 * time.Millisecond) // the fixture accepts and closes while we hold
-	conn.Close()
+	_ = conn.Close()
 
 	stdout, _, code := RunPorts(t, "doctor", strconv.Itoa(port))
 	if code != 1 {
