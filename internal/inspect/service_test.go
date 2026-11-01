@@ -15,6 +15,14 @@ func TestMatchesName(t *testing.T) {
 			t.Errorf("MatchesName(%q) = true, want false", q)
 		}
 	}
+	// a framework name with no a-z/0-9 keys to "", and so does a query
+	// like 日本 or * — two empty keys are not a match
+	u := Service{Process: "python3.12", Framework: "サーバー", ProjectName: "shop"}
+	for _, q := range []string{"日本", "*", ".", "-"} {
+		if u.MatchesName(q) {
+			t.Errorf("MatchesName(%q) on framework %q = true, want false", q, u.Framework)
+		}
+	}
 }
 
 func TestMatchesQuery(t *testing.T) {

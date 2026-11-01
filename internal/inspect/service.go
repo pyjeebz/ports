@@ -62,6 +62,14 @@ func (s Service) unowned() bool {
 // only after sudo reveals it.
 func (s Service) Anonymous() bool { return s.unowned() && s.Process == "?" }
 
+// frameworkKeyMatch compares framework names by key. A name with no a-z/0-9
+// keys to "", and two empty keys are not a match — else `kill '*'` or
+// `--expect 日本` would select every row whose framework keys to "".
+func frameworkKeyMatch(q, framework string) bool {
+	k := FrameworkKey(q)
+	return k != "" && k == FrameworkKey(framework)
+}
+
 // MatchesName reports an exact, case-insensitive match on the handles a
 // developer stops things by: project name, framework, container or
 // compose-service name, or process name. On docker rows the process
@@ -69,7 +77,7 @@ func (s Service) Anonymous() bool { return s.unowned() && s.Process == "?" }
 // select every published container at once.
 func (s Service) MatchesName(q string) bool {
 	if (s.ProjectName != "" && strings.EqualFold(q, s.ProjectName)) ||
-		(s.Framework != "" && FrameworkKey(q) == FrameworkKey(s.Framework)) ||
+		(s.Framework != "" && frameworkKeyMatch(q, s.Framework)) ||
 		(s.Unit != "" && strings.EqualFold(q, s.Unit)) {
 		return true
 	}
