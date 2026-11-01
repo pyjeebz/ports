@@ -50,6 +50,9 @@ func TestValidate(t *testing.T) {
 	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: " ", Exe: []string{"vend"}}}}).Validate(); err == nil {
 		t.Error("a blank name must be rejected")
 	}
+	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: "サーバー", Exe: []string{"vend"}}}}).Validate(); err == nil {
+		t.Error("a name with no a-z/0-9 passed, but nothing could ever match it by name")
+	}
 	if err := (&Config{CustomFrameworks: []FrameworkRule{{Name: "Vend"}}}).Validate(); err == nil {
 		t.Error("a rule with no exe, bin, or cmd matches everything and must be rejected")
 	}
