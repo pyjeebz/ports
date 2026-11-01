@@ -56,8 +56,8 @@ install -m 0755 "$tmp/ports" "$bindir/ports"
 
 # man pages — best effort, never a reason to fail the install
 mandir=/usr/local/share/man/man1
-[ "$bindir" = /usr/local/bin ] || mandir="$HOME/.local/share/man/man1"
-if [ -f "$tmp/ports.1" ] && mkdir -p "$mandir" 2>/dev/null && [ -w "$mandir" ]; then
+[ "$bindir" = /usr/local/bin ] || mandir="${HOME:+$HOME/.local/share/man/man1}"
+if [ -n "$mandir" ] && [ -f "$tmp/ports.1" ] && mkdir -p "$mandir" 2>/dev/null && [ -w "$mandir" ]; then
   if install -m 0644 "$tmp"/ports*.1 "$mandir"/ 2>/dev/null; then
     echo "✓ man pages installed to $mandir"
   fi
