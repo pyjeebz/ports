@@ -285,13 +285,13 @@ func lookupUser(uid uint32) string {
 func collapseUnowned(services []Service) []Service {
 	named := map[uint32]bool{}
 	for _, s := range services {
-		if s.unowned() && s.Process != "?" {
+		if s.Unowned() && s.Process != "?" {
 			named[s.Port] = true
 		}
 	}
 	seen := map[string]bool{}
 	return slices.DeleteFunc(services, func(s Service) bool {
-		if !s.unowned() {
+		if !s.Unowned() {
 			return false
 		}
 		if s.Process == "?" && named[s.Port] {

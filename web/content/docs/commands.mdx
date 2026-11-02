@@ -119,7 +119,9 @@ With `--json`, `free` and `kill` report one object per target — a process, con
 ]
 ```
 
-`action` is `stopped`, `would_stop` (under `--dry-run`), `failed`, or `refused` (by `--expect`); `service` is the row exactly as `ports --json` prints it; `fix` is the command that moves a failure along. Nothing to stop prints `[]` and exits `1`.
+`action` is `stopped`, `would_stop` (under `--dry-run`), `failed`, `refused` (by `--expect`), or `skipped`; `service` is the row exactly as `ports --json` prints it; `fix` is the command that moves a failure along. Nothing to stop prints `[]` and exits `1`.
+
+`ports kill` matches by name, so it can sweep up another user's listener — one the scan sees with no pid, which nothing short of `sudo` can stop. Those are `skipped`, each with the command that would stop it (`sudo systemctl stop <unit>` or `sudo ports free <port>`). A skipped row never fails a kill that stopped what it could, and `--expect` judges only what would actually be stopped; when skipped rows are all there was, nothing was stopped and the kill exits `1`. `ports free` names its port outright, so a port held that way is a failure there, not a skip.
 
 ```sh
 $ ports kill shop

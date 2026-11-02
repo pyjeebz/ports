@@ -25,7 +25,9 @@ var killCmd = &cobra.Command{
 		if len(matched) == 0 {
 			return noneFound(fmt.Sprintf("nothing matching %q — try `ports find %s`", q, q))
 		}
-		code := stopAll(matched, stopOptions(), func(s inspect.Service, ports string) string {
+		opts := stopOptions()
+		opts.skipUnowned = true
+		code := stopAll(matched, opts, func(s inspect.Service, ports string) string {
 			return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
 		})
 		if code != 0 {
