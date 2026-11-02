@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -15,6 +17,7 @@ var (
 	jsonOut          bool
 	force            bool
 	dryRun           bool
+	expect           string
 	format           string
 	showTree         bool
 	watch            bool
@@ -49,9 +52,6 @@ what is running on this machine right now, and what does it belong to?
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd, args)
-	},
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return nil
 	},
 }
 
@@ -95,14 +95,13 @@ func codifyExitCodes() {
 	toBadArgs := func(err error) error {
 		return exitError{code: 2, msg: err.Error()}
 	}
-	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return toBadArgs(err)
-	})
+	flagErr := func(c *cobra.Command, err error) error {
+		return toBadArgs(misplacedFlag(c, err))
+	}
+	rootCmd.SetFlagErrorFunc(flagErr)
 	for _, c := range rootCmd.Commands() {
 		sub := c
-		sub.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-			return toBadArgs(err)
-		})
+		sub.SetFlagErrorFunc(flagErr)
 		if orig := sub.Args; orig != nil {
 			sub.Args = func(cmd *cobra.Command, args []string) error {
 				if err := orig(cmd, args); err != nil {
@@ -123,23 +122,68 @@ func codifyExitCodes() {
 	}
 }
 
-func loadConfig() error {
-	viper.SetConfigName("ports-config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.config/ports")
-	viper.AddConfigPath("/etc/ports")
-
-	// Environment variable prefix
-	viper.SetEnvPrefix("PORTS")
-	viper.AutomaticEnv()
-
-	// If config file found, read it
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return err
+// misplacedFlag turns "unknown flag" into where the flag does apply,
+// when another command owns it: `ports kill --watch` learns --watch is
+// a listing flag, not that it doesn't exist.
+func misplacedFlag(c *cobra.Command, err error) error {
+	msg := err.Error()
+	var lookup func(*cobra.Command) *pflag.Flag
+	var shown string
+	if name, ok := strings.CutPrefix(msg, "unknown flag: --"); ok {
+		lookup = func(o *cobra.Command) *pflag.Flag { return o.Flags().Lookup(name) }
+		shown = "--" + name
+	} else if rest, ok := strings.CutPrefix(msg, "unknown shorthand flag: '"); ok && rest != "" {
+		short := rest[:1]
+		lookup = func(o *cobra.Command) *pflag.Flag { return o.Flags().ShorthandLookup(short) }
+		shown = "-" + short
+	} else {
+		return err
+	}
+	var owners []string
+	for _, o := range append([]*cobra.Command{rootCmd}, rootCmd.Commands()...) {
+		if o != c && lookup(o) != nil {
+			owners = append(owners, "`"+o.CommandPath()+"`")
 		}
-		// Config file not found is OK
+	}
+	if len(owners) == 0 {
+		return err
+	}
+	return fmt.Errorf("%s doesn't apply to `%s` — it's a flag of %s", shown, c.CommandPath(), strings.Join(owners, ", "))
+}
+
+// scanConfig is the optional ports-config.yaml, read once at startup.
+var scanConfig inspect.Config
+
+// loadConfig reads ports-config.yaml from the first place it exists. No
+// file is the normal case; a file that exists but doesn't parse — or
+// whose values don't fit — fails the run rather than be half-applied.
+func loadConfig() error {
+	v := viper.New()
+	v.SetConfigName("ports-config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	v.AddConfigPath("$HOME/.config/ports")
+	v.AddConfigPath("/etc/ports")
+
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return nil
+		}
+		// three places are searched — say which file is broken
+		if where := v.ConfigFileUsed(); where != "" {
+			return fmt.Errorf("%s: %w", where, err)
+		}
+		return err
+	}
+	where := v.ConfigFileUsed()
+	if err := v.UnmarshalKey("frameworks", &scanConfig.CustomFrameworks); err != nil {
+		return fmt.Errorf("%s: frameworks: %w", where, err)
+	}
+	if err := v.UnmarshalKey("projects.markers", &scanConfig.CustomProjectMarkers); err != nil {
+		return fmt.Errorf("%s: projects.markers: %w", where, err)
+	}
+	if err := scanConfig.Validate(); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
 	}
 	return nil
 }
@@ -154,22 +198,56 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "JSON output (deprecated: use --format json)")
-	rootCmd.PersistentFlags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be killed without doing it")
-	rootCmd.PersistentFlags().StringVar(&format, "format", "table", "Output format: table, json, snapshot, csv, tsv")
-	rootCmd.PersistentFlags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
-	rootCmd.PersistentFlags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
-	rootCmd.PersistentFlags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
-	rootCmd.PersistentFlags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
-	rootCmd.PersistentFlags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
-	rootCmd.PersistentFlags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
-	rootCmd.PersistentFlags().BoolVarP(&watch, "watch", "w", false, "Live refresh: rescan and redraw until interrupted")
-	rootCmd.PersistentFlags().DurationVar(&watchInterval, "interval", time.Second, "Rescan interval for --watch (min 250ms)")
+	listingFlags(rootCmd)
 	rootCmd.Flags().BoolP("version", "v", false, "Print version")
 	rootCmd.SetVersionTemplate("ports {{.Version}}\n")
 
+	listingFlags(listCmd)
 	rootCmd.AddCommand(listCmd)
+}
+
+// Each command carries the flags it honors and no others: a flag a
+// command would ignore is an unknown flag there — exit 2, naming the
+// commands it belongs to — never a silent no-op.
+
+// allFormats is every render the listing commands can draw.
+const allFormats = "table, json, snapshot, csv, tsv"
+
+func formatFlags(c *cobra.Command, formats string) {
+	c.Flags().StringVar(&format, "format", "table", "Output format: "+formats)
+	c.Flags().BoolVar(&jsonOut, "json", false, "JSON output, same as --format json")
+}
+
+func filterFlags(c *cobra.Command) {
+	c.Flags().StringVar(&filterPorts, "port", "", "Filter by port(s): 3000, 3000-4000, :3000,:8000")
+	c.Flags().StringVar(&filterFrameworks, "framework", "", "Filter by framework(s): nextjs,vite")
+	c.Flags().StringVar(&filterProjects, "project", "", "Filter by project name/path: shop,~/projects/shop")
+	c.Flags().StringVar(&filterUptime, "uptime", "", "Filter by uptime: >1h, <30m, 2h")
+}
+
+func tableFlags(c *cobra.Command) {
+	c.Flags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
+	c.Flags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
+}
+
+func listingFlags(c *cobra.Command) {
+	formatFlags(c, allFormats)
+	tableFlags(c)
+	filterFlags(c)
+	c.Flags().BoolVarP(&watch, "watch", "w", false, "Live refresh: rescan and redraw until interrupted")
+	c.Flags().DurationVar(&watchInterval, "interval", time.Second, "Rescan interval for --watch (min 250ms)")
+}
+
+func stopFlags(c *cobra.Command) {
+	formatFlags(c, "table, json")
+	c.Flags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
+	c.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be stopped without stopping it")
+	c.Flags().StringVar(&expect, "expect", "", "Stop only if everything matched is this project, framework, container, or process — else stop nothing")
+}
+
+// stopOptions gathers the stop flags for stopAll.
+func stopOptions() stopOpts {
+	return stopOpts{force: force, dryRun: dryRun, expect: expect}
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -192,28 +270,16 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	services = inspect.ApplyFilter(services, filter)
+	if noMatch(services, filter) {
+		fmt.Println(noMatchMsg)
+		return nil
+	}
 
 	return writeReport(services, sort)
 }
 
+// buildInspectConfig hands a scan its own copy of the loaded config.
 func buildInspectConfig() *inspect.Config {
-	var cfg inspect.Config
-
-	// Custom frameworks
-	if viper.IsSet("frameworks") {
-		var custom []inspect.FrameworkRule
-		if err := viper.UnmarshalKey("frameworks", &custom); err == nil {
-			cfg.CustomFrameworks = custom
-		}
-	}
-
-	// Custom project markers
-	if viper.IsSet("projects.markers") {
-		var markers []string
-		if err := viper.UnmarshalKey("projects.markers", &markers); err == nil {
-			cfg.CustomProjectMarkers = markers
-		}
-	}
-
+	cfg := scanConfig
 	return &cfg
 }

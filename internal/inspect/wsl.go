@@ -68,15 +68,21 @@ func windowsListeners() []Service {
 
 	var services []Service
 	for _, w := range socks {
+		// pid 0 is Windows declining to name an owner — tasklist calls it
+		// "System Idle Process", which owns nothing. No name, no taskkill
+		// target: a row would only be noise.
+		if w.pid == 0 {
+			continue
+		}
 		name := names[w.pid]
 		if name == "" || winSystemProcs[name] {
 			continue
 		}
 		short := strings.TrimSuffix(name, ".exe")
 		services = append(services, Service{
-			Port:      w.port,
-			Addr:      w.addr,
-			Process:   short,
+			Port:    w.port,
+			Addr:    w.addr,
+			Process: short,
 			// the image name stands in for both the exe and the cmdline,
 			// so bin and cmd rules fire for Windows rows too — next.exe
 			// reads as Next.js, same as its Linux twin

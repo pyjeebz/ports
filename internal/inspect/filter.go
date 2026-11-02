@@ -36,8 +36,8 @@ func ParseFilter(ports, frameworks, projects, uptime string) (*Filter, error) {
 	if frameworks != "" {
 		for _, fw := range strings.Split(frameworks, ",") {
 			fw = strings.TrimSpace(fw)
-			if fw != "" {
-				f.Frameworks = append(f.Frameworks, strings.ToLower(fw))
+			if key := FrameworkKey(fw); key != "" {
+				f.Frameworks = append(f.Frameworks, key)
 			}
 		}
 	}
@@ -182,12 +182,12 @@ func (f *Filter) Matches(s Service) bool {
 		}
 	}
 
-	// Framework filter (exact match, case-insensitive)
+	// Framework filter (exact match on the typed form — see FrameworkKey)
 	if len(f.Frameworks) > 0 {
 		matched := false
-		sfw := strings.ToLower(s.Framework)
+		sfw := FrameworkKey(s.Framework)
 		for _, fw := range f.Frameworks {
-			if sfw == fw {
+			if sfw == FrameworkKey(fw) {
 				matched = true
 				break
 			}
@@ -228,6 +228,13 @@ func (f *Filter) Matches(s Service) bool {
 	}
 
 	return true
+}
+
+// Active reports whether the filter narrows anything — a filter that
+// matches nothing then says so, rather than claim nothing is listening.
+func (f *Filter) Active() bool {
+	return f != nil && (len(f.Ports) > 0 || len(f.Frameworks) > 0 || len(f.Projects) > 0 ||
+		f.UptimeMin != nil || f.UptimeMax != nil)
 }
 
 // ApplyFilter filters a slice of services.

@@ -20,7 +20,7 @@ func TestValidateWatch(t *testing.T) {
 		{name: "table on a terminal", interval: time.Second, format: "table", tty: true},
 		{name: "json anywhere", interval: time.Second, format: "json"},
 		{name: "json in a pipe", interval: time.Second, format: "json"},
-		{name: "deprecated --json in a pipe", interval: time.Second, jsonOut: true},
+		{name: "--json in a pipe", interval: time.Second, jsonOut: true},
 
 		{name: "interval below minimum", interval: 100 * time.Millisecond, format: "json", wantErr: true, wantCode: 2},
 		{name: "interval at minimum", interval: minWatchInterval, format: "json"},

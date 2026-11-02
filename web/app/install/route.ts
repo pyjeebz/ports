@@ -3,8 +3,8 @@ import { join } from "path";
 
 // Serve the install script at https://ports.tools/install so
 // `curl -fsSL https://ports.tools/install | sh` works. Read at build time
-// and baked into static output. Keep script.sh in sync with the repo-root
-// install.sh (which the GitHub raw URL serves as a fallback).
+// and baked into static output. script.sh is a byte-identical copy of the
+// repo-root install.sh (the GitHub raw mirror); CI fails when they drift.
 export const dynamic = "force-static";
 
 const script = readFileSync(join(process.cwd(), "app/install/script.sh"), "utf8");

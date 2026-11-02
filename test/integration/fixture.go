@@ -17,11 +17,11 @@ import (
 
 // Fixture represents a test process that listens on a port.
 type Fixture struct {
-	Name     string
-	Port     int
-	Cmd      *exec.Cmd
-	Cancel   context.CancelFunc
-	Ready    chan struct{}
+	Name   string
+	Port   int
+	Cmd    *exec.Cmd
+	Cancel context.CancelFunc
+	Ready  chan struct{}
 	// Project is the project name the scan reads for this fixture — the
 	// handle a test can target with `ports kill` without touching any
 	// real listener on the machine.
@@ -77,7 +77,7 @@ func (f *Fixture) isListening() bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	_ = conn.Close()
 	return true
 }
 
@@ -99,8 +99,10 @@ func (f *Fixture) Stop() {
 		f.Cancel()
 	}
 	if f.Cmd != nil && f.Cmd.Process != nil {
-		f.Cmd.Process.Kill()
-		f.Cmd.Wait()
+		// teardown: the fixture may have exited already (a test that
+		// freed its port), so neither error says anything
+		_ = f.Cmd.Process.Kill()
+		_ = f.Cmd.Wait()
 	}
 }
 
@@ -224,14 +226,14 @@ func FindFreePort() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
 // hermeticEnv builds the child's environment: a throwaway HOME, and none
-// of the machine's ports choices — PORTS_* settings, CONTAINER_RUNTIME,
-// DOCKER_HOST — so the suite asserts the binary, not the developer's
-// ~/.config/ports and environment. Everything else passes through
+// of the machine's container choices — CONTAINER_RUNTIME, DOCKER_HOST —
+// so the suite asserts the binary, not the developer's ~/.config/ports
+// and environment. Everything else passes through
 // untouched (PATH above all), since the child is a normal program.
 func hermeticEnv(t *testing.T) []string {
 	t.Helper()
@@ -245,7 +247,6 @@ func hermeticEnv(t *testing.T) []string {
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
 		if key == "HOME" || key == "PORTS_BINARY" ||
-			strings.HasPrefix(key, "PORTS_") ||
 			key == "CONTAINER_RUNTIME" || key == "DOCKER_HOST" {
 			continue
 		}

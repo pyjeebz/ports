@@ -31,9 +31,6 @@ gates naturally), and 2 for a bad invocation — a missing snapshot, one
 that doesn't parse, or one from a newer ports.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		// validate the arguments before paying for a scan
 		filter, err := inspect.ParseFilter(filterPorts, filterFrameworks, filterProjects, filterUptime)
 		if err != nil {
@@ -71,5 +68,7 @@ that doesn't parse, or one from a newer ports.`,
 }
 
 func init() {
+	formatFlags(diffCmd, "table, json")
+	filterFlags(diffCmd)
 	rootCmd.AddCommand(diffCmd)
 }

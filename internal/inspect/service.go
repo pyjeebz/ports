@@ -30,16 +30,45 @@ type Service struct {
 	Image          string `json:"image,omitempty"`
 	ComposeProject string `json:"compose_project,omitempty"`
 	ComposeService string `json:"compose_service,omitempty"`
+	ComposeDir     string `json:"compose_dir,omitempty"` // where `compose up` ran
 
 	// windows-side listener, seen across the WSL2 boundary; WindowsPid
 	// is a Windows pid — never a target for kill
 	Windows    bool  `json:"windows,omitempty"`
 	WindowsPid int32 `json:"windows_pid,omitempty"`
+
+	// another user's listener, which a scan without root sees with no
+	// pid: User owns the socket, and Unit is the systemd service it was
+	// traced to through that user's processes. Pid stays 0 — the row
+	// names the service, not which of its processes holds the port.
+	User string `json:"user,omitempty"`
+	Unit string `json:"unit,omitempty"`
+
+	ownerUID uint32 // the socket's owner, from /proc/net/tcp
+	hasOwner bool
 }
 
 // Known reports whether the owning process could be identified.
 // Without root, sockets of other users' processes come back with Pid 0.
 func (s Service) Known() bool { return s.Pid > 0 }
+
+// unowned reports a host row no pid backs — another user's listener,
+// named or not. Container and Windows rows have their own owners.
+func (s Service) unowned() bool {
+	return !s.Known() && s.Container == "" && !s.Windows
+}
+
+// Anonymous reports a row nothing could name: shown as ?, stoppable
+// only after sudo reveals it.
+func (s Service) Anonymous() bool { return s.unowned() && s.Process == "?" }
+
+// frameworkKeyMatch compares framework names by key. A name with no a-z/0-9
+// keys to "", and two empty keys are not a match — else `kill '*'` or
+// `--expect 日本` would select every row whose framework keys to "".
+func frameworkKeyMatch(q, framework string) bool {
+	k := FrameworkKey(q)
+	return k != "" && k == FrameworkKey(framework)
+}
 
 // MatchesName reports an exact, case-insensitive match on the handles a
 // developer stops things by: project name, framework, container or
@@ -48,7 +77,8 @@ func (s Service) Known() bool { return s.Pid > 0 }
 // select every published container at once.
 func (s Service) MatchesName(q string) bool {
 	if (s.ProjectName != "" && strings.EqualFold(q, s.ProjectName)) ||
-		(s.Framework != "" && strings.EqualFold(q, s.Framework)) {
+		(s.Framework != "" && frameworkKeyMatch(q, s.Framework)) ||
+		(s.Unit != "" && strings.EqualFold(q, s.Unit)) {
 		return true
 	}
 	if s.Container != "" {
@@ -59,12 +89,16 @@ func (s Service) MatchesName(q string) bool {
 }
 
 // MatchesQuery reports a case-insensitive substring match across the
-// recognizable context, for `ports find`.
+// recognizable context, for `ports find`. The framework also matches in
+// its typed form, so `ports find nextjs` finds Next.js.
 func (s Service) MatchesQuery(q string) bool {
+	if key := FrameworkKey(q); key != "" && strings.Contains(FrameworkKey(s.Framework), key) {
+		return true
+	}
 	q = strings.ToLower(q)
 	for _, hay := range []string{
 		s.Framework, s.Process, s.ProjectName, s.Project,
-		s.Container, s.Image, s.ComposeProject, s.ComposeService,
+		s.Container, s.Image, s.ComposeProject, s.ComposeService, s.Unit,
 	} {
 		if hay != "" && strings.Contains(strings.ToLower(hay), q) {
 			return true

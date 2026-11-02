@@ -31,9 +31,6 @@ Exit codes: 0 when every finding is ✓, 1 when anything is ⚠ or ✗
 naturally), 2 for bad arguments.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		cfg := buildInspectConfig()
 
 		var findings []inspect.Finding
@@ -80,5 +77,6 @@ naturally), 2 for bad arguments.`,
 }
 
 func init() {
+	formatFlags(doctorCmd, "table, json")
 	rootCmd.AddCommand(doctorCmd)
 }

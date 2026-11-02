@@ -15,6 +15,14 @@ func TestMatchesName(t *testing.T) {
 			t.Errorf("MatchesName(%q) = true, want false", q)
 		}
 	}
+	// a framework name with no a-z/0-9 keys to "", and so does a query
+	// like 日本 or * — two empty keys are not a match
+	u := Service{Process: "python3.12", Framework: "サーバー", ProjectName: "shop"}
+	for _, q := range []string{"日本", "*", ".", "-"} {
+		if u.MatchesName(q) {
+			t.Errorf("MatchesName(%q) on framework %q = true, want false", q, u.Framework)
+		}
+	}
 }
 
 func TestMatchesQuery(t *testing.T) {
@@ -26,5 +34,16 @@ func TestMatchesQuery(t *testing.T) {
 	}
 	if s.MatchesQuery("postgres") {
 		t.Error("MatchesQuery(postgres) = true, want false")
+	}
+}
+
+// kill and find take the framework the way it's typed, like the filter.
+func TestMatchesTypedFramework(t *testing.T) {
+	s := Service{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js"}
+	if !s.MatchesName("nextjs") || !s.MatchesQuery("nextjs") {
+		t.Error("nextjs should name and find Next.js")
+	}
+	if s.MatchesName("next") {
+		t.Error("kill names exactly — next is not Next.js")
 	}
 }

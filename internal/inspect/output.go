@@ -152,7 +152,7 @@ func WriteTable(services []Service, sort SortMode) {
 	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
 	for _, s := range rows {
-		if !s.Known() && s.Container == "" && !s.Windows {
+		if s.Anonymous() {
 			unknown = true
 		}
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
@@ -176,6 +176,10 @@ func ProcessName(s Service) string {
 	}
 }
 
+// ProjectLabel is the PROJECT column's text for a row: a path, a
+// container, a systemd unit, windows, or —.
+func ProjectLabel(s Service) string { return project(s) }
+
 func project(s Service) string {
 	if s.Windows {
 		return "windows"
@@ -187,20 +191,32 @@ func project(s Service) string {
 		}
 		return runtime + ": " + DockerName(s)
 	}
+	if s.Unit != "" {
+		return "systemd: " + s.Unit
+	}
+	if s.User != "" {
+		return "user: " + s.User
+	}
 	if s.Project == "" {
 		return "—"
 	}
+	return ShortPath(s.Project)
+}
+
+// ShortPath renders a path the way the PROJECT column does: under the
+// home directory it reads as ~/…, anywhere else as itself.
+func ShortPath(path string) string {
 	if home, err := os.UserHomeDir(); err == nil {
 		// the home itself and siblings of it both cut cleanly — only a
 		// path *under* home gets the ~, so ~/ports and ports-tools stay
 		// distinct projects. Windows builds the tree with \, so the guard
 		// and the render both go through the separator, not a literal /.
 		sep := string(filepath.Separator)
-		if rel, ok := strings.CutPrefix(s.Project, home); ok && (rel == "" || strings.HasPrefix(rel, sep)) {
+		if rel, ok := strings.CutPrefix(path, home); ok && (rel == "" || strings.HasPrefix(rel, sep)) {
 			return "~" + filepath.ToSlash(rel)
 		}
 	}
-	return s.Project
+	return path
 }
 
 func uptime(s Service) string {

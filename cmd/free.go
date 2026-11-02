@@ -13,13 +13,13 @@ var freeCmd = &cobra.Command{
 	Short: "Kill whatever holds a port",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if watch {
-			return errWatchNotList
-		}
 		arg := args[0]
 		port, err := strconv.ParseUint(arg, 10, 16)
 		if err != nil {
 			return exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
+		}
+		if err := stopFormat(); err != nil {
+			return err
 		}
 		cfg := buildInspectConfig()
 		services, err := inspect.Scan(cfg)
@@ -28,9 +28,9 @@ var freeCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.Port == uint32(port) })
 		if len(matched) == 0 {
-			return fmt.Errorf("nothing listening on %d — run `ports doctor %d` to see what holds it", port, port)
+			return noneFound(fmt.Sprintf("nothing listening on %d — run `ports doctor %d` to see what holds it", port, port))
 		}
-		code := stopAll(matched, force, dryRun, func(s inspect.Service, _ string) string {
+		code := stopAll(matched, stopOptions(), func(s inspect.Service, _ string) string {
 			if s.Container != "" {
 				return fmt.Sprintf("✓ stopped %s (container %s) — port %d is free", inspect.ProcessName(s), inspect.DockerName(s), port)
 			}
@@ -44,5 +44,6 @@ var freeCmd = &cobra.Command{
 }
 
 func init() {
+	stopFlags(freeCmd)
 	rootCmd.AddCommand(freeCmd)
 }

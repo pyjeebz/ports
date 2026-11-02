@@ -13,7 +13,7 @@ type frameworkRule struct {
 	name string   // display name
 	exe  []string // exe basenames, versions and extensions allowed (node, node.exe, python3); empty = any exe
 	bin  []string // exact basename (script extension stripped) of any cmdline token
-	cmd  []string // raw cmdline substrings
+	cmd  []string // cmdline fragments: whole words, or substrings when they carry punctuation (see cmdHas)
 }
 
 var frameworkRules = []frameworkRule{
@@ -103,6 +103,19 @@ var frameworkRules = []frameworkRule{
 // names, so node_modules/vite/bin/vite.js still reads as "vite".
 var scriptExts = []string{".js", ".mjs", ".cjs", ".ts", ".py"}
 
+// FrameworkKey is a framework name as people type it: case, spaces, and
+// punctuation fall away, so nextjs names Next.js, springboot names
+// Spring Boot, and react-cra names React (CRA).
+func FrameworkKey(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if ('a' <= r && r <= 'z') || ('0' <= r && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // DetectFramework names the framework behind a process from its exe
 // basename and cmdline. Returns "" when nothing in the table matches.
 func DetectFramework(process, cmdline string) string {
@@ -130,7 +143,7 @@ func (r frameworkRule) matches(exe, cmd string) bool {
 		return true
 	}
 	for _, frag := range r.cmd {
-		if strings.Contains(cmd, frag) {
+		if cmdHas(cmd, frag) {
 			return true
 		}
 	}
@@ -138,6 +151,41 @@ func (r frameworkRule) matches(exe, cmd string) bool {
 		return true
 	}
 	return false
+}
+
+// cmdHas reports whether a cmdline carries frag. A fragment with path or
+// package punctuation (@remix-run, github.com/gin-gonic/gin, manage.py)
+// is specific enough as a substring; a bare word (hono, quart) must
+// stand as a whole word, so ~/my-hono-app reads as Hono and
+// ~/phonograph or ~/quarterly don't.
+func cmdHas(cmd, frag string) bool {
+	if !isWord(frag) {
+		return strings.Contains(cmd, frag)
+	}
+	for i := 0; ; {
+		j := strings.Index(cmd[i:], frag)
+		if j < 0 {
+			return false
+		}
+		start, end := i+j, i+j+len(frag)
+		if (start == 0 || !isAlnum(cmd[start-1])) && (end == len(cmd) || !isAlnum(cmd[end])) {
+			return true
+		}
+		i = start + 1
+	}
+}
+
+func isWord(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; !isAlnum(c) && c != '-' && c != '_' {
+			return false
+		}
+	}
+	return s != ""
+}
+
+func isAlnum(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z')
 }
 
 // matchesBase reports whether s names one of the bases — the name itself,

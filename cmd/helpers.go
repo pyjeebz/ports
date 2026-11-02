@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -38,10 +39,37 @@ func resolveSort() (inspect.SortMode, error) {
 	return mode, nil
 }
 
+// wantJSON reports whether the run renders JSON.
+func wantJSON() bool { return jsonOut || format == "json" }
+
+// noneFound is a query that matched nothing: exit 1, grep-style, with
+// the reason on stderr. JSON still prints its empty shape — a script or
+// agent parsing stdout gets [], never nothing.
+func noneFound(msg string) error {
+	if wantJSON() {
+		if err := inspect.WriteJSON(nil); err != nil {
+			return err
+		}
+	}
+	return exitError{code: 1, msg: msg}
+}
+
+// noMatchMsg is the empty table under an active filter. The machine may
+// well have listeners — just none the filter keeps — so "no listening
+// TCP ports" would be false.
+const noMatchMsg = "nothing listening matches the filter"
+
+// noMatch reports whether a table render would be empty only because of
+// the filter. Machine formats keep their empty shapes ([] and headers).
+func noMatch(services []inspect.Service, filter *inspect.Filter) bool {
+	return len(services) == 0 && filter.Active() && !jsonOut && format == "table"
+}
+
 // writeReport renders services in the --format and order the user asked for.
 func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	if jsonOut {
-		// --json is deprecated but still honored
+		// --json is --format json, kept short for the scripts and agents
+		// that reach for it first
 		return inspect.WriteJSON(services)
 	}
 	switch format {
@@ -72,16 +100,38 @@ func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 // stops without sending signals.
 var stopOne = inspect.Stop
 
-// stopAll stops one process per pid — or one container per id, however
-// many ports it publishes — and prints a line per stop. Returns the exit
-// code. If dryRun is true, only shows what would be stopped without doing it.
-func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(inspect.Service, string) string) int {
-	type group struct {
-		s     inspect.Service
-		ports []string
-	}
-	var groups []*group
-	byKey := map[string]*group{}
+// stopOpts are the choices a free or kill runs with.
+type stopOpts struct {
+	force  bool
+	dryRun bool
+	expect string // stop only if every target matches this name
+}
+
+// What happened to one stop target, in --format json. A target is one
+// process, container, or service, however many ports it holds; service
+// is its row exactly as `ports --json` prints it.
+type stopResult struct {
+	Action  string          `json:"action"` // stopped, would_stop, failed, refused
+	Ports   []uint32        `json:"ports"`
+	Service inspect.Service `json:"service"`
+	Error   string          `json:"error,omitempty"`
+	Fix     string          `json:"fix,omitempty"`
+}
+
+const (
+	actionStopped   = "stopped"
+	actionWouldStop = "would_stop"
+	actionFailed    = "failed"
+	actionRefused   = "refused"
+)
+
+// stopTargets groups rows into what one stop ends: a pid, a container
+// (docker-proxy runs once per published port, the container is what
+// stops), or another user's systemd unit. A row nothing identifies
+// stands alone.
+func stopTargets(matched []inspect.Service) []stopResult {
+	var targets []stopResult
+	byKey := map[string]int{}
 	for _, s := range matched {
 		key := ""
 		switch {
@@ -89,31 +139,144 @@ func stopAll(matched []inspect.Service, force bool, dryRun bool, okMsg func(insp
 			key = "c:" + s.ContainerID
 		case s.Known():
 			key = fmt.Sprintf("p:%d", s.Pid)
+		case s.Unit != "":
+			// another user's service, no pid to group by — one unit is
+			// one stop, however many ports it holds
+			key = "u:" + s.Unit
 		}
-		if g, ok := byKey[key]; ok && key != "" {
-			g.ports = append(g.ports, fmt.Sprintf(":%d", s.Port))
+		if i, ok := byKey[key]; ok && key != "" {
+			targets[i].Ports = append(targets[i].Ports, s.Port)
 			continue
 		}
-		g := &group{s: s, ports: []string{fmt.Sprintf(":%d", s.Port)}}
-		groups = append(groups, g)
 		if key != "" {
-			byKey[key] = g
+			byKey[key] = len(targets)
+		}
+		targets = append(targets, stopResult{Ports: []uint32{s.Port}, Service: s})
+	}
+	return targets
+}
+
+func portList(ports []uint32) string {
+	parts := make([]string, len(ports))
+	for i, p := range ports {
+		parts[i] = fmt.Sprintf(":%d", p)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// stopFormat validates --format for free and kill: a stop reports as
+// lines or as JSON results, nothing else.
+func stopFormat() error {
+	if !jsonOut && format != "table" && format != "json" {
+		return exitError{code: 2, msg: fmt.Sprintf("--format %q — stops report as table or json", format)}
+	}
+	return nil
+}
+
+// stopAll stops every target and reports each — a line as it happens,
+// or the whole set as JSON once it's done. With --expect, every target
+// must match the expected name or nothing is stopped at all: the guard
+// a script or agent puts on "free whatever holds :3000". Returns the
+// exit code — 1 when anything failed or the guard refused.
+func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Service, string) string) int {
+	targets := stopTargets(matched)
+	asJSON := wantJSON()
+	code := 0
+
+	if opts.expect != "" && refuseUnexpected(targets, opts.expect) {
+		code = 1
+		if !asJSON {
+			fix := ""
+			for _, t := range targets {
+				if t.Error != refusedAlong {
+					fmt.Fprintf(os.Stderr, "✗ %s %s\n", portList(t.Ports), t.Error)
+					if fix == "" {
+						fix = t.Fix
+					}
+				}
+			}
+			fmt.Fprintf(os.Stderr, "  → nothing was stopped — %s\n", fix)
+		}
+	} else {
+		for i := range targets {
+			t := &targets[i]
+			name, ports := inspect.ProcessName(t.Service), portList(t.Ports)
+			switch {
+			case opts.dryRun:
+				t.Action = actionWouldStop
+				if !asJSON {
+					fmt.Printf("would stop %s (%s)\n", name, ports)
+				}
+			default:
+				if err := stopOne(t.Service, opts.force); err != nil {
+					t.Action, t.Error = actionFailed, err.Error()
+					t.Fix = stopFix(t.Service, t.Ports[0])
+					code = 1
+					if !asJSON {
+						fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", name, ports, err)
+						fmt.Fprintf(os.Stderr, "  → run `ports doctor %d` to see why\n", t.Ports[0])
+					}
+					continue
+				}
+				t.Action = actionStopped
+				if !asJSON {
+					fmt.Println(okMsg(t.Service, ports))
+				}
+			}
 		}
 	}
-	code := 0
-	for _, g := range groups {
-		ports := strings.Join(g.ports, ", ")
-		if dryRun {
-			fmt.Printf("would stop %s (%s)\n", inspect.ProcessName(g.s), ports)
-			continue
+
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(targets); err != nil {
+			return 1
 		}
-		if err := stopOne(g.s, force); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", inspect.ProcessName(g.s), ports, err)
-			fmt.Fprintf(os.Stderr, "  → run `ports doctor %s` to see why\n", strings.TrimPrefix(g.ports[0], ":"))
-			code = 1
-			continue
-		}
-		fmt.Println(okMsg(g.s, ports))
 	}
 	return code
+}
+
+// stopFix is the command that moves a failed stop along: the one that
+// stops it where ports can't, or doctor when the reason needs a look.
+func stopFix(s inspect.Service, port uint32) string {
+	switch {
+	case s.Windows:
+		return fmt.Sprintf("taskkill /PID %d /F", s.WindowsPid)
+	case !s.Known() && s.Unit != "":
+		return "sudo systemctl stop " + s.Unit
+	default:
+		return fmt.Sprintf("ports doctor %d", port)
+	}
+}
+
+// refusedAlong marks a target that matched --expect but was held back
+// because another one didn't: the stop is all or nothing.
+const refusedAlong = "matches, but was not stopped — another target did not"
+
+// refuseUnexpected checks every target against the expected name, the
+// way `ports kill` matches one. If any target misses, all are marked
+// refused — the misses say what they are instead — and it reports true.
+// A row whose owner is hidden can't match anything: the guard fails
+// closed.
+func refuseUnexpected(targets []stopResult, expect string) bool {
+	refused := false
+	for _, t := range targets {
+		if !t.Service.MatchesName(expect) {
+			refused = true
+		}
+	}
+	if !refused {
+		return false
+	}
+	for i := range targets {
+		t := &targets[i]
+		t.Action = actionRefused
+		t.Fix = "drop --expect to stop regardless, or `ports doctor " + fmt.Sprint(t.Ports[0]) + "` to look closer"
+		if t.Service.MatchesName(expect) {
+			t.Error = refusedAlong
+			continue
+		}
+		t.Error = fmt.Sprintf("is %s (%s), not %q", inspect.ProcessName(t.Service), inspect.ProjectLabel(t.Service), expect)
+	}
+	return true
 }
