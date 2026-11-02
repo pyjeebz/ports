@@ -80,6 +80,9 @@ func TestServiceUnit(t *testing.T) {
 		"0::/user.slice/user-1000.slice/user@1000.service/init.scope\n":          "",
 		"0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-x.scope": "",
 		"12:pids:/user.slice/user-1000.slice/user@1000.service/app.slice\n":      "",
+		// v1 lists the undelegated pids hierarchy first, stopping at the
+		// manager; the user service is named on a later line
+		"12:pids:/user.slice/user-1000.slice/user@1000.service\n1:name=systemd:/user.slice/user-1000.slice/user@1000.service/app.slice/foo.service\n": "foo",
 		"0::/init.scope\n": "",
 		// cgroup v1: the hierarchy lines carry controllers before the path
 		"12:pids:/system.slice/nginx.service\n1:name=systemd:/system.slice/nginx.service\n": "nginx",

@@ -168,7 +168,9 @@ func argv0(cmdline string) string {
 // straight under it belongs to no service, and naming it would point a
 // stop at `systemctl stop user@1000`. Lines are id:controllers:path in
 // both cgroup v2 (one line, empty controllers) and v1 (one per
-// hierarchy, each carrying the same service path).
+// hierarchy). In v1 the hierarchies the user manager isn't delegated
+// (pids, often) stop at user@1000, so a line that ends there moves on to
+// the next rather than deciding.
 func serviceUnit(cgroup string) string {
 	for line := range strings.Lines(cgroup) {
 		f := strings.SplitN(strings.TrimSpace(line), ":", 3)
@@ -178,10 +180,10 @@ func serviceUnit(cgroup string) string {
 		parts := strings.Split(f[2], "/")
 		for i := len(parts) - 1; i >= 0; i-- {
 			if unit, ok := strings.CutSuffix(parts[i], ".service"); ok && unit != "" {
-				if strings.HasPrefix(unit, "user@") {
-					return ""
+				if !strings.HasPrefix(unit, "user@") {
+					return unit
 				}
-				return unit
+				break // the session manager: try the next line
 			}
 		}
 	}
