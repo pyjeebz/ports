@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pyjeebz/ports/internal/inspect"
@@ -17,6 +18,37 @@ type exitError struct {
 }
 
 func (e exitError) Error() string { return e.msg }
+
+// portArg reads a port argument the way --port reads one: 3000 or :3000.
+// ok is false when arg isn't a port at all — a name, for the commands
+// that take one. A number outside 1–65535 is never a name: it's a bad
+// port, so `ports wait 70000 --gone` can't report a service "free".
+func portArg(arg string) (port uint32, ok bool, err error) {
+	digits := strings.TrimPrefix(arg, ":")
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		if digits != arg { // the colon promised a port
+			return 0, false, exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
+		}
+		return 0, false, nil
+	}
+	n, err := strconv.ParseUint(digits, 10, 32)
+	if err != nil || n < 1 || n > 65535 {
+		return 0, false, exitError{code: 2, msg: fmt.Sprintf("invalid port %q — ports run from 1 to 65535", arg)}
+	}
+	return uint32(n), true, nil
+}
+
+// requirePort is portArg for the commands that take only a port.
+func requirePort(arg string) (uint32, error) {
+	port, ok, err := portArg(arg)
+	if err != nil {
+		return 0, err
+	}
+	if !ok {
+		return 0, exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
+	}
+	return port, nil
+}
 
 func match(services []inspect.Service, keep func(inspect.Service) bool) []inspect.Service {
 	var out []inspect.Service

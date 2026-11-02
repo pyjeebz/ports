@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
@@ -97,8 +96,12 @@ func runWait(cmd *cobra.Command, args []string) error {
 		return exitError{code: 2, msg: fmt.Sprintf("--timeout must not be negative, got %s", waitTimeout)}
 	}
 	var t waitTarget
-	if p, err := strconv.ParseUint(args[0], 10, 16); err == nil {
-		t.port = uint32(p)
+	port, isPort, err := portArg(args[0])
+	if err != nil {
+		return err
+	}
+	if isPort {
+		t.port = port
 	} else {
 		t.name = args[0]
 	}
