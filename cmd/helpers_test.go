@@ -406,6 +406,7 @@ func TestStopAllSkipsUnowned(t *testing.T) {
 		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js", ProjectName: "shop"},
 		{Port: 5432, Process: "postgres", Framework: "PostgreSQL", User: "postgres", Unit: "postgresql"},
 		{Port: 6379, Process: "?", User: "root"},
+		{Port: 8080, Process: "docker-proxy", User: "root"}, // daemon unreachable: no container
 	}
 	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
 	var code int
@@ -416,10 +417,13 @@ func TestStopAllSkipsUnowned(t *testing.T) {
 	if len(stops()) != 1 || stops()[0].Pid != 101 {
 		t.Fatalf("stopped %v, want only pid 101", stops())
 	}
-	for _, want := range []string{"skipped PostgreSQL (:5432)", "sudo systemctl stop postgresql", "skipped ? (:6379)", "sudo ports free 6379"} {
+	for _, want := range []string{"skipped PostgreSQL (:5432)", "sudo systemctl stop postgresql", "skipped ? (:6379)", "sudo ports free 6379", "skipped docker-proxy (:8080)", "ports doctor 8080"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("report %q missing %q", out, want)
 		}
+	}
+	if strings.Contains(out, "sudo ports free 8080") {
+		t.Errorf("sudo can't stop a docker-proxy either; its fix is doctor: %q", out)
 	}
 }
 

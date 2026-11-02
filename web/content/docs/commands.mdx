@@ -88,7 +88,7 @@ Stop all processes that belong to a named project or service. Docker-backed port
 
 ### Guarded stops: --expect
 
-`free` and `kill` stop whatever matches — `--expect <name>` makes them check first. Every target has to match the name the way `ports kill` matches one (project, framework, container, systemd unit, or process); if any doesn't, nothing is stopped and ports says what is actually there:
+`free` and `kill` stop whatever matches — `--expect <name>` makes them check first. Every target it would stop has to match the name the way `ports kill` matches one (project, framework, container, systemd unit, or process); if any doesn't, nothing is stopped and ports says what is actually there:
 
 ```sh
 $ ports free 3000 --expect nextjs
@@ -207,7 +207,7 @@ Each command takes the flags it uses and no others. A flag given to a command th
 | `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
 | `--force` | `free`, `kill` | Skip SIGTERM and kill immediately. |
 | `--dry-run` | `free`, `kill` | Show what would be stopped, without stopping it. |
-| `--expect` | `free`, `kill` | Stop only if every target matches this name — otherwise stop nothing. See [guarded stops](#expect). |
+| `--expect` | `free`, `kill` | Stop only if every target it would stop matches this name — otherwise stop nothing; rows `kill` skips aren't judged. See [guarded stops](#expect). |
 | `--timeout` | `wait` | Give up after this long (default `30s`; `0` waits forever). |
 | `--http` | `wait` | Wait until the port answers HTTP, not just connections. Ports only. |
 | `--gone` | `wait` | Wait until the port or service is free instead. |
@@ -243,7 +243,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `kill` found only rows it had to skip, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
 
 An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.

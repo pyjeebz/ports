@@ -306,10 +306,16 @@ func splitUnowned(targets []stopResult) (stop, skipped []stopResult) {
 			continue
 		}
 		t.Action = actionSkipped
-		if t.Service.Unit != "" {
+		switch {
+		case t.Service.Process == "docker-proxy":
+			// sudo can't stop a proxy either — the container behind it
+			// is what stops, and doctor says why it didn't resolve
+			t.Error = "a docker-proxy whose container didn't resolve"
+			t.Fix = fmt.Sprintf("ports doctor %d", t.Ports[0])
+		case t.Service.Unit != "":
 			t.Error = fmt.Sprintf("a systemd service running as %s", t.Service.User)
 			t.Fix = "sudo systemctl stop " + t.Service.Unit
-		} else {
+		default:
 			t.Error = "another user's process — its pid is hidden from this scan"
 			if t.Service.User != "" {
 				t.Error = fmt.Sprintf("owned by %s — its pid is hidden from this scan", t.Service.User)
