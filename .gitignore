@@ -4,3 +4,5 @@
 web/.next/
 test/integration/ports
 /man/
+.vercel
+.env*
