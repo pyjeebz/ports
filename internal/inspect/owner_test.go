@@ -74,6 +74,12 @@ func TestServiceUnit(t *testing.T) {
 		"0::/system.slice/systemd-resolved.service\n":                            "systemd-resolved",
 		"0::/user.slice/user-1000.slice/user@1000.service/app.slice/foo.service": "foo",
 		"0::/user.slice/user-1000.slice/session-3.scope\n":                       "",
+		// a user's own processes outside any real service sit straight under
+		// the session manager: user@1000 is the whole login, never the service
+		// holding a port, and `systemctl stop user@1000` would log them out
+		"0::/user.slice/user-1000.slice/user@1000.service/init.scope\n":          "",
+		"0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-x.scope": "",
+		"12:pids:/user.slice/user-1000.slice/user@1000.service/app.slice\n":      "",
 		"0::/init.scope\n": "",
 		// cgroup v1: the hierarchy lines carry controllers before the path
 		"12:pids:/system.slice/nginx.service\n1:name=systemd:/system.slice/nginx.service\n": "nginx",
