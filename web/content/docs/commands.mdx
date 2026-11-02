@@ -63,7 +63,7 @@ $ ports free 3000 && ports wait 3000 --gone
 ✓ :3000 is free
 ```
 
-A port (`3000` or `:3000`) waits for any listener on it; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
+A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
 
 Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 )
@@ -22,14 +23,21 @@ func (e exitError) Error() string { return e.msg }
 // portArg reads a port argument the way --port reads one: 3000 or :3000.
 // ok is false when arg isn't a port at all — a name, for the commands
 // that take one. A number outside 1–65535 is never a name: it's a bad
-// port, so `ports wait 70000 --gone` can't report a service "free".
+// port, so `ports wait 70000 --gone` can't report a service "free" —
+// and neither are a sign (+3000) or non-ASCII digits. Surrounding space
+// is trimmed, so a port read from a CRLF file still reads as one.
 func portArg(arg string) (port uint32, ok bool, err error) {
-	digits := strings.TrimPrefix(arg, ":")
-	if digits == "" || strings.Trim(digits, "0123456789") != "" {
-		if digits != arg { // the colon promised a port
+	trimmed := strings.TrimSpace(arg)
+	digits := strings.TrimPrefix(trimmed, ":")
+	unsigned := strings.TrimLeft(digits, "+-")
+	if unsigned == "" || strings.IndexFunc(unsigned, func(r rune) bool { return !unicode.IsDigit(r) }) >= 0 {
+		if digits != trimmed { // the colon promised a port
 			return 0, false, exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
 		}
 		return 0, false, nil
+	}
+	if unsigned != digits || strings.Trim(digits, "0123456789") != "" {
+		return 0, false, exitError{code: 2, msg: fmt.Sprintf("invalid port %q — ports run from 1 to 65535", arg)}
 	}
 	n, err := strconv.ParseUint(digits, 10, 32)
 	if err != nil || n < 1 || n > 65535 {
