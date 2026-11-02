@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
@@ -14,9 +13,9 @@ var freeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		arg := args[0]
-		port, err := strconv.ParseUint(arg, 10, 16)
+		port, err := requirePort(arg)
 		if err != nil {
-			return exitError{code: 2, msg: fmt.Sprintf("invalid port %q", arg)}
+			return err
 		}
 		if err := stopFormat(); err != nil {
 			return err

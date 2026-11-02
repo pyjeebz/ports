@@ -344,3 +344,55 @@ func TestStopFix(t *testing.T) {
 		}
 	}
 }
+
+// A port argument reads like --port: 3000 or :3000. Anything numeric is
+// a port or a usage error — never a name — so `wait 70000 --gone` can't
+// report a service called "70000" free.
+func TestPortArg(t *testing.T) {
+	cases := []struct {
+		arg    string
+		port   uint32
+		isPort bool
+		bad    bool
+	}{
+		{arg: "3000", port: 3000, isPort: true},
+		{arg: ":8791", port: 8791, isPort: true},
+		{arg: "1", port: 1, isPort: true},
+		{arg: "65535", port: 65535, isPort: true},
+		{arg: "shop"},
+		{arg: "nextjs"},
+		{arg: "3000-api"},
+		{arg: " 3000", port: 3000, isPort: true},
+		{arg: "3000\r", port: 3000, isPort: true},
+		{arg: "0", bad: true},
+		{arg: "+3000", bad: true},
+		{arg: "-3000", bad: true},
+		{arg: "٣٠٠٠", bad: true},
+		{arg: ":+3000", bad: true},
+		{arg: "65536", bad: true},
+		{arg: "70000", bad: true},
+		{arg: "99999999999999999999", bad: true},
+		{arg: ":", bad: true},
+		{arg: ":shop", bad: true},
+	}
+	for _, c := range cases {
+		port, isPort, err := portArg(c.arg)
+		if c.bad {
+			var ee exitError
+			if !errors.As(err, &ee) || ee.code != 2 {
+				t.Errorf("portArg(%q) = %d, %v, %v — want an exit-2 error", c.arg, port, isPort, err)
+			}
+			continue
+		}
+		if err != nil || port != c.port || isPort != c.isPort {
+			t.Errorf("portArg(%q) = %d, %v, %v — want %d, %v", c.arg, port, isPort, err, c.port, c.isPort)
+		}
+	}
+
+	if _, err := requirePort("shop"); err == nil {
+		t.Error(`requirePort("shop") should refuse a name`)
+	}
+	if p, err := requirePort(":3000"); err != nil || p != 3000 {
+		t.Errorf(`requirePort(":3000") = %d, %v — want 3000`, p, err)
+	}
+}
