@@ -25,7 +25,8 @@ Without a port, it checks the machine: the container engine, every
 docker-proxy port that didn't resolve, and every listener a plain scan
 can't see or shouldn't share.
 
-Exit codes: 0 when every finding is ✓, 1 when anything is ⚠ or ✗
+Exit codes: 0 when nothing needs doing (every finding is ✓ or · info),
+1 when anything is ⚠ or ✗
 (grep-style, so ` + "`ports doctor 3000 && ./deploy.sh`" + ` gates
 naturally), 2 for bad arguments.`,
 	Args: cobra.MaximumNArgs(1),

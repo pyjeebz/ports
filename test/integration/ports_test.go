@@ -350,8 +350,11 @@ func TestDoctorCleanPort(t *testing.T) {
 // TIME_WAIT, the classic "free said it stopped but the port won't
 // rebind" story. The fixture closes the instant it accepts, so a probe
 // that lingers — rather than closing the moment the dial returns — makes
-// the fixture's side the active closer, deterministically.
-func TestDoctorTimeWaitWarns(t *testing.T) {
+// the fixture's side the active closer, deterministically. TIME_WAIT is
+// info — worth knowing, nothing to do — so a live listener with it still
+// exits 0, and `ports doctor 3000 && ./deploy.sh` holds on a healthy server.
+func TestDoctorTimeWaitIsInfo(t *testing.T) {
+	SkipIfWSL(t)
 	port, err := FindFreePort()
 	if err != nil {
 		t.Fatal(err)
@@ -369,10 +372,11 @@ func TestDoctorTimeWaitWarns(t *testing.T) {
 	_ = conn.Close()
 
 	stdout, _, code := RunPorts(t, "doctor", strconv.Itoa(port))
-	if code != 1 {
-		t.Fatalf("ports doctor with a TIME_WAIT finding exited %d, want 1:\n%s", code, stdout)
+	if code != 0 {
+		t.Fatalf("ports doctor with only a TIME_WAIT finding exited %d, want 0:\n%s", code, stdout)
 	}
-	AssertOutputContains(t, stdout, "⚠", "TIME_WAIT", ":"+strconv.Itoa(port))
+	AssertOutputContains(t, stdout, "· ", "TIME_WAIT", ":"+strconv.Itoa(port))
+	AssertOutputNotContains(t, stdout, "⚠", "✗")
 }
 
 // Doctor on an unbound port names the absence instead of guessing.
