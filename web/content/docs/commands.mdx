@@ -63,7 +63,7 @@ $ ports free 3000 && ports wait 3000 --gone
 ✓ :3000 is free
 ```
 
-A port waits for any listener on it; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
+A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
 
 Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
 
@@ -71,7 +71,7 @@ Exits `0` when the condition is met, `1` when the timeout passes first — sayin
 
 ## ports free \<port\>
 
-Kill whatever holds a port.
+Kill whatever holds a port — given as `3000` or `:3000`.
 
 ```sh
 $ ports free 3000
@@ -242,7 +242,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
 | `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
-| `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`), a wrong argument count, or a config file that exists but doesn't parse. |
+| `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
 
 An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
 

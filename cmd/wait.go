@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
@@ -38,9 +37,9 @@ step between starting a server and using it, without a sleep-and-retry.
   PORT   PROCESS   PROJECT           UPTIME
   3000   Next.js   ~/projects/shop   3s
 
-A port waits for any listener on it; a name waits for a service that
-` + "`ports kill`" + ` would match — a project, framework, container, or
-process. --http waits until the port answers an HTTP request, not just
+A port (3000 or :3000) waits for any listener on it; a name waits for
+a service that ` + "`ports kill`" + ` would match — a project, framework,
+container, or process. --http waits until the port answers an HTTP request, not just
 accepts connections: dev servers often bind before they can serve.
 --gone waits the other way, until the port or service is free.
 
@@ -97,8 +96,12 @@ func runWait(cmd *cobra.Command, args []string) error {
 		return exitError{code: 2, msg: fmt.Sprintf("--timeout must not be negative, got %s", waitTimeout)}
 	}
 	var t waitTarget
-	if p, err := strconv.ParseUint(args[0], 10, 16); err == nil {
-		t.port = uint32(p)
+	port, isPort, err := portArg(args[0])
+	if err != nil {
+		return err
+	}
+	if isPort {
+		t.port = port
 	} else {
 		t.name = args[0]
 	}

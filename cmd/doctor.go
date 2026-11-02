@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
@@ -44,11 +43,11 @@ naturally), 2 for bad arguments.`,
 			}
 			render = func() { inspect.WriteMachineFindings(findings) }
 		default:
-			port, err := strconv.ParseUint(args[0], 10, 16)
+			port, err := requirePort(args[0])
 			if err != nil {
-				return exitError{code: 2, msg: fmt.Sprintf("invalid port %q", args[0])}
+				return err
 			}
-			rows, f, err := inspect.Diagnose(cfg, uint32(port))
+			rows, f, err := inspect.Diagnose(cfg, port)
 			if err != nil {
 				return err
 			}
