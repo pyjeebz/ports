@@ -140,3 +140,33 @@ func TestServesHTTPOnEitherLoopback(t *testing.T) {
 		t.Error("a listener that hangs up is not HTTP")
 	}
 }
+
+// A root reached through a symlink (macOS's /tmp is /private/tmp) still
+// finds the processes under it: the kernel reports their paths resolved,
+// so `ports here || npm run dev` must not start a duplicate from /tmp/app.
+func TestHereThroughSymlink(t *testing.T) {
+	real := filepath.Join(t.TempDir(), "shop")
+	if err := os.MkdirAll(filepath.Join(real, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "shop-link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("can't create a symlink here: %v", err)
+	}
+	resolved := RealPath(real) // t.TempDir may itself sit behind a link
+	rows := []Service{
+		{Port: 3000, Pid: 1, Project: resolved, Cwd: filepath.Join(resolved, "web")},
+		{Port: 5432, Container: "shop-db", ComposeDir: link}, // compose recorded the link
+		{Port: 9000, Pid: 2, Project: filepath.Join(t.TempDir(), "other")},
+	}
+	got := Here(rows, link)
+	if len(got) != 2 || got[0].Port != 3000 || got[1].Port != 5432 {
+		t.Fatalf("Here through a symlink = %v, want :3000 and :5432", got)
+	}
+	if RealPath(link) != resolved {
+		t.Errorf("RealPath(%q) = %q, want %q", link, RealPath(link), resolved)
+	}
+	if missing := filepath.Join(link, "nope"); RealPath(missing) != filepath.Clean(missing) {
+		t.Errorf("an unresolvable path should come back cleaned, got %q", RealPath(missing))
+	}
+}

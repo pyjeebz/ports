@@ -54,7 +54,9 @@ is running, never empty output.`,
 		}
 
 		cfg := buildInspectConfig()
-		root := inspect.ProjectRoot(cfg, abs)
+		// resolved first, so the root is found from the same path the
+		// PROJECT column walks up from — the kernel's, links resolved
+		root := inspect.ProjectRoot(cfg, inspect.RealPath(abs))
 		services, err := inspect.Scan(cfg)
 		if err != nil {
 			return err
