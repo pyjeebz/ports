@@ -102,13 +102,13 @@ func TestDiagnosePort(t *testing.T) {
 			name:  "no listener, TIME_WAIT explains it",
 			conns: []gnet.ConnectionStat{connOn(3000, "TIME_WAIT"), connOn(3000, "TIME_WAIT")},
 			probe: probeOK,
-			want:  []string{"listener:fail", "sockets:warn"},
+			want:  []string{"listener:fail", "sockets:info"},
 		},
 		{
 			name:  "no listener, CLOSE_WAIT leaking",
 			conns: []gnet.ConnectionStat{connOn(3000, "CLOSE_WAIT")},
 			probe: probeOK,
-			want:  []string{"listener:fail", "sockets:warn"},
+			want:  []string{"listener:fail", "sockets:info"},
 		},
 		{
 			name: "SO_REUSEPORT: two owners",
@@ -214,7 +214,7 @@ func TestDiagnosePort(t *testing.T) {
 			facts: []rowFacts{{fresh: true, exists: true}},
 			conns: []gnet.ConnectionStat{listenConn(3000)},
 			probe: probeOK,
-			want:  []string{"listener:ok", "pid-freshness:ok", "cwd:warn", "sockets:ok"},
+			want:  []string{"listener:ok", "pid-freshness:ok", "cwd:info", "sockets:ok"},
 		},
 	}
 	for _, c := range cases {
@@ -264,6 +264,14 @@ func TestDiagnosePortMessages(t *testing.T) {
 		f := diagnosePort(port, nil, nil, []gnet.ConnectionStat{connOn(port, "TIME_WAIT")}, false, false, false, probeOK)
 		if !contains(f, "sockets", "TIME_WAIT") || !contains(f, "sockets", "60s") {
 			t.Errorf("TIME_WAIT finding doesn't say how long it lasts: %v", f)
+		}
+	})
+
+	t.Run("a healthy server with TIME_WAIT sockets has no problems", func(t *testing.T) {
+		conns := []gnet.ConnectionStat{listenConn(port), connOn(port, "TIME_WAIT"), connOn(port, "CLOSE_WAIT")}
+		f := diagnosePort(port, []Service{devRow(port, 7)}, []rowFacts{healthyFacts()}, conns, false, false, true, probeOK)
+		if HasProblems(f) {
+			t.Errorf("socket churn on a healthy server should exit 0: %v", f)
 		}
 	})
 
@@ -405,7 +413,10 @@ func TestHasProblemsAndPortHeader(t *testing.T) {
 	if HasProblems(nil) || HasProblems([]Finding{ok("a", "x")}) {
 		t.Error("all-✓ findings should read as clean")
 	}
-	if !HasProblems([]Finding{ok("a", "x"), warn("b", "x", "")}) {
+	if HasProblems([]Finding{ok("a", "x"), info("b", "x")}) {
+		t.Error("an info finding has nothing to do, so it should read as clean")
+	}
+	if !HasProblems([]Finding{ok("a", "x"), info("b", "x"), warn("c", "x", "")}) {
 		t.Error("a warn should read as problems")
 	}
 
