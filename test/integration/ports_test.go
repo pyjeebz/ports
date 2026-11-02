@@ -354,6 +354,7 @@ func TestDoctorCleanPort(t *testing.T) {
 // info — worth knowing, nothing to do — so a live listener with it still
 // exits 0, and `ports doctor 3000 && ./deploy.sh` holds on a healthy server.
 func TestDoctorTimeWaitIsInfo(t *testing.T) {
+	SkipIfWSL(t)
 	port, err := FindFreePort()
 	if err != nil {
 		t.Fatal(err)
