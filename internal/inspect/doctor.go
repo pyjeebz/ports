@@ -10,9 +10,11 @@ import (
 	gproc "github.com/shirou/gopsutil/v4/process"
 )
 
-// Finding statuses — what WriteFindings draws for each line.
+// Finding statuses — what WriteFindings draws for each line. Info is an
+// observation with nothing to do about it: shown, never a problem.
 const (
 	CheckOK   = "ok"
+	CheckInfo = "info"
 	CheckWarn = "warn"
 	CheckFail = "fail"
 )
@@ -31,6 +33,10 @@ func ok(check, msg string) Finding {
 	return Finding{Check: check, Status: CheckOK, Message: msg}
 }
 
+func info(check, msg string) Finding {
+	return Finding{Check: check, Status: CheckInfo, Message: msg}
+}
+
 func warn(check, msg, fix string) Finding {
 	return Finding{Check: check, Status: CheckWarn, Message: msg, Fix: fix}
 }
@@ -40,10 +46,11 @@ func fail(check, msg, fix string) Finding {
 }
 
 // HasProblems reports whether any finding is a warning or failure — the
-// grep-style exit code: 0 when everything is ✓.
+// grep-style exit code: 0 when nothing needs doing, so a healthy server
+// with TIME_WAIT sockets still passes `ports doctor 3000 && ./deploy.sh`.
 func HasProblems(findings []Finding) bool {
 	for _, f := range findings {
-		if f.Status != CheckOK {
+		if f.Status == CheckWarn || f.Status == CheckFail {
 			return true
 		}
 	}
@@ -210,9 +217,8 @@ func diagnosePort(port uint32, rows []Service, facts []rowFacts, conns []gnet.Co
 				f = append(f, ok("pid-freshness", fmt.Sprintf("pid %d still matches the scan — no pid reuse", s.Pid)))
 			}
 			if ft.exists && s.Cwd == "" {
-				f = append(f, warn("cwd",
-					"the process exposes no working directory — likely a system daemon or kernel thread, so no project context",
-					""))
+				f = append(f, info("cwd",
+					"the process exposes no working directory — likely a system daemon or kernel thread, so no project context"))
 			}
 		}
 	}
@@ -225,14 +231,12 @@ func diagnosePort(port uint32, rows []Service, facts []rowFacts, conns []gnet.Co
 		}
 	}
 	if n := byStatus["TIME_WAIT"]; n > 0 {
-		f = append(f, warn("sockets",
-			fmt.Sprintf("%d sockets in TIME_WAIT on :%d — they age out in ~60s", n, port),
-			"SO_REUSEADDR rebinds usually succeed anyway; nothing to do"))
+		f = append(f, info("sockets",
+			fmt.Sprintf("%d sockets in TIME_WAIT on :%d — they age out in ~60s, and rebinds usually succeed anyway", n, port)))
 	}
 	if n := byStatus["CLOSE_WAIT"]; n > 0 {
-		f = append(f, warn("sockets",
-			fmt.Sprintf("%d sockets in CLOSE_WAIT on :%d — clients hung up, the process hasn't closed its end", n, port),
-			"a leak hint in the listener's app, not a ports problem"))
+		f = append(f, info("sockets",
+			fmt.Sprintf("%d sockets in CLOSE_WAIT on :%d — clients hung up and the process hasn't closed its end: a leak hint in the app, not a ports problem", n, port)))
 	}
 	if n := byStatus["ESTABLISHED"]; n > 0 {
 		f = append(f, ok("sockets", fmt.Sprintf("%d live client connections", n)))
@@ -495,6 +499,8 @@ func WriteMachineFindings(findings []Finding) {
 func writeFindings(findings []Finding) {
 	for _, f := range findings {
 		switch f.Status {
+		case CheckInfo:
+			fmt.Printf("· %s\n", f.Message)
 		case CheckWarn:
 			fmt.Printf("⚠ %s\n", f.Message)
 		case CheckFail:

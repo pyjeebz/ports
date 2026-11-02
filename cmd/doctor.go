@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
@@ -26,7 +25,8 @@ Without a port, it checks the machine: the container engine, every
 docker-proxy port that didn't resolve, and every listener a plain scan
 can't see or shouldn't share.
 
-Exit codes: 0 when every finding is ✓, 1 when anything is ⚠ or ✗
+Exit codes: 0 when nothing needs doing (every finding is ✓ or · info),
+1 when anything is ⚠ or ✗
 (grep-style, so ` + "`ports doctor 3000 && ./deploy.sh`" + ` gates
 naturally), 2 for bad arguments.`,
 	Args: cobra.MaximumNArgs(1),
@@ -43,11 +43,11 @@ naturally), 2 for bad arguments.`,
 			}
 			render = func() { inspect.WriteMachineFindings(findings) }
 		default:
-			port, err := strconv.ParseUint(args[0], 10, 16)
+			port, err := requirePort(args[0])
 			if err != nil {
-				return exitError{code: 2, msg: fmt.Sprintf("invalid port %q", args[0])}
+				return err
 			}
-			rows, f, err := inspect.Diagnose(cfg, uint32(port))
+			rows, f, err := inspect.Diagnose(cfg, port)
 			if err != nil {
 				return err
 			}

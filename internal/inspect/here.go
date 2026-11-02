@@ -30,6 +30,7 @@ func ProjectRoot(cfg *Config, dir string) string {
 // compose containers started from it. Windows-side rows carry no path,
 // so they never belong.
 func Here(services []Service, root string) []Service {
+	root = RealPath(root)
 	var out []Service
 	for _, s := range services {
 		if belongsTo(s, root) {
@@ -41,10 +42,21 @@ func Here(services []Service, root string) []Service {
 
 func belongsTo(s Service, root string) bool {
 	if s.Container != "" {
-		return s.ComposeDir != "" && within(s.ComposeDir, root)
+		return s.ComposeDir != "" && within(RealPath(s.ComposeDir), root)
 	}
-	return (s.Project != "" && within(s.Project, root)) ||
-		(s.Cwd != "" && within(s.Cwd, root))
+	return (s.Project != "" && within(RealPath(s.Project), root)) ||
+		(s.Cwd != "" && within(RealPath(s.Cwd), root))
+}
+
+// RealPath is path with its symlinks resolved — how the kernel reports a
+// process's working directory, so a root reached through a link (macOS's
+// /tmp is /private/tmp) still lines up with the processes under it. A
+// path that can't be resolved stays as it is, cleaned.
+func RealPath(path string) string {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		return real
+	}
+	return filepath.Clean(path)
 }
 
 // within reports whether path is root or lies under it — by path
