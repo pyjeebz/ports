@@ -52,15 +52,15 @@ type Service struct {
 // Without root, sockets of other users' processes come back with Pid 0.
 func (s Service) Known() bool { return s.Pid > 0 }
 
-// unowned reports a host row no pid backs — another user's listener,
+// Unowned reports a host row no pid backs — another user's listener,
 // named or not. Container and Windows rows have their own owners.
-func (s Service) unowned() bool {
+func (s Service) Unowned() bool {
 	return !s.Known() && s.Container == "" && !s.Windows
 }
 
 // Anonymous reports a row nothing could name: shown as ?, stoppable
 // only after sudo reveals it.
-func (s Service) Anonymous() bool { return s.unowned() && s.Process == "?" }
+func (s Service) Anonymous() bool { return s.Unowned() && s.Process == "?" }
 
 // frameworkKeyMatch compares framework names by key. A name with no a-z/0-9
 // keys to "", and two empty keys are not a match — else `kill '*'` or

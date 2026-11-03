@@ -242,7 +242,7 @@ func stopFlags(c *cobra.Command) {
 	formatFlags(c, "table, json")
 	c.Flags().BoolVar(&force, "force", false, "SIGKILL immediately instead of SIGTERM first")
 	c.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be stopped without stopping it")
-	c.Flags().StringVar(&expect, "expect", "", "Stop only if everything matched is this project, framework, container, or process — else stop nothing")
+	c.Flags().StringVar(&expect, "expect", "", "Stop only if everything it would stop is this project, framework, container, or process — else stop nothing")
 }
 
 // stopOptions gathers the stop flags for stopAll.
