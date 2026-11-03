@@ -163,9 +163,14 @@ func argv0(cmdline string) string {
 
 // serviceUnit names the systemd service a process runs under, from its
 // /proc/<pid>/cgroup — the innermost *.service on the path, so a user
-// service inside user@1000.service reads as itself. Lines are
-// id:controllers:path in both cgroup v2 (one line, empty controllers)
-// and v1 (one per hierarchy, each carrying the same service path).
+// service inside user@1000.service reads as itself. user@1000 itself is
+// never the answer: it's the whole login session, so a process that sits
+// straight under it belongs to no service, and naming it would point a
+// stop at `systemctl stop user@1000`. Lines are id:controllers:path in
+// both cgroup v2 (one line, empty controllers) and v1 (one per
+// hierarchy). In v1 the hierarchies the user manager isn't delegated
+// (pids, often) stop at user@1000, so a line that ends there moves on to
+// the next rather than deciding.
 func serviceUnit(cgroup string) string {
 	for line := range strings.Lines(cgroup) {
 		f := strings.SplitN(strings.TrimSpace(line), ":", 3)
@@ -175,7 +180,10 @@ func serviceUnit(cgroup string) string {
 		parts := strings.Split(f[2], "/")
 		for i := len(parts) - 1; i >= 0; i-- {
 			if unit, ok := strings.CutSuffix(parts[i], ".service"); ok && unit != "" {
-				return unit
+				if !strings.HasPrefix(unit, "user@") {
+					return unit
+				}
+				break // the session manager: try the next line
 			}
 		}
 	}
