@@ -148,6 +148,7 @@ func WriteTable(services []Service, sort SortMode) {
 	}
 	rows := sortRows(services, sort)
 
+	labels := projectLabels(rows)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	unknown := false
@@ -155,7 +156,7 @@ func WriteTable(services []Service, sort SortMode) {
 		if s.Anonymous() {
 			unknown = true
 		}
-		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), project(s), uptime(s))
+		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), labels(s), uptime(s))
 	}
 	_ = w.Flush()
 	if unknown {
@@ -179,6 +180,75 @@ func ProcessName(s Service) string {
 // ProjectLabel is the PROJECT column's text for a row: a path, a
 // container, a systemd unit, windows, or —.
 func ProjectLabel(s Service) string { return project(s) }
+
+// projectLabels is the PROJECT column for a table of rows: a project
+// directory reads as its name (shop), not its path — a path outside the
+// home directory can run to dozens of characters and push the table off
+// the screen. Two directories that share a name get just enough of their
+// parents to tell apart (work/shop, oss/shop). Everything else reads as
+// project does. Machine output — JSON, csv/tsv, diff — keeps the path.
+func projectLabels(rows []Service) func(Service) string {
+	byName := map[string][]string{}
+	for _, s := range rows {
+		if isProjectDir(s) {
+			name := filepath.Base(s.Project)
+			if !slices.Contains(byName[name], s.Project) {
+				byName[name] = append(byName[name], s.Project)
+			}
+		}
+	}
+	label := map[string]string{}
+	for _, paths := range byName {
+		for p, l := range distinctSuffixes(paths) {
+			label[p] = l
+		}
+	}
+	return func(s Service) string {
+		if isProjectDir(s) {
+			return label[s.Project]
+		}
+		return project(s)
+	}
+}
+
+// isProjectDir reports a row whose PROJECT is a host directory — the
+// rows project renders as a path.
+func isProjectDir(s Service) bool {
+	return !s.Windows && s.Container == "" && s.Unit == "" && s.User == "" && s.Project != ""
+}
+
+// distinctSuffixes labels each path by its shortest trailing run of
+// segments no other path in the set ends with; a path that's a suffix
+// of another all the way up reads in full, as project does.
+func distinctSuffixes(paths []string) map[string]string {
+	split := make([][]string, len(paths))
+	for i, p := range paths {
+		split[i] = strings.Split(filepath.ToSlash(filepath.Clean(p)), "/")
+	}
+	out := map[string]string{}
+	for i, p := range paths {
+		segs := split[i]
+		for k := 1; ; k++ {
+			if k >= len(segs) {
+				out[p] = ShortPath(p)
+				break
+			}
+			suffix := strings.Join(segs[len(segs)-k:], "/")
+			clash := false
+			for j, other := range split {
+				if j != i && len(other) >= k && strings.Join(other[len(other)-k:], "/") == suffix {
+					clash = true
+					break
+				}
+			}
+			if !clash && suffix != "" {
+				out[p] = suffix
+				break
+			}
+		}
+	}
+	return out
+}
 
 func project(s Service) string {
 	if s.Windows {
@@ -290,13 +360,14 @@ func WriteTree(services []Service) {
 		roots = append(roots, n)
 	}
 
+	labels := projectLabels(rows)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
 	// line prefixes the connector drawn just before this row's content;
 	// base is the continuation gap its subtree hangs under.
 	var draw func(n *node, line, base string)
 	draw = func(n *node, line, base string) {
-		writeTreeRow(w, *n.s, line)
+		writeTreeRow(w, *n.s, line, labels)
 		for i, c := range n.children {
 			conn, cont := "├─ ", "│  "
 			if i == len(n.children)-1 {
@@ -311,6 +382,6 @@ func WriteTree(services []Service) {
 	_ = w.Flush()
 }
 
-func writeTreeRow(w *tabwriter.Writer, s Service, prefix string) {
-	_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), project(s), uptime(s))
+func writeTreeRow(w *tabwriter.Writer, s Service, prefix string, labels func(Service) string) {
+	_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), labels(s), uptime(s))
 }

@@ -36,11 +36,11 @@ var rootCmd = &cobra.Command{
 what is running on this machine right now, and what does it belong to?
 
   $ ports
-  PORT   PROCESS      PROJECT              UPTIME
-  3000   Next.js      ~/projects/shop      14m
-  5432   PostgreSQL   docker: shop-db      2d
-  8000   FastAPI      ~/projects/shop      14m
-  5173   Vite         ~/projects/admin     3h
+  PORT   PROCESS      PROJECT           UPTIME
+  3000   Next.js      shop              14m
+  5432   PostgreSQL   docker: shop-db   2d
+  8000   FastAPI      shop              14m
+  5173   Vite         admin             3h
 
   $ ports kill shop
   ✓ stopped Next.js (:3000)

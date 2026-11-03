@@ -16,10 +16,10 @@ var hereCmd = &cobra.Command{
 ask before starting a second dev server on the next free port.
 
   $ cd ~/projects/shop && ports here
-  PORT   PROCESS      PROJECT              UPTIME
-  3000   Next.js      ~/projects/shop      14m
-  8000   FastAPI      ~/projects/shop      14m
-  5432   PostgreSQL   docker: shop-db      2d
+  PORT   PROCESS      PROJECT           UPTIME
+  3000   Next.js      shop              14m
+  8000   FastAPI      shop              14m
+  5432   PostgreSQL   docker: shop-db   2d
 
 The project is found the way the PROJECT column finds it — the outermost
 .git, then workspace markers, then the nearest package.json, go.mod, and
