@@ -16,9 +16,9 @@ var hereCmd = &cobra.Command{
 ask before starting a second dev server on the next free port.
 
   $ cd ~/projects/shop && ports here
-  PORT   PROCESS      PROJECT           UPTIME
-  3000   Next.js      shop              14m
-  8000   FastAPI      shop              14m
+  PORT   PROCESS      PROJECT           UPTIME   URL
+  3000   Next.js      shop              14m      http://localhost:3000
+  8000   FastAPI      shop              14m      http://localhost:8000
   5432   PostgreSQL   docker: shop-db   2d
 
 The project is found the way the PROJECT column finds it — the outermost

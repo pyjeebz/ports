@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/json"
 	"fmt"
@@ -110,16 +111,33 @@ func WriteTable(services []Service, sort SortMode) {
 	rows := sortRows(services, sort)
 
 	labels := projectLabels(rows)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
+	// the URL column appears only when a row has one, and goes last: a
+	// link's escape bytes never sit in a cell tabwriter measures
+	urls := slices.ContainsFunc(rows, func(s Service) bool { return s.URL != "" })
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', 0)
+	header := "PORT\tPROCESS\tPROJECT\tUPTIME"
+	if urls {
+		header += "\tURL"
+	}
+	_, _ = fmt.Fprintln(w, header)
 	unknown := false
 	for _, s := range rows {
 		if s.Anonymous() {
 			unknown = true
 		}
-		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), labels(s), uptime(s))
+		line := fmt.Sprintf("%d\t%s\t%s\t%s", s.Port, ProcessName(s), labels(s), uptime(s))
+		if urls {
+			// every row keeps the column so the block stays aligned;
+			// the padding a row without a URL picks up is trimmed below
+			line += "\t" + hyperlink(s.URL)
+		}
+		_, _ = fmt.Fprintln(w, line)
 	}
 	_ = w.Flush()
+	for _, line := range strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n") {
+		fmt.Println(strings.TrimRight(line, " "))
+	}
 	if unknown {
 		fmt.Fprintln(os.Stderr, "\nsome ports belong to other users' processes (shown as ?) — run with sudo to see them")
 	}

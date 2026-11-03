@@ -35,11 +35,11 @@ var rootCmd = &cobra.Command{
 what is running on this machine right now, and what does it belong to?
 
   $ ports
-  PORT   PROCESS      PROJECT           UPTIME
-  3000   Next.js      shop              14m
+  PORT   PROCESS      PROJECT           UPTIME   URL
+  3000   Next.js      shop              14m      http://localhost:3000
   5432   PostgreSQL   docker: shop-db   2d
-  8000   FastAPI      shop              14m
-  5173   Vite         admin             3h
+  8000   FastAPI      shop              14m      http://localhost:8000
+  5173   Vite         admin             3h       http://localhost:5173
 
   $ ports stop shop
   ✓ stopped Next.js (:3000)
@@ -56,6 +56,8 @@ what is running on this machine right now, and what does it belong to?
 
 func Execute(version string) {
 	rootCmd.Version = version
+	// table URLs are clickable only where someone can click them
+	inspect.Hyperlinks = stdoutIsTTY() && os.Getenv("NO_COLOR") == ""
 
 	// Load config file. A file that exists but doesn't parse is a bad
 	// invocation — the user asked ports to run with input it can't read.

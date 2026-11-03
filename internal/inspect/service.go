@@ -16,6 +16,7 @@ type Service struct {
 	Framework   string    `json:"framework,omitempty"`
 	Cmdline     string    `json:"cmdline,omitempty"`
 	Addr        string    `json:"addr"`
+	URL         string    `json:"url,omitempty"` // a known web dev server's local address
 	Cwd         string    `json:"cwd,omitempty"`
 	Project     string    `json:"project,omitempty"`
 	ProjectName string    `json:"project_name,omitempty"`

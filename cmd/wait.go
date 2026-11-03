@@ -34,8 +34,8 @@ step between starting a server and using it, without a sleep-and-retry.
 
   $ npm run dev &
   $ ports wait 3000 --http
-  PORT   PROCESS   PROJECT   UPTIME
-  3000   Next.js   shop      3s
+  PORT   PROCESS   PROJECT   UPTIME   URL
+  3000   Next.js   shop      3s       http://localhost:3000
 
 A port (3000 or :3000) waits for any listener on it; a name waits for
 a service that ` + "`ports stop`" + ` would match — a project, framework,
