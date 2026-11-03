@@ -57,7 +57,7 @@ what is running on this machine right now, and what does it belong to?
 func Execute(version string) {
 	rootCmd.Version = version
 	// table URLs are clickable only where someone can click them
-	inspect.Hyperlinks = stdoutIsTTY() && os.Getenv("NO_COLOR") == ""
+	inspect.Hyperlinks = hyperlinksWork()
 
 	// Load config file. A file that exists but doesn't parse is a bad
 	// invocation — the user asked ports to run with input it can't read.

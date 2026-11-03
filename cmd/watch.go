@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"github.com/pyjeebz/ports/internal/inspect"
@@ -114,4 +115,19 @@ func runWatch() error {
 	}()
 
 	return watchLoop(ctx, watchInterval, tick)
+}
+
+// hyperlinksWork reports whether stdout is a terminal that renders OSC 8
+// links rather than printing their escape bytes. On Windows the legacy
+// console (conhost) prints them raw, so links go only to terminals that
+// announce themselves: Windows Terminal (WT_SESSION) or one that sets
+// TERM_PROGRAM, like VS Code's. NO_COLOR turns them off everywhere.
+func hyperlinksWork() bool {
+	if !stdoutIsTTY() || os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return os.Getenv("WT_SESSION") != "" || os.Getenv("TERM_PROGRAM") != ""
+	}
+	return true
 }
