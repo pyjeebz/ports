@@ -29,7 +29,8 @@ const freeLine = (ct: Contact) =>
 // any other, because that's what the binary prints.
 const killLine = (ct: Contact) => `✓ stopped ${ct.framework} (:${ct.port})`;
 
-const SURFACE = "the whole surface: ports · find · stop · here · wait · doctor";
+// only what this terminal answers — the docs have the rest
+const SURFACE = "try: ports · find · stop · doctor";
 
 function jsonLines(rows: Contact[]): string[] {
   return JSON.stringify(
@@ -88,8 +89,15 @@ function execute(raw: string, rows: Contact[]): { entry: Entry; rows: Contact[] 
   if (sub === "stop") {
     if (!rest[0])
       return { entry: { kind: "lines", cmd: raw, lines: ["✗ stop what? — try: ports stop 3000"] }, rows };
+    // the CLI's port rule: 3000 or :3000, 1–65535; a colon promises a port
     const bare = rest[0].replace(/^:/, "");
-    if (/^\d+$/.test(bare)) {
+    const numeric = /^\d+$/.test(bare);
+    if ((rest[0].startsWith(":") && !numeric) || (numeric && (Number(bare) < 1 || Number(bare) > 65535)))
+      return {
+        entry: { kind: "lines", cmd: raw, lines: [`✗ invalid port “${rest[0]}” — ports run from 1 to 65535`] },
+        rows,
+      };
+    if (numeric) {
       sub = "free";
       rest[0] = bare;
     } else {
