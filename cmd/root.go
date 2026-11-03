@@ -105,7 +105,7 @@ func codifyExitCodes() {
 		if orig := sub.Args; orig != nil {
 			sub.Args = func(cmd *cobra.Command, args []string) error {
 				if err := orig(cmd, args); err != nil {
-					return toBadArgs(err)
+					return toBadArgs(argsError(cmd, args, err))
 				}
 				return nil
 			}
@@ -116,6 +116,9 @@ func codifyExitCodes() {
 	// doesn't exist, and says so with exit 2 like every other bad arg
 	rootCmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) > 0 {
+			if s := suggestCommand(rootCmd, args[0]); s != "" {
+				return exitError{code: 2, msg: fmt.Sprintf("unknown command %q — did you mean `ports %s`?", args[0], s)}
+			}
 			return exitError{code: 2, msg: fmt.Sprintf("unknown command %q — run `ports --help` for the list", args[0])}
 		}
 		return nil

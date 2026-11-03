@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +28,7 @@ var findCmd = &cobra.Command{
 		services = inspect.ApplyFilter(services, filter)
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesQuery(q) })
 		if len(matched) == 0 {
-			return noneFound(fmt.Sprintf("nothing matching %q", q))
+			return noneFound(nothingMatching(q, services, ""))
 		}
 		return writeReport(matched, sort)
 	},
