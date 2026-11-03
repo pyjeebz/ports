@@ -15,7 +15,7 @@ import (
 // away from the whole name or from its start, so "pyhton" finds
 // "python3.13" and "shp" finds "shop"; a tie between two names says
 // nothing rather than guess.
-func suggestName(q string, services []inspect.Service) string {
+func suggestName(q string, services []inspect.Service, accept func(inspect.Service, string) bool) string {
 	q = strings.ToLower(q)
 	// a third of the query in edits: one for "shp", two for "pyhton",
 	// none for a letter or two — those are a few edits from anything
@@ -25,8 +25,8 @@ func suggestName(q string, services []inspect.Service) string {
 	best, bestScore, tied := "", 2*(limit+1), false
 	seen := map[string]bool{}
 	for _, s := range services {
-		for _, name := range []string{s.ProjectName, s.Framework, s.Process, s.Container, s.Unit} {
-			if name == "" || name == "?" || seen[name] {
+		for _, name := range []string{s.ProjectName, s.Framework, s.Process, s.Container, s.ComposeService, s.Unit} {
+			if name == "" || name == "?" || seen[name] || (accept != nil && !accept(s, name)) {
 				continue
 			}
 			seen[name] = true
@@ -96,9 +96,11 @@ func editDistance(a, b string) int {
 }
 
 // nothingMatching is the "nothing matching" line for find and kill, with the
-// nearest name on the machine when there is one.
-func nothingMatching(q string, services []inspect.Service, otherwise string) string {
-	if s := suggestName(q, services); s != "" {
+// nearest name on the machine when there is one. accept, when set, keeps
+// only names the command would act on — kill matches names exactly and
+// never a docker row's docker-proxy, so it must never suggest one.
+func nothingMatching(q string, services []inspect.Service, accept func(inspect.Service, string) bool, otherwise string) string {
+	if s := suggestName(q, services, accept); s != "" {
 		return fmt.Sprintf("nothing matching %q — did you mean %q?", q, s)
 	}
 	return fmt.Sprintf("nothing matching %q%s", q, otherwise)
@@ -119,12 +121,14 @@ var argNouns = map[string]struct{ noun, bare, example string }{
 
 // argsError rewrites cobra's argument-count errors ("accepts 1 arg(s),
 // received 0") in ports' voice: what the command needs, with an example.
-func argsError(c *cobra.Command, args []string, err error) error {
+// required says whether the command's own validator refuses zero
+// arguments — asked of the validator, not guessed from the Use line.
+func argsError(c *cobra.Command, args []string, required bool, err error) error {
 	n, ok := argNouns[c.Name()]
 	if !ok {
 		return err
 	}
-	optional := !strings.Contains(c.Use, "<")
+	optional := !required
 	switch {
 	case len(args) == 0 && !optional:
 		return fmt.Errorf("`ports %s` needs %s — e.g. `%s`", c.Name(), n.noun, n.example)
@@ -155,7 +159,7 @@ func suggestCommand(root *cobra.Command, typed string) string {
 	typed = strings.ToLower(typed)
 	// a short word is a few edits from anything: allow at most half its
 	// length, and never more than two
-	best, bestDist := "", min(2, len([]rune(typed))/2)+1
+	best, bestDist, tied := "", min(2, len([]rune(typed))/2)+1, false
 	for _, c := range root.Commands() {
 		if !c.IsAvailableCommand() {
 			continue
@@ -165,10 +169,16 @@ func suggestCommand(root *cobra.Command, typed string) string {
 			if len(typed) >= 2 && strings.HasPrefix(name, typed) {
 				d = 0
 			}
-			if d < bestDist {
-				best, bestDist = name, d
+			switch {
+			case d < bestDist:
+				best, bestDist, tied = name, d, false
+			case d == bestDist && name != best:
+				tied = true
 			}
 		}
+	}
+	if tied {
+		return "" // "lill" is as near kill as list: say nothing rather than guess
 	}
 	return best
 }

@@ -28,7 +28,7 @@ var findCmd = &cobra.Command{
 		services = inspect.ApplyFilter(services, filter)
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesQuery(q) })
 		if len(matched) == 0 {
-			return noneFound(nothingMatching(q, services, ""))
+			return noneFound(nothingMatching(q, services, nil, ""))
 		}
 		return writeReport(matched, sort)
 	},

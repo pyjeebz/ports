@@ -105,7 +105,7 @@ func codifyExitCodes() {
 		if orig := sub.Args; orig != nil {
 			sub.Args = func(cmd *cobra.Command, args []string) error {
 				if err := orig(cmd, args); err != nil {
-					return toBadArgs(argsError(cmd, args, err))
+					return toBadArgs(argsError(cmd, args, orig(cmd, nil) != nil, err))
 				}
 				return nil
 			}
