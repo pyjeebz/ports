@@ -23,7 +23,7 @@ var killCmd = &cobra.Command{
 		}
 		matched := match(services, func(s inspect.Service) bool { return s.MatchesName(q) })
 		if len(matched) == 0 {
-			return noneFound(fmt.Sprintf("nothing matching %q — try `ports find %s`", q, q))
+			return noneFound(nothingMatching(q, services, inspect.Service.MatchesName, fmt.Sprintf(" — try `ports find %s`", q)))
 		}
 		opts := stopOptions()
 		opts.skipUnowned = true
