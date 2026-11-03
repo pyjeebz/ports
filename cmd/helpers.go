@@ -200,10 +200,11 @@ func portList(ports []uint32) string {
 	return strings.Join(parts, ", ")
 }
 
-// stopFormat validates --format for free and kill: a stop reports as
-// lines or as JSON results, nothing else.
+// stopFormat validates --format for stop (and free, kill): a stop reports as
+// lines or as JSON results, nothing else — --json or not, a format that
+// doesn't exist is a bad invocation, as it is for every command.
 func stopFormat() error {
-	if !jsonOut && format != "table" && format != "json" {
+	if format != "table" && format != "json" {
 		return exitError{code: 2, msg: fmt.Sprintf("--format %q — stops report as table or json", format)}
 	}
 	return nil

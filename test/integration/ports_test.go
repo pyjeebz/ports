@@ -560,7 +560,7 @@ func TestDoctorHTTPProbeSilent(t *testing.T) {
 	AssertOutputNotContains(t, stdout, "responds to HTTP")
 }
 
-// firstPortColumn reads the csv body (header off) and returns the port of
+// firstPortColumn reads the table body (header off) and returns the port of
 // each row, in display order.
 func firstPortColumn(t *testing.T, table string) []int {
 	t.Helper()
@@ -641,7 +641,7 @@ func TestExitCodes(t *testing.T) {
 		{"unknown flag on a subcommand exits 2", []string{"kill", "--badflag", "shop"}, 2},
 		{"a stop flag on doctor exits 2", []string{"doctor", "--force"}, 2},
 		{"a stop flag on the listing exits 2", []string{"--dry-run"}, 2},
-		{"a listing flag on free exits 2", []string{"free", "--tree", "1"}, 2},
+		{"a listing flag on free exits 2", []string{"free", "--sort", "port", "1"}, 2},
 		{"flag missing its value exits 2", []string{"--format"}, 2},
 		{"kill with no name exits 2", []string{"kill"}, 2},
 		{"find with no name exits 2", []string{"find"}, 2},
