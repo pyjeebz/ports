@@ -201,7 +201,7 @@ func TestMisplacedFlag(t *testing.T) {
 		t.Errorf("shorthand: %q", err)
 	}
 	err = misplacedFlag(rootCmd, errors.New("unknown flag: --force"))
-	if !strings.Contains(err.Error(), "`ports free`, `ports kill`") {
+	if !strings.Contains(err.Error(), "it's a flag of `ports stop`") {
 		t.Errorf("root: %q", err)
 	}
 	if err := misplacedFlag(killCmd, errors.New("unknown flag: --nope")); err.Error() != "unknown flag: --nope" {
@@ -417,12 +417,12 @@ func TestStopAllSkipsUnowned(t *testing.T) {
 	if len(stops()) != 1 || stops()[0].Pid != 101 {
 		t.Fatalf("stopped %v, want only pid 101", stops())
 	}
-	for _, want := range []string{"skipped PostgreSQL (:5432)", "sudo systemctl stop postgresql", "skipped ? (:6379)", "sudo ports free 6379", "skipped docker-proxy (:8080)", "ports doctor 8080"} {
+	for _, want := range []string{"skipped PostgreSQL (:5432)", "sudo systemctl stop postgresql", "skipped ? (:6379)", "sudo ports stop 6379", "skipped docker-proxy (:8080)", "ports doctor 8080"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("report %q missing %q", out, want)
 		}
 	}
-	if strings.Contains(out, "sudo ports free 8080") {
+	if strings.Contains(out, "sudo ports stop 8080") {
 		t.Errorf("sudo can't stop a docker-proxy either; its fix is doctor: %q", out)
 	}
 }

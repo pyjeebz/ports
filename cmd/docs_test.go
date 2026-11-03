@@ -124,7 +124,7 @@ func TestParseDocumented(t *testing.T) {
 	}
 	for _, good := range []string{
 		"ports", "ports --json", "ports -w", "ports find postgres --sort uptime",
-		"ports wait 3000 --http --timeout 60s", "ports free 3000 --expect nextjs --json",
+		"ports wait 3000 --http --timeout 60s", "ports free 3000 --expect nextjs --json", "ports stop shop --dry-run", "ports stop :3000 --expect nextjs",
 		"ports --format snapshot", "ports diff before.json", "ports ps",
 	} {
 		if err := parseDocumented(good); err != nil {

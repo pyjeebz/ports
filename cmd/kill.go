@@ -7,34 +7,42 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// kill is the name half of `ports stop`, kept for the scripts that have
+// called it since v0.1.0 — hidden from help, its behavior unchanged.
 var killCmd = &cobra.Command{
-	Use:   "kill <name>",
-	Short: "Stop a project or service by name",
-	Args:  cobra.ExactArgs(1),
+	Use:    "kill <name>",
+	Short:  "Stop a project or service by name (now `ports stop <name>`)",
+	Hidden: true,
+	Args:   cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		q := args[0]
-		if err := stopFormat(); err != nil {
-			return err
-		}
-		cfg := buildInspectConfig()
-		services, err := inspect.Scan(cfg)
-		if err != nil {
-			return err
-		}
-		matched := match(services, func(s inspect.Service) bool { return s.MatchesName(q) })
-		if len(matched) == 0 {
-			return noneFound(nothingMatching(q, services, inspect.Service.MatchesName, fmt.Sprintf(" — try `ports find %s`", q)))
-		}
-		opts := stopOptions()
-		opts.skipUnowned = true
-		code := stopAll(matched, opts, func(s inspect.Service, ports string) string {
-			return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
-		})
-		if code != 0 {
-			return exitError{code: code}
-		}
-		return nil
+		return killName(args[0])
 	},
+}
+
+// killName stops every service q names — project, framework, container,
+// unit or process — skipping other users' rows it can't stop.
+func killName(q string) error {
+	if err := stopFormat(); err != nil {
+		return err
+	}
+	cfg := buildInspectConfig()
+	services, err := inspect.Scan(cfg)
+	if err != nil {
+		return err
+	}
+	matched := match(services, func(s inspect.Service) bool { return s.MatchesName(q) })
+	if len(matched) == 0 {
+		return noneFound(nothingMatching(q, services, inspect.Service.MatchesName, fmt.Sprintf(" — try `ports find %s`", q)))
+	}
+	opts := stopOptions()
+	opts.skipUnowned = true
+	code := stopAll(matched, opts, func(s inspect.Service, ports string) string {
+		return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
+	})
+	if code != 0 {
+		return exitError{code: code}
+	}
+	return nil
 }
 
 func init() {

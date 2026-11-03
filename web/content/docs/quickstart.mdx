@@ -26,10 +26,10 @@ $ ports find postgres
 
 ## Free a port
 
-Kill whatever holds a port, by number.
+Stop whatever holds a port, by number.
 
 ```sh
-$ ports free 3000
+$ ports stop 3000
 ✓ killed Next.js (pid 48391) — port 3000 is free
 ```
 
@@ -38,7 +38,7 @@ $ ports free 3000
 Stops all processes that belong to a named project or service — dev servers and containers alike.
 
 ```sh
-$ ports kill shop
+$ ports stop shop
 ✓ stopped FastAPI (:8000)
 ✓ stopped PostgreSQL (:5432)
 ```

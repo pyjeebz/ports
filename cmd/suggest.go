@@ -113,6 +113,7 @@ var argNouns = map[string]struct{ noun, bare, example string }{
 	"kill":       {"a name", "name", "ports kill shop"},
 	"free":       {"a port", "port", "ports free 3000"},
 	"wait":       {"a port or a name", "port or name", "ports wait 3000"},
+	"stop":       {"a port or a name", "port or name", "ports stop 3000"},
 	"doctor":     {"a port", "port", "ports doctor 3000"},
 	"here":       {"a directory", "directory", "ports here ~/projects/shop"},
 	"diff":       {"a snapshot file", "snapshot file", "ports diff before.json"},
@@ -161,7 +162,9 @@ func suggestCommand(root *cobra.Command, typed string) string {
 	// length, and never more than two
 	best, bestDist, tied := "", min(2, len([]rune(typed))/2)+1, false
 	for _, c := range root.Commands() {
-		if !c.IsAvailableCommand() {
+		// hidden commands still run — free and kill, kept for v0.1.0's
+		// scripts — so a typo of one is still worth naming
+		if !c.Runnable() || c.Deprecated != "" || c.Name() == "help" {
 			continue
 		}
 		// a command's nearest spelling — its name or an alias — so the two

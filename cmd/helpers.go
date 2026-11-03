@@ -320,7 +320,7 @@ func splitUnowned(targets []stopResult) (stop, skipped []stopResult) {
 			if t.Service.User != "" {
 				t.Error = fmt.Sprintf("owned by %s — its pid is hidden from this scan", t.Service.User)
 			}
-			t.Fix = fmt.Sprintf("sudo ports free %d", t.Ports[0])
+			t.Fix = fmt.Sprintf("sudo ports stop %d", t.Ports[0])
 		}
 		skipped = append(skipped, t)
 	}

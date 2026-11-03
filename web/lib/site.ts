@@ -63,14 +63,19 @@ export const COMMANDS = [
     desc: "Locate a service by name, port, or project.",
   },
   {
-    cmd: "ports free <port>",
-    href: "/docs/commands#cmd-free",
-    desc: "Identify what holds a port and stop it, gracefully.",
+    cmd: "ports stop <port|name>",
+    href: "/docs/commands#cmd-stop",
+    desc: "Stop what holds a port, or everything a name matches — gracefully.",
   },
   {
-    cmd: "ports kill <name>",
-    href: "/docs/commands#cmd-kill",
-    desc: "Stop a project or service by name.",
+    cmd: "ports here",
+    href: "/docs/commands#cmd-here",
+    desc: "What's running for the project you're in — reuse it instead of starting a second.",
+  },
+  {
+    cmd: "ports wait <port|name>",
+    href: "/docs/commands#cmd-wait",
+    desc: "Block until it listens, answers HTTP, or is gone.",
   },
   {
     cmd: "ports doctor [port]",
@@ -263,7 +268,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   },
   {
     id: "free",
-    cmd: "ports free 3000",
+    cmd: "ports stop 3000",
     title: "Free by port",
     line: "Free a port.",
     desc: "The process holding a port, identified and stopped gracefully.",
@@ -273,7 +278,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   },
   {
     id: "kill",
-    cmd: "ports kill shop",
+    cmd: "ports stop shop",
     title: "Kill by project",
     line: "Stop the project.",
     desc: "Stops every process that belongs to a named project — containers through the daemon, never docker-proxy.",
