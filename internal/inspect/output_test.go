@@ -264,3 +264,24 @@ func TestDistinctSuffixes(t *testing.T) {
 		t.Errorf("nested suffix: %v", got)
 	}
 }
+
+// A directory whose name is another row kind's label keeps its path, and
+// one directory spelled two ways is one project.
+func TestTableProjectNameEdges(t *testing.T) {
+	win := filepath.FromSlash("/mnt/c/windows")
+	shop := filepath.FromSlash("/srv/shop")
+	out := captureStdout(t, func() {
+		WriteTable([]Service{
+			{Port: 3000, Pid: 1, Process: "node", Project: win},
+			{Port: 4000, Process: "Ollama", Windows: true},
+			{Port: 5000, Pid: 2, Process: "node", Project: shop},
+			{Port: 5001, Pid: 3, Process: "node", Project: shop + string(filepath.Separator)},
+		}, SortPort)
+	})
+	if !strings.Contains(out, ShortPath(win)) {
+		t.Errorf("a project named windows should keep its path:\n%s", out)
+	}
+	if strings.Count(out, " shop ") != 2 || strings.Contains(out, ShortPath(shop)) {
+		t.Errorf("one directory spelled two ways should read as one name:\n%s", out)
+	}
+}

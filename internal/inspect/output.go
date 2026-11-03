@@ -191,21 +191,27 @@ func projectLabels(rows []Service) func(Service) string {
 	byName := map[string][]string{}
 	for _, s := range rows {
 		if isProjectDir(s) {
-			name := filepath.Base(s.Project)
-			if !slices.Contains(byName[name], s.Project) {
-				byName[name] = append(byName[name], s.Project)
+			dir := filepath.Clean(s.Project)
+			name := filepath.Base(dir)
+			if !slices.Contains(byName[name], dir) {
+				byName[name] = append(byName[name], dir)
 			}
 		}
 	}
 	label := map[string]string{}
 	for _, paths := range byName {
 		for p, l := range distinctSuffixes(paths) {
+			// a directory named windows or — would read as a Windows-side
+			// or unknown row: it keeps its path instead
+			if l == "windows" || l == "—" {
+				l = ShortPath(p)
+			}
 			label[p] = l
 		}
 	}
 	return func(s Service) string {
 		if isProjectDir(s) {
-			return label[s.Project]
+			return label[filepath.Clean(s.Project)]
 		}
 		return project(s)
 	}

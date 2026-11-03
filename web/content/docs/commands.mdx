@@ -14,7 +14,7 @@ Display every listening TCP port with its framework, project directory, and upti
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | PORT     | The TCP port number.                                                                                           |
 | PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
-| PROJECT  | The project directory's name — with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`); `--json`, csv/tsv and `diff` carry the full path — a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
+| PROJECT  | For a process, its project directory's name, with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`) — `--json`, csv/tsv and `diff` carry the full path. Otherwise a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
 
 <span id="cmd-find" />
