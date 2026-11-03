@@ -164,21 +164,27 @@ func suggestCommand(root *cobra.Command, typed string) string {
 		if !c.IsAvailableCommand() {
 			continue
 		}
+		// a command's nearest spelling — its name or an alias — so the two
+		// can never tie with each other
+		cname, cdist := "", bestDist+1
 		for _, name := range append([]string{c.Name()}, c.Aliases...) {
 			d := editDistance(typed, name)
 			if len(typed) >= 2 && strings.HasPrefix(name, typed) {
 				d = 0
 			}
-			switch {
-			case d < bestDist:
-				best, bestDist, tied = name, d, false
-			case d == bestDist && name != best:
-				tied = true
+			if d < cdist {
+				cname, cdist = name, d
 			}
+		}
+		switch {
+		case cdist < bestDist:
+			best, bestDist, tied = cname, cdist, false
+		case cdist == bestDist:
+			tied = true
 		}
 	}
 	if tied {
-		return "" // "lill" is as near kill as list: say nothing rather than guess
+		return "" // two commands equally near: say nothing rather than guess
 	}
 	return best
 }
