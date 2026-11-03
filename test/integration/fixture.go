@@ -3,10 +3,12 @@ package integration
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -343,4 +345,45 @@ func AssertOutputNotContains(t *testing.T, output string, unexpected ...string) 
 			t.Errorf("expected output not to contain %q, got:\n%s", unexp, output)
 		}
 	}
+}
+
+// RunPortsPTY runs ports on a real pseudo-terminal through util-linux
+// `script`, typing keys once the program has had time to switch the
+// terminal to raw mode. Output is the terminal's, escape codes stripped.
+// Skips where `script` isn't the util-linux one (macOS, Windows).
+func RunPortsPTY(t *testing.T, keys string, args ...string) (string, int) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("pseudo-terminal tests drive util-linux script")
+	}
+	if _, err := exec.LookPath("script"); err != nil {
+		t.Skip("no script(1) to drive a pseudo-terminal")
+	}
+	line := portsBinaryPath()
+	for _, a := range args {
+		line += " " + a
+	}
+	cmd := exec.Command("script", "-qec", line, "/dev/null")
+	cmd.Env = hermeticEnv(t)
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	_, _ = io.WriteString(in, keys)
+	_ = in.Close()
+	code := 0
+	if err := cmd.Wait(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			code = exitErr.ExitCode()
+		}
+	}
+	clean := regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`).ReplaceAllString(out.String(), "")
+	return strings.ReplaceAll(clean, "\r", ""), code
 }

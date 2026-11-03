@@ -88,6 +88,8 @@ $ ports stop shop
 
 SIGTERM first, SIGKILL only if the process doesn't exit; `--force` skips straight to SIGKILL. Docker-backed ports stop the container through the engine — never docker-proxy.
 
+Run bare in a terminal, `ports stop` opens a picker: the listing's rows, ↑/↓ (or `k`/`j`) to move, Enter to choose, `y` to confirm — then it stops as `ports stop <port>` would, `--dry-run` and `--force` included. Rows only `sudo` can stop are dimmed and skipped. Esc, `q` or Ctrl-C leave with nothing stopped (exit `130`). Scripts, pipes and agents never see the picker: off a terminal, bare `ports stop` is a usage error (exit `2`), so a forgotten argument fails loudly instead of waiting on a prompt.
+
 `ports free <port>` and `ports kill <name>` — the port-only and name-only commands from v0.1.0 — still work exactly as before; `stop` is the one to reach for.
 
 <span id="expect" />
@@ -225,7 +227,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, or doctor found something ⚠ or ✗. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
 
-An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
+An interrupted `ports wait` exits `130` — its condition was never met — and so does a stop picker left without choosing; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
 
 ## Scripts and agents
 
