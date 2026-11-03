@@ -396,3 +396,80 @@ func TestPortArg(t *testing.T) {
 		t.Errorf(`requirePort(":3000") = %d, %v — want 3000`, p, err)
 	}
 }
+
+// kill by name sweeps up other users' listeners the scan sees with no
+// pid. Nothing here can stop them, so they're skipped — reported with
+// the command that would stop them — and never turn a stop that did its
+// job into exit 1.
+func TestStopAllSkipsUnowned(t *testing.T) {
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js", ProjectName: "shop"},
+		{Port: 5432, Process: "postgres", Framework: "PostgreSQL", User: "postgres", Unit: "postgresql"},
+		{Port: 6379, Process: "?", User: "root"},
+		{Port: 8080, Process: "docker-proxy", User: "root"}, // daemon unreachable: no container
+	}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	out := captureStdout(t, func() { code = stopAll(rows, stopOpts{skipUnowned: true}, okLine) })
+	if code != 0 {
+		t.Errorf("code = %d, want 0 — the stoppable target stopped", code)
+	}
+	if len(stops()) != 1 || stops()[0].Pid != 101 {
+		t.Fatalf("stopped %v, want only pid 101", stops())
+	}
+	for _, want := range []string{"skipped PostgreSQL (:5432)", "sudo systemctl stop postgresql", "skipped ? (:6379)", "sudo ports free 6379", "skipped docker-proxy (:8080)", "ports doctor 8080"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report %q missing %q", out, want)
+		}
+	}
+	if strings.Contains(out, "sudo ports free 8080") {
+		t.Errorf("sudo can't stop a docker-proxy either; its fix is doctor: %q", out)
+	}
+}
+
+// When skipped rows are all there was, nothing was stopped: exit 1.
+func TestStopAllOnlyUnownedExitsOne(t *testing.T) {
+	rows := []inspect.Service{{Port: 5432, Process: "postgres", User: "postgres", Unit: "postgresql"}}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	captureStdout(t, func() { code = stopAll(rows, stopOpts{skipUnowned: true}, okLine) })
+	if code != 1 || len(stops()) != 0 {
+		t.Errorf("code %d, %d stops — want 1 and 0", code, len(stops()))
+	}
+}
+
+// --expect judges what would be stopped; a skipped row is never
+// stopped, so it can't sink a guarded stop — and is still never stopped.
+func TestStopAllExpectIgnoresSkipped(t *testing.T) {
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node", Framework: "Next.js", ProjectName: "shop"},
+		{Port: 6379, Process: "?", User: "root"},
+	}
+	stops := swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	captureStdout(t, func() { code = stopAll(rows, stopOpts{skipUnowned: true, expect: "shop"}, okLine) })
+	if code != 0 || len(stops()) != 1 || stops()[0].Pid != 101 {
+		t.Errorf("code %d, stops %v — want 0 and only pid 101", code, stops())
+	}
+}
+
+// In JSON a skipped row is a result like any other: action "skipped",
+// why, and the command that would stop it.
+func TestStopAllSkippedJSON(t *testing.T) {
+	withJSON(t)
+	rows := []inspect.Service{
+		{Pid: 101, Port: 3000, Process: "node"},
+		{Port: 5432, Process: "postgres", User: "postgres", Unit: "postgresql"},
+	}
+	swapStop(t, func(inspect.Service, bool) error { return nil })
+	var code int
+	out := captureStdout(t, func() { code = stopAll(rows, stopOpts{skipUnowned: true}, okLine) })
+	results := decodeResults(t, out)
+	if code != 0 || len(results) != 2 {
+		t.Fatalf("code %d, %d results:\n%s", code, len(results), out)
+	}
+	r := results[1]
+	if r.Action != actionSkipped || r.Fix != "sudo systemctl stop postgresql" || r.Error == "" || r.Ports[0] != 5432 {
+		t.Errorf("skipped result: %+v", r)
+	}
+}

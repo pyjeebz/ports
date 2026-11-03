@@ -145,13 +145,16 @@ type stopOpts struct {
 	force  bool
 	dryRun bool
 	expect string // stop only if every target matches this name
+	// skipUnowned reports other users' pid-less rows as skipped rather
+	// than failed: kill sweeps them up by name, where free targets them
+	skipUnowned bool
 }
 
 // What happened to one stop target, in --format json. A target is one
 // process, container, or service, however many ports it holds; service
 // is its row exactly as `ports --json` prints it.
 type stopResult struct {
-	Action  string          `json:"action"` // stopped, would_stop, failed, refused
+	Action  string          `json:"action"` // stopped, would_stop, failed, refused, skipped
 	Ports   []uint32        `json:"ports"`
 	Service inspect.Service `json:"service"`
 	Error   string          `json:"error,omitempty"`
@@ -163,6 +166,7 @@ const (
 	actionWouldStop = "would_stop"
 	actionFailed    = "failed"
 	actionRefused   = "refused"
+	actionSkipped   = "skipped"
 )
 
 // stopTargets groups rows into what one stop ends: a pid, a container
@@ -219,7 +223,10 @@ func stopFormat() error {
 // a script or agent puts on "free whatever holds :3000". Returns the
 // exit code — 1 when anything failed or the guard refused.
 func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Service, string) string) int {
-	targets := stopTargets(matched)
+	targets, skipped := stopTargets(matched), []stopResult(nil)
+	if opts.skipUnowned {
+		targets, skipped = splitUnowned(targets)
+	}
 	asJSON := wantJSON()
 	code := 0
 
@@ -266,14 +273,58 @@ func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Servic
 		}
 	}
 
+	for _, t := range skipped {
+		if !asJSON {
+			fmt.Fprintf(os.Stderr, "· skipped %s (%s): %s\n  → %s\n", inspect.ProcessName(t.Service), portList(t.Ports), t.Error, t.Fix)
+		}
+	}
+	// skipped rows never sink a stop that did its job — but when they
+	// were all there was, nothing was stopped
+	if len(targets) == 0 && len(skipped) > 0 {
+		code = 1
+	}
+
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(targets); err != nil {
+		if err := enc.Encode(append(targets, skipped...)); err != nil {
 			return 1
 		}
 	}
 	return code
+}
+
+// splitUnowned sets aside the targets nothing here can stop — another
+// user's listeners, seen with no pid — as skipped, each with the
+// command that would stop it. The rest go on to be stopped, and to be
+// judged by --expect: a skipped row is never stopped, so it can't sink
+// the guard.
+func splitUnowned(targets []stopResult) (stop, skipped []stopResult) {
+	for _, t := range targets {
+		if !t.Service.Unowned() {
+			stop = append(stop, t)
+			continue
+		}
+		t.Action = actionSkipped
+		switch {
+		case t.Service.Process == "docker-proxy":
+			// sudo can't stop a proxy either — the container behind it
+			// is what stops, and doctor says why it didn't resolve
+			t.Error = "a docker-proxy whose container didn't resolve"
+			t.Fix = fmt.Sprintf("ports doctor %d", t.Ports[0])
+		case t.Service.Unit != "":
+			t.Error = fmt.Sprintf("a systemd service running as %s", t.Service.User)
+			t.Fix = "sudo systemctl stop " + t.Service.Unit
+		default:
+			t.Error = "another user's process — its pid is hidden from this scan"
+			if t.Service.User != "" {
+				t.Error = fmt.Sprintf("owned by %s — its pid is hidden from this scan", t.Service.User)
+			}
+			t.Fix = fmt.Sprintf("sudo ports free %d", t.Ports[0])
+		}
+		skipped = append(skipped, t)
+	}
+	return stop, skipped
 }
 
 // stopFix is the command that moves a failed stop along: the one that
