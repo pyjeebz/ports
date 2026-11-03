@@ -2,7 +2,6 @@ package inspect
 
 import (
 	"cmp"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,7 +14,7 @@ import (
 )
 
 // WriteJSON writes services as JSON to stdout. A nil slice renders as [],
-// the shape every consumer — the diff included — expects, not null.
+// the shape every consumer expects, not null.
 func WriteJSON(services []Service) error {
 	if services == nil {
 		services = []Service{}
@@ -25,17 +24,7 @@ func WriteJSON(services []Service) error {
 	return enc.Encode(services)
 }
 
-// WriteCSV writes services as CSV to stdout.
-func WriteCSV(services []Service, sort SortMode) error {
-	return writeDelimited(services, ',', sort)
-}
-
-// WriteTSV writes services as TSV to stdout.
-func WriteTSV(services []Service, sort SortMode) error {
-	return writeDelimited(services, '\t', sort)
-}
-
-// SortMode names a display order for the table and its delimited forms.
+// SortMode names a display order for the table.
 // The zero value is the default order, not a third state — sorting is
 // never off, it just has a preferred arrangement unless --sort says
 // otherwise.
@@ -63,8 +52,7 @@ func ParseSortMode(s string) (SortMode, error) {
 // sortRows is the shared display order. The default groups by project —
 // rows with a project first, then by project name and path, then by port —
 // so a project's services appear together regardless of which sockets the
-// scan returned in. An explicit --sort replaces the arrangement; --tree
-// always uses the default, since nesting carries the structure instead.
+// scan returned in. An explicit --sort replaces the arrangement.
 func sortRows(services []Service, sort SortMode) []Service {
 	rows := slices.Clone(services)
 	slices.SortStableFunc(rows, func(a, b Service) int {
@@ -113,33 +101,6 @@ func sortRows(services []Service, sort SortMode) []Service {
 	return rows
 }
 
-func writeDelimited(services []Service, delim rune, sort SortMode) error {
-	if len(services) == 0 {
-		return nil
-	}
-	rows := sortRows(services, sort)
-
-	w := csv.NewWriter(os.Stdout)
-	w.Comma = delim
-	defer w.Flush()
-
-	// Header
-	if err := w.Write([]string{"PORT", "PROCESS", "PROJECT", "UPTIME"}); err != nil {
-		return err
-	}
-	for _, s := range rows {
-		if err := w.Write([]string{
-			fmt.Sprintf("%d", s.Port),
-			ProcessName(s),
-			project(s),
-			uptime(s),
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // WriteTable writes services as a formatted table to stdout.
 func WriteTable(services []Service, sort SortMode) {
 	if len(services) == 0 {
@@ -186,7 +147,7 @@ func ProjectLabel(s Service) string { return project(s) }
 // home directory can run to dozens of characters and push the table off
 // the screen. Two directories that share a name get just enough of their
 // parents to tell apart (work/shop, oss/shop). Everything else reads as
-// project does. Machine output — JSON, csv/tsv, diff — keeps the path.
+// project does. Machine output — JSON, doctor's header — keeps the path.
 func projectLabels(rows []Service) func(Service) string {
 	byName := map[string][]string{}
 	for _, s := range rows {
@@ -303,8 +264,7 @@ func uptime(s Service) string {
 }
 
 // durationString rounds a duration the way the table does — one unit,
-// the coarsest that hasn't passed — shared by uptime and the snapshot
-// age so they can't drift apart.
+// the coarsest that hasn't passed.
 func durationString(d time.Duration) string {
 	switch {
 	case d < time.Minute:
@@ -325,69 +285,4 @@ func DockerName(s Service) string {
 		return s.ComposeProject + "-" + s.ComposeService
 	}
 	return s.Container
-}
-
-// WriteTree writes services as a table where child processes are nested
-// under their parent, matched on pid → parent pid. Only host processes
-// participate: a row whose parent is not itself in the scan is a root,
-// and container / windows rows are always roots — their parent on the
-// other side of a boundary is not another scanned row's child. The tree
-// always renders in the default order — --sort would scramble the
-// parent/child walk for no gain.
-func WriteTree(services []Service) {
-	if len(services) == 0 {
-		fmt.Println("no listening TCP ports")
-		return
-	}
-	rows := sortRows(services, SortDefault)
-
-	type node struct {
-		s        *Service
-		children []*node
-	}
-	nodes := make([]*node, len(rows))
-	byPid := map[int32]*node{}
-	for i := range nodes {
-		nodes[i] = &node{s: &rows[i]}
-	}
-	for _, n := range nodes {
-		if _, seen := byPid[n.s.Pid]; !seen {
-			byPid[n.s.Pid] = n // first row wins when a pid holds several ports
-		}
-	}
-	var roots []*node
-	for _, n := range nodes {
-		s := n.s
-		if parent := byPid[s.ParentPid]; s.ParentPid > 0 && parent != nil && parent.s != s &&
-			s.Container == "" && !s.Windows {
-			parent.children = append(parent.children, n)
-			continue
-		}
-		roots = append(roots, n)
-	}
-
-	labels := projectLabels(rows)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
-	// line prefixes the connector drawn just before this row's content;
-	// base is the continuation gap its subtree hangs under.
-	var draw func(n *node, line, base string)
-	draw = func(n *node, line, base string) {
-		writeTreeRow(w, *n.s, line, labels)
-		for i, c := range n.children {
-			conn, cont := "├─ ", "│  "
-			if i == len(n.children)-1 {
-				conn, cont = "└─ ", "   "
-			}
-			draw(c, base+conn, base+cont)
-		}
-	}
-	for _, r := range roots {
-		draw(r, "", "")
-	}
-	_ = w.Flush()
-}
-
-func writeTreeRow(w *tabwriter.Writer, s Service, prefix string, labels func(Service) string) {
-	_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, prefix+ProcessName(s), labels(s), uptime(s))
 }

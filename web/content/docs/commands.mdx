@@ -14,7 +14,7 @@ Display every listening TCP port with its framework, project directory, and upti
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | PORT     | The TCP port number.                                                                                           |
 | PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
-| PROJECT  | For a process, its project directory's name, with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`) — `--json`, csv/tsv and `diff` carry the full path. Otherwise a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
+| PROJECT  | For a process, its project directory's name, with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`) — `--json` and doctor's header carry the full path. Otherwise a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
 
 <span id="cmd-find" />
@@ -166,25 +166,6 @@ Findings marked `·` are info: something worth knowing with nothing to do about 
 
 Exit codes are grep-style: `0` when nothing needs doing (every finding is ✓ or `·`), `1` when anything is ⚠ or ✗ — so `ports doctor 3000 && ./deploy.sh` gates naturally — and `2` for bad arguments. `--format json` emits the findings as an array of `{check, status, message, fix}` objects, where `status` is `ok`, `info`, `warn`, or `fail`.
 
-<span id="cmd-diff" />
-
-## ports diff \<snapshot\>
-
-Answer "what changed since I looked?" — save a moment of the machine, then read the same table against it.
-
-```sh
-$ ports --format snapshot > before.json
-$ ports diff before.json
-PORT    CHANGE   PROCESS     PROJECT          NOTE
-:3000   new      Next.js     ~/projects/shop  listening now — not in the snapshot
-:5432   gone     PostgreSQL  docker: shop-db  in the snapshot, no longer listening
-:8000   changed  FastAPI     ~/projects/shop  restarted — pid 48391 → 51234
-```
-
-The port is the key: the same pid listening now is unchanged, a new pid is a restart, a different process is a takeover, and a vanished port is gone. Fields that drift by nature — uptime above all — never count as changes. The same filters scope both sides of the comparison, so `ports diff before.json --port 3000-9000` asks about one range: rows outside it are left out, never reported gone. A plain `--format json` capture loads too, with no timestamp to report; a snapshot written by a newer ports refuses with exit 2 rather than guess.
-
-Exit codes: `0` when the machine matches, `1` when anything changed — grep-style, so `ports diff before.json || ./investigate.sh` gates naturally — and `2` for a bad invocation. `--format json` emits the changes as an array of `{port, change, process, project, message}` objects; a clean diff is `[]`.
-
 <span id="flags" />
 
 ## Flags
@@ -193,14 +174,13 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, `wait`, and `stop` take `table` or `json`. |
+| `--format table\|json` | every command but `completion` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. |
 | `--json` | every command but `completion` | Short for `--format json`. `stop` reports [result objects](#expect). |
-| `--port` | `ports`, `find`, `here`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
-| `--framework` | `ports`, `find`, `here`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
-| `--project` | `ports`, `find`, `here`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
-| `--uptime` | `ports`, `find`, `here`, `diff` | Filter by uptime: `>1h`, `<30m`, `2h`. |
-| `--sort port\|uptime\|process\|project` | `ports`, `find`, `here` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement, and `--tree` always uses the default since nesting carries the structure instead. |
-| `--tree` | `ports`, `find`, `here` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
+| `--port` | `ports`, `find`, `here` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
+| `--framework` | `ports`, `find`, `here` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
+| `--project` | `ports`, `find`, `here` | Filter by project name or path: `shop`, `~/projects/shop`. |
+| `--uptime` | `ports`, `find`, `here` | Filter by uptime: `>1h`, `<30m`, `2h`. |
+| `--sort port\|uptime\|process\|project` | `ports`, `find`, `here` | Display order — longest uptime first, say, or plain port order. The default groups rows by project so one project's services read as one block; an explicit `--sort` replaces that arrangement. |
 | `--watch` / `-w` | `ports` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
 | `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
 | `--force` | `stop` | Skip SIGTERM and kill immediately. |
@@ -241,7 +221,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, or doctor found something ⚠ or ✗. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
 
 An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.

@@ -82,11 +82,6 @@ export const COMMANDS = [
     href: "/docs/commands#cmd-doctor",
     desc: "Diagnose a port — or the whole machine — and say what to do next. Never acts.",
   },
-  {
-    cmd: "ports diff <snapshot>",
-    href: "/docs/commands#cmd-diff",
-    desc: "Compare the machine now against a moment you saved — new, gone, restarted.",
-  },
   { cmd: "--json", href: "/docs/commands#flags", desc: "Machine-readable output — the seam for scripts and agents." },
   { cmd: "--sort", href: "/docs/commands#flags", desc: "Order the table by port, uptime, process, or project." },
   { cmd: "--force", href: "/docs/commands#flags", desc: "Skip the SIGTERM grace period and kill immediately." },

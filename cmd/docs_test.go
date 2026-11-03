@@ -117,6 +117,8 @@ func TestParseDocumented(t *testing.T) {
 		"ports free",              // a missing argument
 		"ports free 3000 8000",    // one too many
 		"ports --format",          // a flag missing its value
+		"ports diff before.json",  // cut before release
+		"ports --tree",            // cut before release
 	} {
 		if parseDocumented(bad) == nil {
 			t.Errorf("`%s` should fail the docs check", bad)
@@ -125,7 +127,7 @@ func TestParseDocumented(t *testing.T) {
 	for _, good := range []string{
 		"ports", "ports --json", "ports -w", "ports find postgres --sort uptime",
 		"ports wait 3000 --http --timeout 60s", "ports free 3000 --expect nextjs --json", "ports stop shop --dry-run", "ports stop :3000 --expect nextjs",
-		"ports --format snapshot", "ports diff before.json", "ports ps",
+		"ports ps",
 	} {
 		if err := parseDocumented(good); err != nil {
 			t.Errorf("`%s` should pass the docs check: %v", good, err)

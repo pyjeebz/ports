@@ -33,7 +33,7 @@ is running, never empty output.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// validate the arguments before paying for a scan
-		sort, err := resolveSort()
+		sort, err := resolveOutput()
 		if err != nil {
 			return err
 		}

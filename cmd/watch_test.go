@@ -25,8 +25,8 @@ func TestValidateWatch(t *testing.T) {
 		{name: "interval below minimum", interval: 100 * time.Millisecond, format: "json", wantErr: true, wantCode: 2},
 		{name: "interval at minimum", interval: minWatchInterval, format: "json"},
 
-		{name: "csv has no redraw story", interval: time.Second, format: "csv", wantErr: true, wantCode: 2},
-		{name: "tsv has no redraw story", interval: time.Second, format: "tsv", wantErr: true, wantCode: 2},
+		{name: "csv was cut: an unknown format", interval: time.Second, format: "csv", wantErr: true, wantCode: 2},
+		{name: "tsv was cut: an unknown format", interval: time.Second, format: "tsv", wantErr: true, wantCode: 2},
 		{name: "table in a pipe", interval: time.Second, format: "table", tty: false, wantErr: true, wantCode: 2},
 	}
 	for _, tt := range tests {

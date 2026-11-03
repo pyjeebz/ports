@@ -12,7 +12,7 @@ var findCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		q := args[0]
 		// validate the arguments before paying for a scan
-		sort, err := resolveSort()
+		sort, err := resolveOutput()
 		if err != nil {
 			return err
 		}
