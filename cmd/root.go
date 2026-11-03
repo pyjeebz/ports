@@ -19,7 +19,6 @@ var (
 	dryRun           bool
 	expect           string
 	format           string
-	showTree         bool
 	watch            bool
 	watchInterval    time.Duration
 	filterPorts      string
@@ -216,7 +215,7 @@ func init() {
 // commands it belongs to — never a silent no-op.
 
 // allFormats is every render the listing commands can draw.
-const allFormats = "table, json, snapshot, csv, tsv"
+const allFormats = "table, json"
 
 func formatFlags(c *cobra.Command, formats string) {
 	c.Flags().StringVar(&format, "format", "table", "Output format: "+formats)
@@ -232,7 +231,6 @@ func filterFlags(c *cobra.Command) {
 
 func tableFlags(c *cobra.Command) {
 	c.Flags().StringVar(&sortBy, "sort", "", "Sort order: port, uptime, process, project (default: grouped by project)")
-	c.Flags().BoolVar(&showTree, "tree", false, "Nest child processes under their parent (table format only)")
 }
 
 func listingFlags(c *cobra.Command) {
@@ -260,7 +258,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return runWatch()
 	}
 	// validate the arguments before paying for a scan
-	sort, err := resolveSort()
+	sort, err := resolveOutput()
 	if err != nil {
 		return err
 	}

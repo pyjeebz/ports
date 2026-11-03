@@ -28,7 +28,7 @@ func TestManTree(t *testing.T) {
 
 	// one page per command in the tree — a new command without a page
 	// fails here, so man pages can't silently fall behind
-	names := []string{"ports", "ports-list", "ports-find", "ports-here", "ports-wait", "ports-stop", "ports-doctor", "ports-diff", "ports-completion"}
+	names := []string{"ports", "ports-list", "ports-find", "ports-here", "ports-wait", "ports-stop", "ports-doctor", "ports-completion"}
 	pages := map[string]string{}
 	for _, name := range names {
 		page, err := os.ReadFile(filepath.Join(dir, name+".1"))
@@ -44,7 +44,7 @@ func TestManTree(t *testing.T) {
 
 	// the root page documents the full flag set — a flag added to the
 	// tree lands here without anyone remembering man pages exist
-	for _, flag := range []string{"--sort", "--watch", "--interval", "--tree", "--format"} {
+	for _, flag := range []string{"--sort", "--watch", "--interval", "--format"} {
 		if !strings.Contains(pages["ports"], flag) {
 			t.Errorf("ports.1 does not document %s", flag)
 		}

@@ -55,8 +55,7 @@ naturally), 2 for bad arguments.`,
 			render = func() { inspect.WriteDiagnosis(rows, findings) }
 		}
 
-		// doctor's findings have no csv/tsv/snapshot render — a format
-		// it can't draw is a bad invocation, not a silent table
+		// a format doctor can't draw is a bad invocation, not a silent table
 		switch format {
 		case "table", "json":
 		default:

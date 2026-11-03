@@ -34,8 +34,6 @@ func validateWatch(interval time.Duration, format string, jsonOut, tty bool) err
 	if format != "table" && format != "json" {
 		return exitError{code: 2, msg: fmt.Sprintf("--watch needs table or json output, got format %q", format)}
 	}
-	// --tree is documented as table-format-only and ignored elsewhere,
-	// same as a one-shot run
 	if format == "table" && !tty {
 		return exitError{code: 2, msg: "--watch needs a terminal — use --format json for piped output"}
 	}
@@ -69,7 +67,7 @@ func runWatch() error {
 	}
 	// sorted once, honored on every redraw — the order a watch opens in
 	// is the order it keeps
-	sort, err := resolveSort()
+	sort, err := resolveOutput()
 	if err != nil {
 		return err
 	}
@@ -97,10 +95,6 @@ func runWatch() error {
 		fmt.Print("\033[2J\033[H")
 		if noMatch(services, filter) {
 			fmt.Println(noMatchMsg)
-			return nil
-		}
-		if showTree {
-			inspect.WriteTree(services)
 			return nil
 		}
 		inspect.WriteTable(services, sort)

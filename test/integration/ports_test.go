@@ -350,15 +350,14 @@ func TestWatchRejections(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"csv has no redraw story", []string{"--watch", "--format", "csv"}, "table or json"},
-		{"tsv has no redraw story", []string{"--watch", "--format", "tsv"}, "table or json"},
+		{"csv was cut: an unknown format", []string{"--watch", "--format", "csv"}, "table or json"},
 		{"interval below minimum", []string{"--watch", "--format", "json", "--interval", "100ms"}, "--interval must be at least"},
 		{"table in a pipe", []string{"--watch"}, "needs a terminal"},
 		{"watch on kill", []string{"kill", "--watch", "no-such-service"}, "doesn't apply to"},
 		{"watch on free", []string{"free", "--watch", "1"}, "doesn't apply to"},
 		{"watch on find", []string{"find", "--watch", "no-such-service"}, "doesn't apply to"},
 		{"watch on doctor", []string{"doctor", "--watch", "1"}, "doesn't apply to"},
-		{"watch on diff", []string{"diff", "--watch", "before.json"}, "doesn't apply to"},
+		{"watch on doctor", []string{"doctor", "--watch"}, "doesn't apply to"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -561,172 +560,19 @@ func TestDoctorHTTPProbeSilent(t *testing.T) {
 	AssertOutputNotContains(t, stdout, "responds to HTTP")
 }
 
-// The snapshot round trip: `--format snapshot` captures the moment,
-// `diff` reads it back — first against an unchanged machine, then after
-// the world moves (a stop, a start, a restart), and in both formats.
-func TestDiffCommand(t *testing.T) {
-	a, err := FindFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := FindFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	first := HTTPFixture(t, a)
-	defer first.Stop()
-	first.WaitReady(t)
-
-	// save the moment — the envelope carries the version and the rows
-	snap, _, code := RunPorts(t, "--format", "snapshot", "--port", strconv.Itoa(a))
-	if code != 0 {
-		t.Fatalf("ports --format snapshot exited %d:\n%s", code, snap)
-	}
-	var envelope map[string]any
-	if err := json.Unmarshal([]byte(snap), &envelope); err != nil {
-		t.Fatalf("snapshot does not parse: %v\n%s", err, snap)
-	}
-	if v, ok := envelope["version"].(float64); !ok || v != 1 {
-		t.Errorf("snapshot version = %v, want 1:\n%s", envelope["version"], snap)
-	}
-	if _, ok := envelope["generated_at"]; !ok {
-		t.Errorf("snapshot has no generated_at:\n%s", snap)
-	}
-	if services, ok := envelope["services"].([]any); !ok || len(services) != 1 {
-		t.Errorf("snapshot services = %v, want the one row:\n%s", envelope["services"], snap)
-	}
-	path := filepath.Join(t.TempDir(), "before.json")
-	if err := os.WriteFile(path, []byte(snap), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// an unchanged machine: exit 0, the sentence that says so
-	stdout, stderr, code := RunPorts(t, "diff", path, "--port", strconv.Itoa(a))
-	if code != 0 {
-		t.Fatalf("diff against an unchanged machine exited %d: %s\n%s", code, stderr, stdout)
-	}
-	AssertOutputContains(t, stdout, "no changes")
-
-	// a plain --format json capture loads too — same rows, no envelope
-	bare, _, code := RunPorts(t, "--format", "json", "--port", strconv.Itoa(a))
-	if code != 0 {
-		t.Fatalf("ports --format json exited %d", code)
-	}
-	barePath := filepath.Join(t.TempDir(), "bare.json")
-	if err := os.WriteFile(barePath, []byte(bare), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	stdout, _, code = RunPorts(t, "diff", barePath, "--port", strconv.Itoa(a))
-	if code != 0 {
-		t.Fatalf("diff against a bare json capture exited %d:\n%s", code, stdout)
-	}
-	AssertOutputContains(t, stdout, "no changes")
-
-	// the world moves: the listener stops, another starts
-	first.Stop()
-	second := HTTPFixture(t, b)
-	defer second.Stop()
-	second.WaitReady(t)
-
-	stdout, stderr, code = RunPorts(t, "diff", path, "--port", fmt.Sprintf("%d,%d", a, b))
-	if code != 1 {
-		t.Fatalf("diff after the world moved exited %d, want 1:\n%s%s", code, stderr, stdout)
-	}
-	// the new listener is the stable story on every machine; the stopped
-	// one is "gone" on plain Linux, but WSL's mirror keeps the port
-	// visible as a windows-side row — an honest "changed" there
-	AssertOutputContains(t, stdout,
-		"new", ":"+strconv.Itoa(b), "listening now — not in the snapshot")
-	AssertOutputContains(t, stdout, ":"+strconv.Itoa(a))
-	if !onWSL() {
-		AssertOutputContains(t, stdout, "gone", "in the snapshot, no longer listening")
-	}
-
-	// json parity: the same changes as an array of port/change pairs
-	stdout, _, code = RunPorts(t, "diff", path, "--format", "json", "--port", fmt.Sprintf("%d,%d", a, b))
-	if code != 1 {
-		t.Fatalf("diff --format json after the world moved exited %d, want 1:\n%s", code, stdout)
-	}
-	var diffs []map[string]any
-	if err := json.Unmarshal([]byte(stdout), &diffs); err != nil {
-		t.Fatalf("diff json does not parse: %v\n%s", err, stdout)
-	}
-	verbs := map[float64]string{}
-	for _, d := range diffs {
-		if change, ok := d["change"].(string); ok {
-			if port, ok := d["port"].(float64); ok {
-				verbs[port] = change
-			}
-		}
-	}
-	if verbs[float64(a)] != "gone" && !(onWSL() && verbs[float64(a)] == "changed") {
-		t.Errorf("diff json verb for the stopped port = %q, want gone (changed only under the WSL mirror):\n%s", verbs[float64(a)], stdout)
-	}
-	if verbs[float64(b)] != "new" {
-		t.Errorf("diff json verb for the fresh port = %q, want new:\n%s", verbs[float64(b)], stdout)
-	}
-
-	// a restart on the same port: changed — the mirror makes the exact
-	// wording machine-dependent, so only the verb is asserted here; the
-	// message shapes are locked by the unit tests
-	third := HTTPFixture(t, a)
-	defer third.Stop()
-	third.WaitReady(t)
-	stdout, _, code = RunPorts(t, "diff", path, "--port", strconv.Itoa(a))
-	if code != 1 {
-		t.Fatalf("diff after a restart exited %d, want 1:\n%s", code, stdout)
-	}
-	AssertOutputContains(t, stdout, "changed", ":"+strconv.Itoa(a))
-
-	// a filter on diff scopes the whole comparison: the restarted port,
-	// outside the range, is left out — never reported gone
-	stdout, _, code = RunPorts(t, "diff", path, "--port", strconv.Itoa(b))
-	if code != 1 {
-		t.Fatalf("diff scoped to the fresh port exited %d, want 1:\n%s", code, stdout)
-	}
-	AssertOutputContains(t, stdout, "new", ":"+strconv.Itoa(b))
-	AssertOutputNotContains(t, stdout, ":"+strconv.Itoa(a))
-
-	// the machine settles: a fresh snapshot, diffed clean, renders an
-	// empty array in json — never null — and exits 0
-	settled, _, code := RunPorts(t, "--format", "snapshot", "--port", fmt.Sprintf("%d,%d", a, b))
-	if code != 0 {
-		t.Fatalf("ports --format snapshot exited %d", code)
-	}
-	settledPath := filepath.Join(t.TempDir(), "after.json")
-	if err := os.WriteFile(settledPath, []byte(settled), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	stdout, _, code = RunPorts(t, "diff", settledPath, "--format", "json", "--port", fmt.Sprintf("%d,%d", a, b))
-	if code != 0 {
-		t.Fatalf("diff against a fresh snapshot exited %d:\n%s", code, stdout)
-	}
-	if trimmed := strings.TrimSpace(stdout); trimmed != "[]" {
-		t.Errorf("clean diff json = %q, want []", trimmed)
-	}
-
-	// diffs have no csv story — the format is rejected, not guessed at
-	_, stderr, code = RunPorts(t, "diff", settledPath, "--format", "csv", "--port", strconv.Itoa(a))
-	if code != 2 {
-		t.Errorf("diff --format csv exited %d, want 2", code)
-	}
-	AssertOutputContains(t, stderr, "table or json")
-}
-
 // firstPortColumn reads the csv body (header off) and returns the port of
 // each row, in display order.
-func firstPortColumn(t *testing.T, csvOut string) []int {
+func firstPortColumn(t *testing.T, table string) []int {
 	t.Helper()
-	lines := strings.Split(strings.TrimSpace(csvOut), "\n")
+	lines := strings.Split(strings.TrimSpace(table), "\n")
 	if len(lines) < 2 {
-		t.Fatalf("no csv rows in %q", csvOut)
+		t.Fatalf("no table rows in %q", table)
 	}
 	var ports []int
 	for _, line := range lines[1:] {
-		port, err := strconv.Atoi(strings.SplitN(line, ",", 2)[0])
+		port, err := strconv.Atoi(strings.Fields(line)[0])
 		if err != nil {
-			t.Fatalf("bad csv row %q: %v", line, err)
+			t.Fatalf("bad table row %q: %v", line, err)
 		}
 		ports = append(ports, port)
 	}
@@ -756,7 +602,7 @@ func TestSortFlag(t *testing.T) {
 	new.WaitReady(t)
 
 	// both runs filter down to exactly the two fixture rows
-	filter := []string{"--format", "csv", "--port", fmt.Sprintf("%d,%d", hi, lo)}
+	filter := []string{"--port", fmt.Sprintf("%d,%d", hi, lo)}
 
 	out, _, code := RunPorts(t, append([]string{"--sort", "port"}, filter...)...)
 	if code != 0 {
@@ -803,7 +649,7 @@ func TestExitCodes(t *testing.T) {
 		{"unknown format exits 2", []string{"--format", "yaml"}, 2},
 		{"invalid completion shell exits 2", []string{"completion", "badshell"}, 2},
 		{"doctor with a non-numeric port exits 2", []string{"doctor", "99b"}, 2},
-		{"diff with no snapshot exits 2", []string{"diff"}, 2},
+		{"diff was cut: an unknown command exits 2", []string{"diff", "before.json"}, 2},
 		{"wait with no target exits 2", []string{"wait"}, 2},
 		{"wait --http on a name exits 2", []string{"wait", "shop", "--http"}, 2},
 		{"wait --http --gone exits 2", []string{"wait", "1", "--http", "--gone"}, 2},
@@ -814,8 +660,6 @@ func TestExitCodes(t *testing.T) {
 		{"doctor on an out-of-range port exits 2", []string{"doctor", ":70000"}, 2},
 		{"here on a file exits 2", []string{"here", "ports_test.go"}, 2},
 		{"free with a csv report exits 2", []string{"free", "1", "--format", "csv"}, 2},
-		{"diff with a missing snapshot exits 2", []string{"diff", "/no/such/before.json"}, 2},
-		{"diff with a second file exits 2", []string{"diff", "a.json", "b.json"}, 2},
 		{"invalid sort exits 2", []string{"--sort", "name"}, 2},
 		{"find with no match exits 1 grep-style", []string{"find", "zzz-nothing-xyz"}, 1},
 		{"bare list exits 0", []string{"--json"}, 0},

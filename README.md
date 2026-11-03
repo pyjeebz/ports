@@ -64,7 +64,6 @@ been running. That context is what turns "kill a random PID and hope" into
 - **Knows your project** — `ports here` shows what's running for the directory you're in, so you (or your coding agent) reuse the dev server that's up instead of starting a second on :3001. Exit 1 when nothing is, so `ports here --port 3000 || npm run dev` just works.
 - **Waits for readiness** — `ports wait 3000 --http` blocks until the server actually answers, then prints its row; `--gone` waits until it's free. No sleep-and-retry loops.
 - **Diagnoses** — `ports doctor 3000` explains why a port won't free or a row looks odd: uninterruptible sleep, a zombie, TIME_WAIT sockets, a Windows-side listener — findings and the command that fixes each, never an action taken on its own. Bare `ports doctor` checks the whole machine.
-- **Diffs against a saved moment** — `ports --format snapshot > before.json`, then `ports diff before.json` names what's new, what's gone, and what restarted since. Exit 1 when anything changed, so `ports diff before.json || ./investigate.sh` gates naturally.
 - **Watches** — `ports --watch` redraws the table live until you interrupt it (still a foreground loop: it dies with its terminal, never a daemon)
 - **Speaks JSON** (`--json`) so scripts and coding agents can ask what's running
 

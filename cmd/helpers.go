@@ -68,10 +68,15 @@ func match(services []inspect.Service, keep func(inspect.Service) bool) []inspec
 	return out
 }
 
-// resolveSort validates --sort into the engine's sort mode. The empty
+// resolveOutput validates --sort into the engine's sort mode. The empty
 // default is the project-grouped order; --sort only overrides when it
-// names one of port, uptime, process, or project.
-func resolveSort() (inspect.SortMode, error) {
+// names one of port, uptime, process, or project. It checks --format too,
+// so a format that doesn't exist is a bad invocation before the scan —
+// not a "nothing matching" after it.
+func resolveOutput() (inspect.SortMode, error) {
+	if format != "table" && format != "json" {
+		return "", exitError{code: 2, msg: fmt.Sprintf("unknown format %q (want table or json)", format)}
+	}
 	mode, err := inspect.ParseSortMode(sortBy)
 	if err != nil {
 		return mode, exitError{code: 2, msg: err.Error()}
@@ -115,24 +120,11 @@ func writeReport(services []inspect.Service, sort inspect.SortMode) error {
 	switch format {
 	case "json":
 		return inspect.WriteJSON(services)
-	case "csv":
-		return inspect.WriteCSV(services, sort)
-	case "tsv":
-		return inspect.WriteTSV(services, sort)
-	case "snapshot":
-		// the versioned envelope `ports diff` reads back — rows exactly
-		// as json writes them, plus the moment they were true
-		return inspect.WriteSnapshot(services)
 	case "table":
-		if showTree {
-			// nesting carries the structure — --sort would scramble it
-			inspect.WriteTree(services)
-			return nil
-		}
 		inspect.WriteTable(services, sort)
 		return nil
 	default:
-		return exitError{code: 2, msg: fmt.Sprintf("unknown format %q (want table, json, snapshot, csv, or tsv)", format)}
+		return exitError{code: 2, msg: fmt.Sprintf("unknown format %q (want table or json)", format)}
 	}
 }
 
