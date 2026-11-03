@@ -29,7 +29,7 @@ const freeLine = (ct: Contact) =>
 // any other, because that's what the binary prints.
 const killLine = (ct: Contact) => `✓ stopped ${ct.framework} (:${ct.port})`;
 
-const SURFACE = "the whole surface: ports · find · free · kill · doctor · diff";
+const SURFACE = "the whole surface: ports · find · stop · here · wait · doctor";
 
 function jsonLines(rows: Contact[]): string[] {
   return JSON.stringify(
@@ -81,8 +81,21 @@ function execute(raw: string, rows: Contact[]): { entry: Entry; rows: Contact[] 
       rows,
     };
 
-  const sub = args[1];
+  // stop is the one verb: a port (3000 or :3000) frees it, anything else
+  // stops by name — free and kill still answer as themselves, as in the CLI
+  let sub = args[1];
   const rest = args.slice(2);
+  if (sub === "stop") {
+    if (!rest[0])
+      return { entry: { kind: "lines", cmd: raw, lines: ["✗ stop what? — try: ports stop 3000"] }, rows };
+    const bare = rest[0].replace(/^:/, "");
+    if (/^\d+$/.test(bare)) {
+      sub = "free";
+      rest[0] = bare;
+    } else {
+      sub = "kill";
+    }
+  }
   const json = flag("--json");
   const force = flag("--force");
 
@@ -335,8 +348,8 @@ export function FourCommands() {
       <div className="mx-auto max-w-[1160px] px-8">
         <SectionHead
           kicker="the interface"
-          title="Four commands and a doctor."
-          sub="ports, find, free, kill — and when one of them fails, ports doctor explains what your machine is actually doing. Run them right here; this terminal remembers what you stopped."
+          title="Find it, stop it, and a doctor."
+          sub="ports, find, stop — and when a stop fails, ports doctor explains what your machine is actually doing. Run them right here; this terminal remembers what you stopped."
         />
 
         <div className="mt-10 grid items-start gap-12 lg:grid-cols-[1fr_560px] lg:gap-14">

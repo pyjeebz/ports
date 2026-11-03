@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -169,6 +170,60 @@ func TestKillCommand(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	if fixture.isListening() {
 		t.Errorf("port %d should be free after ports kill", port)
+	}
+}
+
+// stop is the one verb: a port — bare or with a colon — frees it, the
+// way free does; a name stops what it names, the way kill does.
+func TestStopCommand(t *testing.T) {
+	for _, form := range []string{"%d", ":%d"} {
+		port, err := FindFreePort()
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixture := HTTPFixture(t, port)
+		fixture.WaitReady(t)
+		stdout, stderr, code := RunPorts(t, "stop", fmt.Sprintf(form, port), "--force")
+		fixture.Stop()
+		if code != 0 {
+			t.Fatalf("ports stop %s failed: %s", fmt.Sprintf(form, port), stderr)
+		}
+		AssertOutputContains(t, stdout, "port "+strconv.Itoa(port)+" is free")
+	}
+
+	port, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a project with a name, not a tempdir's 001 — stop reads anything
+	// all-digits as a port, as wait does
+	name := "stopfixture" + strconv.Itoa(port)
+	dir := filepath.Join(t.TempDir(), name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "fixture"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	python := "python3"
+	if runtime.GOOS == "windows" {
+		python = "python"
+	}
+	fixture := NewFixture(t, "stop-by-name", dir, port, python, "-m", "http.server", strconv.Itoa(port))
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+	stdout, stderr, code := RunPorts(t, "stop", name, "--force")
+	if code != 0 {
+		t.Fatalf("ports stop %s failed: %s", name, stderr)
+	}
+	AssertOutputContains(t, stdout, "stopped")
+	time.Sleep(500 * time.Millisecond)
+	if fixture.isListening() {
+		t.Errorf("port %d should be free after ports stop by name", port)
+	}
+
+	if _, _, code := RunPorts(t, "stop", "no-such-project-anywhere"); code != 1 {
+		t.Errorf("ports stop on no match exited %d, want 1", code)
 	}
 }
 

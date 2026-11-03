@@ -42,11 +42,11 @@ what is running on this machine right now, and what does it belong to?
   8000   FastAPI      shop              14m
   5173   Vite         admin             3h
 
-  $ ports kill shop
+  $ ports stop shop
   ✓ stopped Next.js (:3000)
   ✓ stopped FastAPI (:8000)
 
-  $ ports free 3000
+  $ ports stop 3000
   ✓ killed Next.js (pid 48391) — port 3000 is free`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -144,7 +144,9 @@ func misplacedFlag(c *cobra.Command, err error) error {
 	}
 	var owners []string
 	for _, o := range append([]*cobra.Command{rootCmd}, rootCmd.Commands()...) {
-		if o != c && lookup(o) != nil {
+		// hidden commands (free, kill) still take their flags, but the
+		// pointer goes to what help shows
+		if o != c && !o.Hidden && lookup(o) != nil {
 			owners = append(owners, "`"+o.CommandPath()+"`")
 		}
 	}

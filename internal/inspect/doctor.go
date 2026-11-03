@@ -186,7 +186,7 @@ func diagnosePort(port uint32, rows []Service, facts []rowFacts, conns []gnet.Co
 	}
 	if len(pids) > 1 {
 		f = append(f, warn("multiplicity", fmt.Sprintf("%d processes listen on :%d (SO_REUSEPORT)", len(pids), port),
-			fmt.Sprintf("`ports free %d` stops all of them — `--dry-run` previews the full set", port)))
+			fmt.Sprintf("`ports stop %d` stops all of them — `--dry-run` previews the full set", port)))
 	}
 
 	// — the primary row, checked live ————————————————————————
@@ -286,7 +286,7 @@ func stateFindings(s Service, ft rowFacts) []Finding {
 	case "T":
 		return []Finding{warn("state",
 			fmt.Sprintf("pid %d is suspended (state T) — SIGTERM is held until it resumes; SIGKILL still lands", s.Pid),
-			fmt.Sprintf("`ports free %d --force` kills a suspended process outright", s.Port))}
+			fmt.Sprintf("`ports stop %d --force` kills a suspended process outright", s.Port))}
 	default:
 		return []Finding{ok("state", fmt.Sprintf("process state %s — signals land", st))}
 	}
@@ -371,7 +371,7 @@ func diagnoseMachine(services []Service, probe RuntimeProbe, wsl bool) []Finding
 	for _, p := range ports {
 		f = append(f, warn("multiplicity",
 			fmt.Sprintf(":%d is shared by %d processes (SO_REUSEPORT)", p, shared[p]),
-			fmt.Sprintf("`ports free %d` stops all of them — `--dry-run` previews", p)))
+			fmt.Sprintf("`ports stop %d` stops all of them — `--dry-run` previews", p)))
 	}
 	if proxy > 0 {
 		f = append(f, fail("container",
@@ -457,11 +457,11 @@ func ownerFinding(s Service) Finding {
 	case !s.Anonymous():
 		return warn("owner",
 			fmt.Sprintf(":%d is %s, running as %s — its pid is hidden from this scan", s.Port, ProcessName(s), s.User),
-			fmt.Sprintf("run `sudo ports free %d`", s.Port))
+			fmt.Sprintf("run `sudo ports stop %d`", s.Port))
 	default:
 		return warn("owner",
 			fmt.Sprintf("the listener on :%d belongs to %s — its pid is hidden from this scan", s.Port, who),
-			fmt.Sprintf("run `sudo ports free %d`", s.Port))
+			fmt.Sprintf("run `sudo ports stop %d`", s.Port))
 	}
 }
 

@@ -58,49 +58,54 @@ $ ports wait 3000 --http
 PORT   PROCESS   PROJECT   UPTIME
 3000   Next.js   shop      3s
 
-$ ports free 3000 && ports wait 3000 --gone
+$ ports stop 3000 && ports wait 3000 --gone
 ✓ killed Next.js (pid 48391) — port 3000 is free
 ✓ :3000 is free
 ```
 
-A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports kill` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
+A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports stop` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
 
 Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
 
+<span id="cmd-stop" />
 <span id="cmd-free" />
-
-## ports free \<port\>
-
-Kill whatever holds a port — given as `3000` or `:3000`.
-
-```sh
-$ ports free 3000
-✓ killed Next.js (pid 48391) — port 3000 is free
-```
-
 <span id="cmd-kill" />
 
-## ports kill \<name\>
+## ports stop \<port|name\>
 
-Stop all processes that belong to a named project or service. Docker-backed ports stop the container via the API — never docker-proxy.
+Stop what you name. A port (`3000` or `:3000`) stops whatever listens on it; anything else is a name — a project, framework, container, systemd unit, or process — and stops every service it matches. Anything all-digits is read as a port, so a project named `2048` stops by name with `ports kill 2048`.
+
+```sh
+$ ports stop 3000
+✓ killed Next.js (pid 48391) — port 3000 is free
+
+$ ports stop shop
+✓ stopped Next.js (:3000)
+✓ stopped FastAPI (:8000)
+✓ stopped PostgreSQL (:5432)
+```
+
+SIGTERM first, SIGKILL only if the process doesn't exit; `--force` skips straight to SIGKILL. Docker-backed ports stop the container through the engine — never docker-proxy.
+
+`ports free <port>` and `ports kill <name>` — the port-only and name-only commands from v0.1.0 — still work exactly as before; `stop` is the one to reach for.
 
 <span id="expect" />
 
 ### Guarded stops: --expect
 
-`free` and `kill` stop whatever matches — `--expect <name>` makes them check first. Every target it would stop has to match the name the way `ports kill` matches one (project, framework, container, systemd unit, or process); if any doesn't, nothing is stopped and ports says what is actually there:
+`stop` stops whatever matches — `--expect <name>` makes it check first. Every target it would stop has to match the name the way a name stop matches one (project, framework, container, systemd unit, or process); if any doesn't, nothing is stopped and ports says what is actually there:
 
 ```sh
-$ ports free 3000 --expect nextjs
+$ ports stop 3000 --expect nextjs
 ✗ :3000 is PostgreSQL (docker: shop-db), not "nextjs"
   → nothing was stopped — drop --expect to stop regardless, or `ports doctor 3000` to look closer
 ```
 
-It's the guard to put on any stop a script or an agent runs: "free :3000" becomes "free :3000 if it's still my dev server". A listener whose owner is hidden can't prove what it is, so the guard refuses it.
+It's the guard to put on any stop a script or an agent runs: "stop :3000" becomes "stop :3000 if it's still my dev server". A listener whose owner is hidden can't prove what it is, so the guard refuses it.
 
 ### Results as JSON
 
-With `--json`, `free` and `kill` report one object per target — a process, container, or service, however many ports it held:
+With `--json`, `stop` reports one object per target — a process, container, or service, however many ports it held:
 
 ```json
 [
@@ -121,14 +126,7 @@ With `--json`, `free` and `kill` report one object per target — a process, con
 
 `action` is `stopped`, `would_stop` (under `--dry-run`), `failed`, `refused` (by `--expect`), or `skipped`; `service` is the row exactly as `ports --json` prints it; `fix` is the command that moves a failure along. Nothing to stop prints `[]` and exits `1`.
 
-`ports kill` matches by name, so it can sweep up another user's listener — one the scan sees with no pid, which nothing short of `sudo` can stop. Those are `skipped`, each with the command that would stop it (`sudo systemctl stop <unit>` or `sudo ports free <port>`). A skipped row never fails a kill that stopped what it could, and `--expect` judges only what would actually be stopped; when skipped rows are all there was, nothing was stopped and the kill exits `1`. `ports free` names its port outright, so a port held that way is a failure there, not a skip.
-
-```sh
-$ ports kill shop
-✓ stopped Next.js (:3000)
-✓ stopped FastAPI (:8000)
-✓ stopped PostgreSQL (:5432)
-```
+A name can sweep up another user's listener — one the scan sees with no pid, which nothing short of `sudo` can stop. Those are `skipped`, each with the command that would stop it (`sudo systemctl stop <unit>` or `sudo ports stop <port>`). A skipped row never fails a stop that did what it could, and `--expect` judges only what would actually be stopped; when skipped rows are all there was, nothing was stopped and it exits `1`. A port names its listener outright, so a port held that way is a failure, not a skip.
 
 <span id="cmd-doctor" />
 
@@ -137,7 +135,7 @@ $ ports kill shop
 Explain what a port's row means, and why a stop failed when one did. Doctor never acts — every finding is an observation, every fix is a command for you to run.
 
 ```sh
-$ ports free 3000
+$ ports stop 3000
 ✗ Next.js (:3000): pid 48391 survived SIGKILL
   → run `ports doctor 3000` to see why
 
@@ -155,7 +153,7 @@ What it checks:
 | ------- | ------------- |
 | `listener` | Whether anything is listening — and, when nothing is, what holds the port instead (TIME_WAIT sockets, another user's process). |
 | `http` | When the listener answers an HTTP request, the URL it verified: `✓ responds to HTTP → http://localhost:3000`. A port that doesn't speak HTTP — postgres, redis — gets no finding. |
-| `multiplicity` | More than one process on the port (SO_REUSEPORT). `ports free <port>` stops all of them. |
+| `multiplicity` | More than one process on the port (SO_REUSEPORT). `ports stop <port>` stops all of them. |
 | `state` | The kernel's process state — uninterruptible sleep (state D, why SIGKILL didn't land), zombie (the port is effectively free), suspended. |
 | `pid-freshness` | Whether the pid still belongs to the process the scan saw — a stale row means the pid was reused. |
 | `container` | A docker-proxy with no container behind it, and whether the engine is reachable to ask. |
@@ -195,8 +193,8 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, `wait`, `free`, and `kill` take `table` or `json`. |
-| `--json` | every command but `completion` | Short for `--format json`. `free` and `kill` report [result objects](#expect). |
+| `--format table\|json\|snapshot\|csv\|tsv` | `ports`, `find`, `here` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. `snapshot` is the same rows in a versioned envelope, the moment `ports diff` reads back. `doctor`, `diff`, `wait`, and `stop` take `table` or `json`. |
+| `--json` | every command but `completion` | Short for `--format json`. `stop` reports [result objects](#expect). |
 | `--port` | `ports`, `find`, `here`, `diff` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
 | `--framework` | `ports`, `find`, `here`, `diff` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
 | `--project` | `ports`, `find`, `here`, `diff` | Filter by project name or path: `shop`, `~/projects/shop`. |
@@ -205,9 +203,9 @@ Each command takes the flags it uses and no others. A flag given to a command th
 | `--tree` | `ports`, `find`, `here` | Nest child processes under their parent (`node` under `npm`, a worker under its server). Table format only; other formats ignore it. |
 | `--watch` / `-w` | `ports` | Live refresh: rescan and redraw until you interrupt it. Table mode clears and redraws the terminal; JSON mode emits one array per tick. |
 | `--interval` | `ports` | Rescan interval for `--watch` (default `1s`, minimum `250ms`). Watch never stacks scans — the next one starts only after the last one finishes. |
-| `--force` | `free`, `kill` | Skip SIGTERM and kill immediately. |
-| `--dry-run` | `free`, `kill` | Show what would be stopped, without stopping it. |
-| `--expect` | `free`, `kill` | Stop only if every target it would stop matches this name — otherwise stop nothing; rows `kill` skips aren't judged. See [guarded stops](#expect). |
+| `--force` | `stop` | Skip SIGTERM and kill immediately. |
+| `--dry-run` | `stop` | Show what would be stopped, without stopping it. |
+| `--expect` | `stop` | Stop only if every target it would stop matches this name — otherwise stop nothing; skipped rows aren't judged. See [guarded stops](#expect). |
 | `--timeout` | `wait` | Give up after this long (default `30s`; `0` waits forever). |
 | `--http` | `wait` | Wait until the port answers HTTP, not just connections. Ports only. |
 | `--gone` | `wait` | Wait until the port or service is free instead. |
@@ -243,7 +241,7 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `kill` found only rows it had to skip, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, doctor found something ⚠ or ✗, or `diff` found the machine changed. |
 | `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
 
 An interrupted `ports wait` exits `130` — its condition was never met; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
@@ -263,8 +261,8 @@ ports wait 3000 --http --timeout 60s
 Stopping is just as explicit. Guard every stop with what you expect to find, and read the result instead of parsing lines:
 
 ```sh
-# free :3000 only if it's still this project's Next.js — never someone's database
-ports free 3000 --expect nextjs --json
+# stop :3000 only if it's still this project's Next.js — never someone's database
+ports stop 3000 --expect nextjs --json
 ```
 
 `--dry-run` previews the targets, and `ports doctor 3000` explains a stop that failed — every finding with the command that fixes it, never an action taken on its own.
