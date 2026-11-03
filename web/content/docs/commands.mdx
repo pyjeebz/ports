@@ -16,6 +16,7 @@ Display every listening TCP port with its framework, project directory, and upti
 | PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
 | PROJECT  | For a process, its project directory's name, with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`) — `--json` and doctor's header carry the full path. Otherwise a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
+| URL      | Where a web dev server answers — `http://localhost:3000` — for the frameworks that serve plain HTTP unless told otherwise (Next.js, Vite, Astro, Remix, Nuxt, SvelteKit, Storybook, FastAPI, Django, Flask, Rails, Laravel, Phoenix, Spring Boot, Gin, and their kin). One URL per app, on its own port: the one its command line names with `--port`/`-p`, else its lowest port that isn't a debugger's (`--inspect`, JDWP, debugpy, LiveReload). HTTPS chosen on the command line (`--ssl`, `--cert`, `--experimental-https`…) gets no `http://` URL; HTTPS set in a config file can't be seen. Known from the framework, never by sending a request, so listing stays side-effect free; the column appears only when a row has one, and is a clickable link in a terminal that supports it (plain text in a pipe or with `NO_COLOR`). `ports doctor` verifies a port answers HTTP when you ask about it. |
 
 <span id="cmd-find" />
 
@@ -36,9 +37,9 @@ What's running for this project — the directory you're in, or the one named. A
 
 ```sh
 $ cd ~/projects/shop/web && ports here
-PORT   PROCESS      PROJECT           UPTIME
-3000   Next.js      shop              14m
-8000   FastAPI      shop              14m
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://localhost:3000
+8000   FastAPI      shop              14m      http://localhost:8000
 5432   PostgreSQL   docker: shop-db   2d
 ```
 
@@ -55,8 +56,8 @@ Block until something listens, then print its row — the step between starting 
 ```sh
 $ npm run dev &
 $ ports wait 3000 --http
-PORT   PROCESS   PROJECT   UPTIME
-3000   Next.js   shop      3s
+PORT   PROCESS   PROJECT   UPTIME   URL
+3000   Next.js   shop      3s       http://localhost:3000
 
 $ ports stop 3000 && ports wait 3000 --gone
 ✓ killed Next.js (pid 48391) — port 3000 is free
@@ -174,7 +175,7 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json` | every command but `completion` | Output format. `json` is an array of `{port, pid, process, framework, project, started, container, user, unit, …}` objects — the seam for scripts and agents. |
+| `--format table\|json` | every command but `completion` | Output format. `json` is an array of `{port, pid, process, framework, project, url, started, container, user, unit, …}` objects — the seam for scripts and agents. |
 | `--json` | every command but `completion` | Short for `--format json`. `stop` reports [result objects](#expect). |
 | `--port` | `ports`, `find`, `here` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
 | `--framework` | `ports`, `find`, `here` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |

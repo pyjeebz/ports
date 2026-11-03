@@ -81,6 +81,7 @@ func Scan(cfg *Config) ([]Service, error) {
 		}
 	}
 
+	fillURLs(services)
 	sort.Slice(services, func(i, j int) bool {
 		if services[i].Port != services[j].Port {
 			return services[i].Port < services[j].Port

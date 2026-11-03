@@ -14,11 +14,11 @@
 
 ```
 $ ports
-PORT   PROCESS      PROJECT           UPTIME
-3000   Next.js      shop              14m
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://localhost:3000
 5432   PostgreSQL   docker: shop-db   2d
-8000   FastAPI      shop              14m
-5173   Vite         admin             3h
+8000   FastAPI      shop              14m      http://localhost:8000
+5173   Vite         admin             3h       http://localhost:5173
 
 $ ports stop shop
 ✓ stopped Next.js (:3000)
