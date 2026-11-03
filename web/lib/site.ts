@@ -28,6 +28,14 @@ export type Contact = {
   kind: ContactKind;
 };
 
+// projectLabel is the PROJECT cell the CLI's table prints: a project
+// directory's name (shop), never its path — the path stays in the doctor
+// header and the resolution tree, as in the CLI.
+export function projectLabel(ct: Contact): string {
+  if (ct.project.startsWith("docker: ") || !ct.project.includes("/")) return ct.project;
+  return ct.project.slice(ct.project.lastIndexOf("/") + 1);
+}
+
 // The localhost roster the landing page, docs snippets and OG images draw.
 export const CONTACTS: Contact[] = [
   { port: 3000, framework: "Next.js", project: "~/projects/shop", uptime: "14m", kind: "dev" },
@@ -136,8 +144,8 @@ export const FIND_SHOP = {
   cmd: "ports find shop",
   output: [
     "PORT     PROCESS      PROJECT             UPTIME",
-    "3000     Next.js      ~/projects/shop     14m",
-    "8000     FastAPI      ~/projects/shop     14m",
+    "3000     Next.js      shop                14m",
+    "8000     FastAPI      shop                14m",
     "5432     PostgreSQL   docker: shop-db     2d",
   ],
 } as const;
@@ -234,12 +242,12 @@ export const SHOWCASE: ShowcaseEntry[] = [
     desc: "Every listening port with the context lsof never gives you.",
     output: [
       "PORT     PROCESS      PROJECT             UPTIME",
-      "3000     Next.js      ~/projects/shop     14m",
+      "3000     Next.js      shop                14m",
       "5432     PostgreSQL   docker: shop-db     2d",
       "6379     Redis        docker: shop-cache  2d",
-      "8000     FastAPI      ~/projects/shop     14m",
-      "5173     Vite         ~/projects/admin    3h",
-      "9229     Node         ~/projects/api      26m",
+      "8000     FastAPI      shop                14m",
+      "5173     Vite         admin               3h",
+      "9229     Node         api                 26m",
     ],
   },
   {
@@ -273,8 +281,8 @@ export const SHOWCASE: ShowcaseEntry[] = [
     output: [
       "✓ stopped Next.js (:3000)",
       "✓ stopped FastAPI (:8000)",
-      "✓ stopped PostgreSQL (container shop-db)",
-      "✓ stopped Redis (container shop-cache)",
+      "✓ stopped PostgreSQL (:5432)",
+      "✓ stopped Redis (:6379)",
     ],
   },
   {
@@ -286,6 +294,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
     output: [
       ":3000  Next.js  pid 48391  ~/projects/shop  up 14m",
       "✓ listening on :3000",
+      "✓ responds to HTTP → http://localhost:3000",
       "✓ process state R — signals land",
       "✓ pid 48391 still matches the scan — no pid reuse",
       "✓ nothing else holds :3000 — no stray sockets",

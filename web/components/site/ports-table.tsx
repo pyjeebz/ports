@@ -1,4 +1,4 @@
-import type { Contact } from "@/lib/site";
+import { projectLabel, type Contact } from "@/lib/site";
 
 /**
  * The ports table, rendered from the CONTACTS roster. Column widths in ch
@@ -80,7 +80,7 @@ export function PortsTable({
             </span>
             <span className="inline-block w-[13ch] text-strong">{ct.framework}</span>
             <span className={`inline-block w-[19ch] ${hot ? "text-strong" : "text-muted"}`}>
-              {ct.project}
+              {projectLabel(ct)}
             </span>
             <span className={hot ? "text-muted" : "text-faint"}>{ct.uptime}</span>
           </button>
@@ -91,7 +91,7 @@ export function PortsTable({
             </span>
             <span className="inline-block w-[13ch] text-strong">{ct.framework}</span>
             <span className={`inline-block w-[19ch] ${hot ? "text-strong" : "text-muted"}`}>
-              {ct.project}
+              {projectLabel(ct)}
             </span>
             <span className={hot ? "text-muted" : "text-faint"}>{ct.uptime}</span>
           </span>
