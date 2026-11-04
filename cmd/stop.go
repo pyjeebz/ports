@@ -34,8 +34,9 @@ reaches one skips it and says which command would.
 the guard for scripts and agents. --dry-run shows what would stop.
 
 Run bare in a terminal, ports stop opens a picker: choose a row with
-↑/↓, confirm, and it stops as ` + "`ports stop <port>`" + ` would. Scripts
-and pipes never see it — there, bare ports stop is a usage error.
+↑/↓, confirm, and it stops exactly the process you confirmed — if it
+changed while you were choosing, nothing is stopped. Scripts and pipes
+never see it — there, bare ports stop is a usage error.
 
 Exits 0 when the stop did its job, 1 when nothing matched, a stop
 failed, or --expect refused it, 2 for a bad invocation, 130 when the
@@ -65,7 +66,7 @@ func init() {
 // error anywhere else — a script that forgot its argument must fail
 // loudly, never wait on a prompt.
 func pickToStop() error {
-	if !interactive() {
+	if !interactive() || wantJSON() {
 		return exitError{code: 2, msg: "`ports stop` needs a port or a name — e.g. `ports stop 3000`"}
 	}
 	if err := stopFormat(); err != nil {
@@ -87,5 +88,36 @@ func pickToStop() error {
 		return exitError{code: 1, msg: err.Error()}
 	}
 	fmt.Println()
-	return freePort(s.Port)
+	return stopPicked(s)
+}
+
+// rescan is the scan stopPicked trusts — a seam tests swap to change the
+// machine between the pick and the stop.
+var rescan = func() ([]inspect.Service, error) { return inspect.Scan(buildInspectConfig()) }
+
+// stopPicked stops exactly what was confirmed. The machine moved on while
+// the picker was open — a dev server restarted, another project took the
+// port — so it scans again and stops only the confirmed target (its
+// container, its pid and start time, or its unit), never whatever holds
+// the port now; a target no longer holding the port stops nothing.
+func stopPicked(chosen inspect.Service) error {
+	if err := stopFormat(); err != nil {
+		return err
+	}
+	services, err := rescan()
+	if err != nil {
+		return err
+	}
+	matched := match(services, func(s inspect.Service) bool { return sameTarget(chosen, s) })
+	if !slices.ContainsFunc(matched, func(s inspect.Service) bool { return s.Port == chosen.Port }) {
+		return noneFound(fmt.Sprintf("%s (:%d) changed while you were choosing — nothing was stopped; run `ports stop` again",
+			inspect.ProcessName(chosen), chosen.Port))
+	}
+	code := stopAll(matched, stopOptions(), func(s inspect.Service, ports string) string {
+		return fmt.Sprintf("✓ stopped %s (%s)", inspect.ProcessName(s), ports)
+	})
+	if code != 0 {
+		return exitError{code: code}
+	}
+	return nil
 }

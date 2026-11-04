@@ -351,7 +351,7 @@ func AssertOutputNotContains(t *testing.T, output string, unexpected ...string) 
 // `script`, typing keys once the program has had time to switch the
 // terminal to raw mode. Output is the terminal's, escape codes stripped.
 // Skips where `script` isn't the util-linux one (macOS, Windows).
-func RunPortsPTY(t *testing.T, keys string, args ...string) (string, int) {
+func RunPortsPTY(t *testing.T, keys []string, args ...string) (string, int) {
 	t.Helper()
 	if runtime.GOOS != "linux" {
 		t.Skip("pseudo-terminal tests drive util-linux script")
@@ -376,7 +376,12 @@ func RunPortsPTY(t *testing.T, keys string, args ...string) (string, int) {
 		t.Fatal(err)
 	}
 	time.Sleep(1500 * time.Millisecond)
-	_, _ = io.WriteString(in, keys)
+	// one keypress per write, apart — written together they'd read as a
+	// paste, which the picker's confirm ignores
+	for _, k := range keys {
+		_, _ = io.WriteString(in, k)
+		time.Sleep(300 * time.Millisecond)
+	}
 	_ = in.Close()
 	code := 0
 	if err := cmd.Wait(); err != nil {

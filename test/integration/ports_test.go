@@ -849,13 +849,13 @@ func TestStopPicker(t *testing.T) {
 	defer fixture.Stop()
 	fixture.WaitReady(t)
 
-	out, code := RunPortsPTY(t, "\ry", "stop", "--dry-run")
+	out, code := RunPortsPTY(t, []string{"\r", "y"}, "stop", "--dry-run")
 	if code != 0 {
 		t.Fatalf("picker with --dry-run exited %d:\n%s", code, out)
 	}
 	AssertOutputContains(t, out, "stop which?", "PORT", "[y/N]", "would stop")
 
-	out, code = RunPortsPTY(t, "\x1b", "stop")
+	out, code = RunPortsPTY(t, []string{"\x1b"}, "stop")
 	if code != 130 {
 		t.Fatalf("picker left with Esc exited %d, want 130:\n%s", code, out)
 	}
