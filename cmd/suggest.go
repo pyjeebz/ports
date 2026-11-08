@@ -114,6 +114,7 @@ var argNouns = map[string]struct{ noun, bare, example string }{
 	"free":       {"a port", "port", "ports free 3000"},
 	"wait":       {"a port or a name", "port or name", "ports wait 3000"},
 	"stop":       {"a port or a name", "port or name", "ports stop 3000"},
+	"open":       {"a port or a name", "port or name", "ports open 3000"},
 	"doctor":     {"a port", "port", "ports doctor 3000"},
 	"here":       {"a directory", "directory", "ports here ~/projects/shop"},
 	"completion": {"a shell", "shell", "ports completion zsh"},

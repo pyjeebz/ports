@@ -80,7 +80,7 @@ func pickToStop() error {
 		return noneFound("nothing is listening — nothing to stop")
 	}
 	slices.SortStableFunc(services, func(a, b inspect.Service) int { return int(a.Port) - int(b.Port) })
-	s, err := pickAndConfirm(services)
+	s, err := pickOnTerminal(services, stopPick)
 	if errors.Is(err, errPickCancelled) {
 		return exitError{code: 130, msg: err.Error()}
 	}

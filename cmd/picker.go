@@ -25,11 +25,34 @@ func interactive() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-// pickAndConfirm runs the picker on the real terminal, in raw mode for
+// pickSpec is what a picker is choosing for: the verb in its title, and
+// whether a choice is confirmed with y/N before it's acted on. blocked
+// says why a row can't be chosen ("" when it can); those rows are dimmed
+// and the cursor skips them.
+type pickSpec struct {
+	verb    string
+	confirm bool
+	blocked func(inspect.Service) string
+}
+
+// stopPick picks a process to stop, confirmed: a stop can't be undone.
+// Another user's listener with no pid needs sudo; a Windows-side one
+// seen from WSL has no pid here at all.
+var stopPick = pickSpec{verb: "stop", confirm: true, blocked: func(s inspect.Service) string {
+	switch {
+	case s.Windows:
+		return "stop it from Windows"
+	case s.Unowned():
+		return "needs sudo"
+	}
+	return ""
+}}
+
+// pickOnTerminal runs the picker on the real terminal, in raw mode for
 // exactly as long as it's on screen — restored on return, on a panic,
 // and on SIGTERM/SIGQUIT, which would otherwise exit past the defer and
 // leave the shell with no echo.
-func pickAndConfirm(rows []inspect.Service) (inspect.Service, error) {
+func pickOnTerminal(rows []inspect.Service, spec pickSpec) (inspect.Service, error) {
 	fd := int(os.Stdin.Fd())
 	saved, err := term.MakeRaw(fd)
 	if err != nil {
@@ -56,7 +79,7 @@ func pickAndConfirm(rows []inspect.Service) (inspect.Service, error) {
 	if err != nil {
 		width, height = 0, 0
 	}
-	return pick(rows, os.Stdin, os.Stdout, width, height)
+	return pick(rows, spec, os.Stdin, os.Stdout, width, height)
 }
 
 // sameTarget reports whether b is the stop target a was: the same
@@ -86,30 +109,30 @@ func targetPorts(chosen inspect.Service, rows []inspect.Service) string {
 }
 
 // pick draws the rows, moves a cursor with ↑/↓ (or k/j), and on Enter
-// asks to confirm, naming the target and every port it holds. Rows
-// nothing here can stop — another user's listener with no pid — are
-// dimmed and skipped. A list taller than the terminal scrolls in a
+// chooses — after a y/N naming the target and every port it holds, when
+// the spec confirms. Rows the spec blocks are dimmed and skipped. A list taller than the terminal scrolls in a
 // window; lines are cut to its width (0 for either means no limit). It
 // reads keys from in and draws to out with raw-mode \r\n line ends, so a
 // test can drive it with bytes.
-func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int) (inspect.Service, error) {
+func pick(rows []inspect.Service, spec pickSpec, in io.Reader, out io.Writer, width, height int) (inspect.Service, error) {
 	header, lines := inspect.TableRows(rows)
-	stoppable := make([]bool, len(rows))
+	blocked := make([]string, len(rows))
 	first := -1
 	for i, s := range rows {
-		// a Windows-side listener seen from WSL has no pid here to stop
-		stoppable[i] = !s.Unowned() && !s.Windows
-		if stoppable[i] && first < 0 {
+		if spec.blocked != nil {
+			blocked[i] = spec.blocked(s)
+		}
+		if blocked[i] == "" && first < 0 {
 			first = i
 		}
 	}
 	if first < 0 {
-		return inspect.Service{}, errors.New("nothing here can be stopped from this shell — other users' listeners need sudo, Windows ones Windows")
+		return inspect.Service{}, fmt.Errorf("nothing here can be %s from this shell — %s", pastTense(spec.verb), blocked[0])
 	}
 	cur := first
 	move := func(step int) {
 		for i := cur + step; i >= 0 && i < len(rows); i += step {
-			if stoppable[i] {
+			if blocked[i] == "" {
 				cur = i
 				return
 			}
@@ -120,7 +143,7 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 	// and the confirm line. Too short a terminal for that gets no picker.
 	visible := len(rows)
 	if height > 0 && height < 7 {
-		return inspect.Service{}, errors.New("the terminal is too short for the picker — name a port or a name, e.g. `ports stop 3000`")
+		return inspect.Service{}, fmt.Errorf("the terminal is too short for the picker — name a port or a name, e.g. `ports %s 3000`", spec.verb)
 	}
 	if height > 0 {
 		visible = min(len(rows), height-5)
@@ -154,7 +177,7 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 			_, _ = fmt.Fprintf(out, format+"\r\n", a...)
 			n++
 		}
-		say("%s", clip("  stop which? ↑/↓ to move, enter to choose, esc to leave"))
+		say("%s", clip("  "+spec.verb+" which? ↑/↓ to move, enter to choose, esc to leave"))
 		say("%s", clip("  "+header))
 		if visible < len(rows) {
 			say("\x1b[2m%s\x1b[0m", clip(more("↑", top)))
@@ -163,10 +186,8 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 			switch {
 			case i == cur:
 				say("\x1b[7m%s\x1b[0m", clip("› "+lines[i]))
-			case !stoppable[i] && rows[i].Windows:
-				say("\x1b[2m%s\x1b[0m", clip("  "+lines[i]+"  (stop it from Windows)"))
-			case !stoppable[i]:
-				say("\x1b[2m%s\x1b[0m", clip("  "+lines[i]+"  (needs sudo)"))
+			case blocked[i] != "":
+				say("\x1b[2m%s\x1b[0m", clip("  "+lines[i]+"  ("+blocked[i]+")"))
 			default:
 				say("%s", clip("  "+lines[i]))
 			}
@@ -190,6 +211,9 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 			move(1)
 		case "enter":
 			s := rows[cur]
+			if !spec.confirm {
+				return s, nil
+			}
 			// whatever arrived with the Enter — a paste that runs on past
 			// the newline — is not an answer: only a key pressed after the
 			// question confirms. A paste split across reads can still slip
@@ -197,7 +221,7 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 			for r.Buffered() > 0 {
 				_, _ = r.ReadByte()
 			}
-			_, _ = fmt.Fprintf(out, "  stop %s (%s)? [y/N] ", inspect.ProcessName(s), targetPorts(s, rows))
+			_, _ = fmt.Fprintf(out, "  %s %s (%s)? [y/N] ", spec.verb, inspect.ProcessName(s), targetPorts(s, rows))
 			answer, err := readKey(r)
 			_, _ = fmt.Fprint(out, "\r\n")
 			if err != nil || answer != "y" {
@@ -208,6 +232,14 @@ func pick(rows []inspect.Service, in io.Reader, out io.Writer, width, height int
 			return inspect.Service{}, errPickCancelled
 		}
 	}
+}
+
+// pastTense is the verb as the picker's "nothing here can be …" needs it.
+func pastTense(verb string) string {
+	if verb == "stop" {
+		return "stopped"
+	}
+	return verb + "ed"
 }
 
 // more is a scroll mark — blank at the end of the list, so the frame
