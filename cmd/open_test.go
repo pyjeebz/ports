@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"slices"
 	"testing"
 )
@@ -15,7 +16,8 @@ func TestBrowserCommandHonoursBROWSER(t *testing.T) {
 		{"firefox", []string{"firefox", "http://localhost:3000/"}},
 		{"firefox --new-tab", []string{"firefox", "--new-tab", "http://localhost:3000/"}},
 		{"w3m %s -dump", []string{"w3m", "http://localhost:3000/", "-dump"}},
-		{"lynx:firefox", []string{"lynx", "http://localhost:3000/"}},
+		// a list, in the platform's separator — ; on Windows, where : is in paths
+		{"lynx" + string(os.PathListSeparator) + "firefox", []string{"lynx", "http://localhost:3000/"}},
 	} {
 		t.Setenv("BROWSER", c.env)
 		cmd, err := browserCommand("http://localhost:3000/")
