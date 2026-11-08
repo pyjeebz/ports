@@ -102,6 +102,25 @@ func sortRows(services []Service, sort SortMode) []Service {
 	return rows
 }
 
+// TableRows is the table's header and one aligned line per service, in
+// the order given — the picker draws its list from these, so a row reads
+// there exactly as in the listing.
+func TableRows(services []Service) (header string, lines []string) {
+	labels := projectLabels(services)
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', 0)
+	_, _ = fmt.Fprintln(w, "PORT\tPROCESS\tPROJECT\tUPTIME")
+	for _, s := range services {
+		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.Port, ProcessName(s), labels(s), uptime(s))
+	}
+	_ = w.Flush()
+	all := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+	for i := range all {
+		all[i] = strings.TrimRight(all[i], " ")
+	}
+	return all[0], all[1:]
+}
+
 // WriteTable writes services as a formatted table to stdout.
 func WriteTable(services []Service, sort SortMode) {
 	if len(services) == 0 {

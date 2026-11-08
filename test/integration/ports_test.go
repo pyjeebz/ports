@@ -835,3 +835,38 @@ func TestFreeExpect(t *testing.T) {
 		t.Errorf("free on an idle port: exit %d, stdout %q", code, stdout)
 	}
 }
+
+// Bare `ports stop` in a terminal opens the picker: Enter and y stop the
+// row under the cursor (dry-run here — on a shared machine the first row
+// could be anything), Esc leaves with nothing stopped and exit 130. Off a
+// terminal it never waits: exit 2, the usage message.
+func TestStopPicker(t *testing.T) {
+	port, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := HTTPFixture(t, port)
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+
+	out, code := RunPortsPTY(t, []string{"\r", "y"}, "stop", "--dry-run")
+	if code != 0 {
+		t.Fatalf("picker with --dry-run exited %d:\n%s", code, out)
+	}
+	AssertOutputContains(t, out, "stop which?", "PORT", "[y/N]", "would stop")
+
+	out, code = RunPortsPTY(t, []string{"\x1b"}, "stop")
+	if code != 130 {
+		t.Fatalf("picker left with Esc exited %d, want 130:\n%s", code, out)
+	}
+	AssertOutputContains(t, out, "nothing was stopped")
+	if !fixture.isListening() {
+		t.Error("Esc must stop nothing")
+	}
+
+	_, stderr, code := RunPorts(t, "stop")
+	if code != 2 {
+		t.Fatalf("bare ports stop off a terminal exited %d, want 2", code)
+	}
+	AssertOutputContains(t, stderr, "needs a port or a name")
+}
