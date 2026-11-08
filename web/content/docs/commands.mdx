@@ -85,9 +85,9 @@ $ ports open shop
   6006   Storybook   shop      2h       http://localhost:6006
 ```
 
-A port opens that port; a name opens the web server `ports stop` would match. ports asks the listener before it opens anything — one `HEAD` over HTTPS, then over HTTP — so the browser gets the scheme the server really speaks, and a port that isn't a web server (a database, a debugger, one still starting) is reported with exit `1` rather than opened. A name with several web servers behind it opens a picker in a terminal; off one — a script, an agent — it's a usage error (exit `2`) that lists the ports, so name one.
+A port opens that port; a name opens the web server `ports stop` would match. ports asks the listener before it opens anything — one `HEAD` over HTTPS, then over HTTP — so the browser gets the scheme the server really speaks, and a port that isn't a web server (a database, a debugger, one still starting) is reported with exit `1` rather than opened. A cold dev server gets a few seconds to compile its first page before it answers; a plain-HTTP server may log the HTTPS attempt as a bad request. A name with several web servers behind it opens a picker in a terminal; off one — a script, an agent — it's a usage error (exit `2`) that lists the ports, so name one.
 
-`$BROWSER` is honoured (its first entry; `%s` stands for the URL). Otherwise ports uses `open` on macOS, `xdg-open` on Linux, `wslview` or `explorer.exe` inside WSL, and the URL handler on Windows. If no browser starts, the URL is printed and the exit is `1`. ports opens a browser, never a server.
+`$BROWSER` is honoured (its first entry, split on spaces, no shell; `%s` stands for the URL). Otherwise ports uses `open` on macOS, `xdg-open` on Linux, `wslview` or `explorer.exe` inside WSL, and the URL handler on Windows. If no browser starts, the URL is printed and the exit is `1`. ports opens a browser, never a server.
 
 <span id="cmd-stop" />
 <span id="cmd-free" />

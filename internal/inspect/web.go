@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// WebProbeTimeout is how long WebURL waits for a plain-HTTP answer: long
+// enough for a cold dev server to compile its first page.
+const WebProbeTimeout = 4 * time.Second
+
 // WebURL is the page a listener serves, found by asking it: one HEAD
 // over HTTPS, then one over plain HTTP, on each address it answers from
 // here (a bound address, or both loopbacks for a wildcard or loopback
@@ -17,8 +21,9 @@ import (
 // HTTP with a 400, which would read as http:// and hand the browser the
 // wrong scheme. ok is false when nothing answers HTTP at all.
 //
-// Unlike the table's URL column, this sends a request: it's what
-// `ports open` and doctor do when asked about one port, never a listing.
+// Unlike the table's URL column, this sends a request — a plain server
+// may log the HTTPS attempt as a bad request — so it's for `ports open`,
+// asked about one target, never a listing.
 func WebURL(port uint32, addr string) (url string, ok bool) {
 	hosts, shown := loopbacks, "localhost"
 	switch addr {
@@ -28,7 +33,7 @@ func WebURL(port uint32, addr string) (url string, ok bool) {
 	}
 	for _, scheme := range []string{"https", "http"} {
 		for _, host := range hosts {
-			if answers(scheme, net.JoinHostPort(host, fmt.Sprint(port))) {
+			if answers(probes[scheme], scheme, net.JoinHostPort(host, fmt.Sprint(port))) {
 				return fmt.Sprintf("%s://%s/", scheme, net.JoinHostPort(shown, fmt.Sprint(port))), true
 			}
 		}
@@ -36,22 +41,31 @@ func WebURL(port uint32, addr string) (url string, ok bool) {
 	return "", false
 }
 
-// webProbe is the client WebURL asks with: short, never following a
-// redirect (the first answer is the proof), and trusting any certificate
-// — a dev server's is self-signed, and nothing is sent but a HEAD.
-var webProbe = &http.Client{
-	Timeout: 500 * time.Millisecond,
-	CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // a HEAD to a local dev server
-		Proxy:           nil,                                   // a local port, never through HTTPS_PROXY
-	},
+// probes are the clients WebURL asks with: never following a redirect
+// (the first answer is the proof), never through a proxy (it's a local
+// port), and trusting any certificate — a dev server's is self-signed,
+// and nothing is sent but a HEAD. A plain server fails the TLS handshake
+// at once, so HTTPS needs only a short wait.
+var probes = map[string]*http.Client{
+	"https": probeClient(time.Second),
+	"http":  probeClient(WebProbeTimeout),
 }
 
-func answers(scheme, hostport string) bool {
-	resp, err := webProbe.Head(scheme + "://" + hostport + "/")
+func probeClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // a HEAD to a local dev server
+			Proxy:           nil,
+		},
+	}
+}
+
+func answers(client *http.Client, scheme, hostport string) bool {
+	resp, err := client.Head(scheme + "://" + hostport + "/")
 	if err != nil {
 		return false
 	}

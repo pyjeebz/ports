@@ -88,8 +88,12 @@ func runOpen(cmd *cobra.Command, args []string) error {
 	web := probeWeb(rows)
 	switch {
 	case len(web) == 0 && isPort:
-		return exitError{code: 1, msg: fmt.Sprintf("%s (:%d) doesn't answer HTTP — it isn't a web server, or isn't serving yet; `ports doctor %d` looks closer",
-			inspect.ProcessName(rows[0]), port, port)}
+		name := inspect.ProcessName(rows[0])
+		if name == "" {
+			name = "the listener"
+		}
+		return exitError{code: 1, msg: fmt.Sprintf("%s (:%d) doesn't answer HTTP within %s — it isn't a web server, or isn't serving yet; `ports doctor %d` looks closer",
+			name, port, inspect.WebProbeTimeout, port)}
 	case len(web) == 0:
 		return exitError{code: 1, msg: fmt.Sprintf("%q holds %s — none answers HTTP", args[0], portList(distinctPorts(rows)))}
 	case len(web) == 1:
@@ -218,7 +222,8 @@ func launchBrowser(url string) error {
 	go func() { done <- c.Wait() }()
 	select {
 	case err := <-done:
-		if err != nil {
+		// explorer.exe exits 1 even when it opened the page
+		if err != nil && c.Args[0] != "explorer.exe" {
 			return fmt.Errorf("%s: %w", c.Args[0], err)
 		}
 		return nil

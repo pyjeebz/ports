@@ -94,7 +94,7 @@ func TestPickDraws(t *testing.T) {
 }
 
 func TestPickNothingStoppable(t *testing.T) {
-	if _, err := pick(pickRows()[:1], stopPick, keys("\ry"), io.Discard, 0, 0); err == nil || errors.Is(err, errPickCancelled) {
+	if _, err := pick(pickRows()[:1], stopPick, keys("\ry"), io.Discard, 0, 0); err == nil || !strings.Contains(err.Error(), "other users' listeners need sudo, Windows ones Windows") {
 		t.Errorf("a list of only other users' rows should say so, got %v", err)
 	}
 }

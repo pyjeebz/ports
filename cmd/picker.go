@@ -28,11 +28,12 @@ func interactive() bool {
 // pickSpec is what a picker is choosing for: the verb in its title, and
 // whether a choice is confirmed with y/N before it's acted on. blocked
 // says why a row can't be chosen ("" when it can); those rows are dimmed
-// and the cursor skips them.
+// and the cursor skips them. none is the error when every row is blocked.
 type pickSpec struct {
 	verb    string
 	confirm bool
 	blocked func(inspect.Service) string
+	none    string
 }
 
 // stopPick picks a process to stop, confirmed: a stop can't be undone.
@@ -46,7 +47,7 @@ var stopPick = pickSpec{verb: "stop", confirm: true, blocked: func(s inspect.Ser
 		return "needs sudo"
 	}
 	return ""
-}}
+}, none: "nothing here can be stopped from this shell — other users' listeners need sudo, Windows ones Windows"}
 
 // pickOnTerminal runs the picker on the real terminal, in raw mode for
 // exactly as long as it's on screen — restored on return, on a panic,
@@ -127,7 +128,7 @@ func pick(rows []inspect.Service, spec pickSpec, in io.Reader, out io.Writer, wi
 		}
 	}
 	if first < 0 {
-		return inspect.Service{}, fmt.Errorf("nothing here can be %s from this shell — %s", pastTense(spec.verb), blocked[0])
+		return inspect.Service{}, errors.New(spec.none)
 	}
 	cur := first
 	move := func(step int) {
@@ -232,14 +233,6 @@ func pick(rows []inspect.Service, spec pickSpec, in io.Reader, out io.Writer, wi
 			return inspect.Service{}, errPickCancelled
 		}
 	}
-}
-
-// pastTense is the verb as the picker's "nothing here can be …" needs it.
-func pastTense(verb string) string {
-	if verb == "stop" {
-		return "stopped"
-	}
-	return verb + "ed"
 }
 
 // more is a scroll mark — blank at the end of the list, so the frame
