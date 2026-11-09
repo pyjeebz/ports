@@ -14,14 +14,31 @@ func colourRows() []Service {
 		{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js", Started: time.Now().Add(-2 * time.Hour), URL: "http://localhost:3000"},
 		{Port: 2024, Process: "?", User: "root"},
 		{Port: 5432, Pid: 2, Process: "postgres", Framework: "PostgreSQL", Started: time.Now().Add(-time.Hour)},
+		// not valid UTF-8, as a /proc name can be: colour must pass it through
+		{Port: 6000, Pid: 3, Process: "bad\xffname", Started: time.Now().Add(-time.Minute)},
 	}
 }
 
 func withColour(t *testing.T, on bool) {
 	t.Helper()
-	saved, savedErr := Color, ColorErr
-	Color, ColorErr = on, on
-	t.Cleanup(func() { Color, ColorErr = saved, savedErr })
+	saved, savedErr, savedLinks := Color, ColorErr, Hyperlinks
+	Color, ColorErr, Hyperlinks = on, on, on
+	t.Cleanup(func() { Color, ColorErr, Hyperlinks = saved, savedErr, savedLinks })
+}
+
+// What a pipe gets, pinned: the table as it read before colour existed.
+func TestPlainTableUnchanged(t *testing.T) {
+	withColour(t, false)
+	rows := []Service{
+		{Port: 3000, Pid: 1, Process: "node", Framework: "Next.js", Started: time.Now().Add(-2 * time.Hour), URL: "http://localhost:3000"},
+		{Port: 5432, Pid: 2, Process: "postgres", Framework: "PostgreSQL", Started: time.Now().Add(-time.Hour)},
+	}
+	want := "PORT   PROCESS      PROJECT   UPTIME   URL\n" +
+		"3000   Next.js      —         2h       http://localhost:3000\n" +
+		"5432   PostgreSQL   —         1h\n"
+	if got := captureStdout(t, func() { WriteTable(rows, SortDefault) }); got != want {
+		t.Errorf("the plain table changed:\n%q\nwant\n%q", got, want)
+	}
 }
 
 // Colour only adds escape codes: the same table with them stripped is
@@ -37,7 +54,9 @@ func TestColourOnlyAddsEscapes(t *testing.T) {
 	if coloured == plain {
 		t.Fatal("colour on, yet no colour")
 	}
-	if got := sgr.ReplaceAllString(coloured, ""); got != plain {
+	links := regexp.MustCompile("\x1b\\]8;;[^\x1b]*\x1b\\\\")
+	withColour(t, false)
+	if got := links.ReplaceAllString(sgr.ReplaceAllString(coloured, ""), ""); got != plain {
 		t.Errorf("stripped of colour, the table changed:\n%s\nwant\n%s", got, plain)
 	}
 }
@@ -78,7 +97,7 @@ func TestMark(t *testing.T) {
 		"✓ stopped":  sgrGreen + "✓" + sgrReset + " stopped",
 		"⚠ zombie":   sgrYellow + "⚠" + sgrReset + " zombie",
 		"✗ failed":   sgrRed + "✗" + sgrReset + " failed",
-		"· info":     sgrDim + "·" + sgrReset + " info",
+		"· info":     "· info",
 		"no glyph ✓": "no glyph ✓",
 	} {
 		if got := Mark(line, false); got != want {

@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"strings"
+	"unicode/utf8"
 )
 
 // Color and ColorErr turn on colour for stdout and stderr. The command
@@ -18,9 +19,9 @@ const (
 )
 
 // marks are the status glyphs and their colours: done, worth a look,
-// failed, and plain information.
+// failed. Information (·) stays in the terminal's ink.
 var marks = []struct{ glyph, sgr string }{
-	{"✓", sgrGreen}, {"⚠", sgrYellow}, {"✗", sgrRed}, {"·", sgrDim},
+	{"✓", sgrGreen}, {"⚠", sgrYellow}, {"✗", sgrRed},
 }
 
 // Mark colours a line's leading status glyph, for the stream it's bound
@@ -45,38 +46,50 @@ func Mark(line string, stderr bool) string {
 // — escape bytes in a cell would throw the columns out. Uptime is dimmed;
 // so is the whole row of a listener that belongs to another user, the
 // rows there's least to do with. lines[0] is the header; lines[i+1] is
-// rows[i]. Columns are found in runes, as tabwriter counts them.
+// rows[i]. Columns are found the way tabwriter counts them, one per
+// UTF-8 rune (an invalid byte counts one), and cut by byte offset so the
+// line's bytes pass through untouched.
 func colourTable(lines []string, rows []Service) {
 	if !Color || len(lines) == 0 {
 		return
 	}
-	header := []rune(lines[0])
-	start := runeIndex(header, "UPTIME")
-	end := runeIndex(header, "URL")
+	start := column(lines[0], "UPTIME")
+	end := column(lines[0], "URL")
 	for i, s := range rows {
 		line := lines[i+1]
 		if s.Unowned() {
 			lines[i+1] = sgrDim + line + sgrReset
 			continue
 		}
-		r := []rune(line)
-		if start < 0 || start >= len(r) {
+		from := byteAt(line, start)
+		if start < 0 || from >= len(line) {
 			continue
 		}
-		stop := len(r)
-		if end > start && end < len(r) {
-			stop = end
+		to := len(line)
+		if end > start {
+			to = byteAt(line, end)
 		}
-		cell := strings.TrimRight(string(r[start:stop]), " ")
-		pad := string(r[start:stop])[len(cell):]
-		lines[i+1] = string(r[:start]) + sgrDim + cell + sgrReset + pad + string(r[stop:])
+		cell := strings.TrimRight(line[from:to], " ")
+		lines[i+1] = line[:from] + sgrDim + cell + sgrReset + line[from+len(cell):]
 	}
 }
 
-func runeIndex(r []rune, word string) int {
-	i := strings.Index(string(r), word)
+// column is the column (in runes) where word starts in the header, or -1.
+func column(header, word string) int {
+	i := strings.Index(header, word)
 	if i < 0 {
 		return -1
 	}
-	return len([]rune(string(r)[:i]))
+	return utf8.RuneCountInString(header[:i])
+}
+
+// byteAt is the byte offset of the n-th rune of s, or len(s) past its end.
+func byteAt(s string, n int) int {
+	for i := range s {
+		if n == 0 {
+			return i
+		}
+		n--
+	}
+	return len(s)
 }
