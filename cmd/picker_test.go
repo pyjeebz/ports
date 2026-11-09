@@ -62,7 +62,7 @@ func TestPickMovesAndConfirms(t *testing.T) {
 		{"up never lands on a row it can't stop", "\x1b[A\x1b[A\ry", 3000},
 		{"k after j", "jjk\rY", 5432},
 	} {
-		s, err := pick(pickRows(), keys(c.keys), io.Discard, 0, 0)
+		s, err := pick(pickRows(), stopPick, keys(c.keys), io.Discard, 0, 0)
 		if err != nil || s.Port != c.want {
 			t.Errorf("%s: got :%d, %v — want :%d", c.name, s.Port, err, c.want)
 		}
@@ -75,7 +75,7 @@ func TestPickCancels(t *testing.T) {
 	for name, k := range map[string]string{
 		"esc": "\x1b", "q": "q", "ctrl-c": "\x03", "no": "\rn", "enter then enter": "\r\r", "eof": "",
 	} {
-		if _, err := pick(pickRows(), keys(k), io.Discard, 0, 0); !errors.Is(err, errPickCancelled) {
+		if _, err := pick(pickRows(), stopPick, keys(k), io.Discard, 0, 0); !errors.Is(err, errPickCancelled) {
 			t.Errorf("%s: got %v, want cancelled", name, err)
 		}
 	}
@@ -85,7 +85,7 @@ func TestPickCancels(t *testing.T) {
 // can't stop marked, and the confirm naming what will stop.
 func TestPickDraws(t *testing.T) {
 	var out strings.Builder
-	_, _ = pick(pickRows(), keys("j\rn"), &out, 0, 0)
+	_, _ = pick(pickRows(), stopPick, keys("j\rn"), &out, 0, 0)
 	for _, want := range []string{"PORT", "PROCESS", "› 5432", "Next.js", "(needs sudo)", "stop PostgreSQL (:5432)? [y/N]"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("picker output missing %q:\n%q", want, out.String())
@@ -94,7 +94,7 @@ func TestPickDraws(t *testing.T) {
 }
 
 func TestPickNothingStoppable(t *testing.T) {
-	if _, err := pick(pickRows()[:1], keys("\ry"), io.Discard, 0, 0); err == nil || errors.Is(err, errPickCancelled) {
+	if _, err := pick(pickRows()[:1], stopPick, keys("\ry"), io.Discard, 0, 0); err == nil || !strings.Contains(err.Error(), "other users' listeners need sudo, Windows ones Windows") {
 		t.Errorf("a list of only other users' rows should say so, got %v", err)
 	}
 }
@@ -102,7 +102,7 @@ func TestPickNothingStoppable(t *testing.T) {
 // A paste that runs on past the Enter — "\ry" in one read — is not a
 // yes: the confirm takes only a key pressed after it asks.
 func TestPickPasteNeverConfirms(t *testing.T) {
-	if _, err := pick(pickRows(), strings.NewReader("\ry"), io.Discard, 0, 0); !errors.Is(err, errPickCancelled) {
+	if _, err := pick(pickRows(), stopPick, strings.NewReader("\ry"), io.Discard, 0, 0); !errors.Is(err, errPickCancelled) {
 		t.Errorf("a pasted \\ry confirmed: got %v, want cancelled", err)
 	}
 }
@@ -112,7 +112,7 @@ func TestPickPasteNeverConfirms(t *testing.T) {
 func TestPickConfirmNamesEveryPort(t *testing.T) {
 	rows := append(pickRows(), inspect.Service{Port: 9229, Pid: 1, Process: "node", Framework: "Next.js"})
 	var out strings.Builder
-	_, _ = pick(rows, keys("\rn"), &out, 0, 0)
+	_, _ = pick(rows, stopPick, keys("\rn"), &out, 0, 0)
 	if !strings.Contains(out.String(), "(:3000, :9229)? [y/N]") {
 		t.Errorf("confirm should list both ports pid 1 holds:\n%q", out.String())
 	}
@@ -126,7 +126,7 @@ func TestPickWindows(t *testing.T) {
 		rows = append(rows, inspect.Service{Port: uint32(4000 + i), Pid: int32(100 + i), Process: "python", Framework: "FastAPI", Cmdline: strings.Repeat("x", 200)})
 	}
 	var out strings.Builder
-	s, err := pick(rows, keys(strings.Repeat("j", 30)+"\ry"), &out, 60, 12)
+	s, err := pick(rows, stopPick, keys(strings.Repeat("j", 30)+"\ry"), &out, 60, 12)
 	if err != nil || s.Port != 4030 {
 		t.Fatalf("got :%d, %v — want :4030", s.Port, err)
 	}
@@ -190,7 +190,7 @@ func TestPickSkipsWindowsRows(t *testing.T) {
 		{Port: 8000, Pid: 3, Process: "python", Framework: "FastAPI"},
 	}
 	var out strings.Builder
-	s, err := pick(rows, keys("k\ry"), &out, 0, 0)
+	s, err := pick(rows, stopPick, keys("k\ry"), &out, 0, 0)
 	if err != nil || s.Port != 8000 {
 		t.Errorf("got :%d, %v — want :8000", s.Port, err)
 	}
@@ -201,7 +201,7 @@ func TestPickSkipsWindowsRows(t *testing.T) {
 
 // A terminal too short to hold a frame gets no picker, not a garbled one.
 func TestPickTooShort(t *testing.T) {
-	if _, err := pick(pickRows(), keys("\ry"), io.Discard, 80, 6); err == nil || errors.Is(err, errPickCancelled) {
+	if _, err := pick(pickRows(), stopPick, keys("\ry"), io.Discard, 80, 6); err == nil || errors.Is(err, errPickCancelled) {
 		t.Errorf("a 6-line terminal should be refused, got %v", err)
 	}
 }

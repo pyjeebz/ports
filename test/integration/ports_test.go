@@ -870,3 +870,111 @@ func TestStopPicker(t *testing.T) {
 	}
 	AssertOutputContains(t, stderr, "needs a port or a name")
 }
+
+// browserRecorder points $BROWSER at a script that writes the URL it's
+// handed to a file, so `ports open` runs its real launch path without a
+// browser. Returns a func that reads what was opened.
+func browserRecorder(t *testing.T) func() string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the recorder is a shell script")
+	}
+	dir := t.TempDir()
+	got := filepath.Join(dir, "opened")
+	script := filepath.Join(dir, "browser")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho \"$1\" > "+got+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BROWSER", script)
+	return func() string {
+		b, _ := os.ReadFile(got)
+		return strings.TrimSpace(string(b))
+	}
+}
+
+func TestOpen(t *testing.T) {
+	opened := browserRecorder(t)
+	web, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := HTTPFixture(t, web)
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+
+	stdout, stderr, code := RunPorts(t, "open", strconv.Itoa(web))
+	want := fmt.Sprintf("http://localhost:%d/", web)
+	if code != 0 || opened() != want {
+		t.Fatalf("open :%d exited %d, opened %q, want %q\n%s%s", web, code, opened(), want, stdout, stderr)
+	}
+	AssertOutputContains(t, stdout, "opening "+want)
+
+	raw, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	notWeb := ResetFixture(t, raw)
+	defer notWeb.Stop()
+	notWeb.WaitReady(t)
+	_, stderr, code = RunPorts(t, "open", strconv.Itoa(raw))
+	if code != 1 {
+		t.Fatalf("open on a non-HTTP port exited %d, want 1: %s", code, stderr)
+	}
+	AssertOutputContains(t, stderr, "doesn't answer HTTP")
+
+	free, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code = RunPorts(t, "open", strconv.Itoa(free))
+	if code != 1 {
+		t.Fatalf("open on a free port exited %d, want 1", code)
+	}
+	AssertOutputContains(t, stderr, "nothing listening")
+}
+
+// A name with two web servers behind it asks which — or, off a
+// terminal, is a usage error naming both ports.
+func TestOpenSeveral(t *testing.T) {
+	opened := browserRecorder(t)
+	a, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := FindFreePort()
+	if err != nil || b == a {
+		t.Skip("couldn't find two free ports")
+	}
+	// a named folder: a temp dir's own name (001) would read as a port
+	dir := filepath.Join(t.TempDir(), "open-two")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "fixture"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := fmt.Sprintf(`const http = require('http');
+for (const p of [%d, %d]) http.createServer((q, r) => r.end('ok')).listen(p);
+`, a, b)
+	if err := os.WriteFile(filepath.Join(dir, "server.js"), []byte(server), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f := NewFixture(t, "node-two", dir, b, "node", "server.js")
+	defer f.Stop()
+	f.WaitReady(t)
+	project := filepath.Base(dir)
+
+	_, stderr, code := RunPorts(t, "open", project)
+	if code != 2 {
+		t.Fatalf("open by a name with two web servers, off a terminal, exited %d, want 2: %s", code, stderr)
+	}
+	AssertOutputContains(t, stderr, fmt.Sprintf(":%d", a), fmt.Sprintf(":%d", b))
+
+	lo, hi := min(a, b), max(a, b)
+	out, code := RunPortsPTY(t, []string{"j", "\r"}, "open", project)
+	want := fmt.Sprintf("http://localhost:%d/", hi)
+	if code != 0 || opened() != want {
+		t.Fatalf("picker exited %d, opened %q, want %q (the second of :%d, :%d):\n%s", code, opened(), want, lo, hi, out)
+	}
+	AssertOutputContains(t, out, "open which?")
+}

@@ -68,6 +68,27 @@ A port (`3000` or `:3000`) waits for any listener on it — anything numeric is 
 
 Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
 
+<span id="cmd-open" />
+
+## ports open \<port|name\>
+
+Open what a listener serves in your default browser.
+
+```sh
+$ ports open 3000
+→ opening http://localhost:3000/
+
+$ ports open shop
+  open which? ↑/↓ to move, enter to choose, esc to leave
+  PORT   PROCESS     PROJECT   UPTIME   URL
+› 3000   Next.js     shop      2h       http://localhost:3000
+  6006   Storybook   shop      2h       http://localhost:6006
+```
+
+A port opens that port; a name opens the web server `ports stop` would match. ports asks the listener before it opens anything — one `HEAD` over HTTPS, then over HTTP — so the browser gets the scheme the server really speaks, and a port that isn't a web server (a database, a debugger, one still starting) is reported with exit `1` rather than opened. A cold dev server gets a few seconds to compile its first page before it answers; a plain-HTTP server may log the HTTPS attempt as a bad request. A name with several web servers behind it opens a picker in a terminal; off one — a script, an agent — it's a usage error (exit `2`) that lists the ports, so name one.
+
+`$BROWSER` is honoured (its first entry, split on spaces, no shell; `%s` stands for the URL). Otherwise ports uses `open` on macOS, `xdg-open` on Linux, `wslview` or `explorer.exe` inside WSL, and the URL handler on Windows. If no browser starts, the URL is printed and the exit is `1`. ports opens a browser, never a server.
+
 <span id="cmd-stop" />
 <span id="cmd-free" />
 <span id="cmd-kill" />
@@ -224,10 +245,10 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 | Code | Meaning |
 | ---- | ------- |
 | `0` | Clean — the table rendered, every stop succeeded, every doctor finding was ✓. |
-| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, or doctor found something ⚠ or ✗. |
-| `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, or a config file that exists but doesn't parse. |
+| `1` | The invocation was fine, but there's something to report: `find` matched nothing, `here` found nothing running, `wait` timed out, `open` found nothing answering HTTP or couldn't start a browser, a stop failed or `--expect` refused it, `stop` found only rows it had to skip, or doctor found something ⚠ or ✗. |
+| `2` | The invocation itself was unusable — an unknown command or flag, a flag on a command that doesn't take it, a bad value (`--sort name`, `--format yaml`, a port outside 1–65535 like `70000` — never read as a name), a wrong argument count, a config file that exists but doesn't parse, or `open` given a name with several web servers and no terminal to ask on. |
 
-An interrupted `ports wait` exits `130` — its condition was never met — and so does a stop picker left without choosing; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
+An interrupted `ports wait` exits `130` — its condition was never met — and so does a stop or open picker left without choosing; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
 
 ## Scripts and agents
 

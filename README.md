@@ -63,13 +63,14 @@ been running. That context is what turns "kill a random PID and hope" into
 - **Finds things** — `ports find postgres` → `5432`
 - **Knows your project** — `ports here` shows what's running for the directory you're in, so you (or your coding agent) reuse the dev server that's up instead of starting a second on :3001. Exit 1 when nothing is, so `ports here --port 3000 || npm run dev` just works.
 - **Waits for readiness** — `ports wait 3000 --http` blocks until the server actually answers, then prints its row; `--gone` waits until it's free. No sleep-and-retry loops.
+- **Opens the page** — `ports open 3000` opens a running server in your browser, after asking it whether it speaks HTTPS or HTTP; `ports open shop` asks which when a project serves more than one
 - **Diagnoses** — `ports doctor 3000` explains why a port won't free or a row looks odd: uninterruptible sleep, a zombie, TIME_WAIT sockets, a Windows-side listener — findings and the command that fixes each, never an action taken on its own. Bare `ports doctor` checks the whole machine.
 - **Watches** — `ports --watch` redraws the table live until you interrupt it (still a foreground loop: it dies with its terminal, never a daemon)
 - **Speaks JSON** (`--json`) so scripts and coding agents can ask what's running
 
 ## Principles
 
-- **Observer, never a runner** — it never starts, supervises, or installs anything. Read-only plus targeted kill. There are plenty of process managers; this is not one, and it never will be.
+- **Observer, never a runner** — it never starts, supervises, or installs anything. Read-only plus targeted kill. There are plenty of process managers; this is not one, and it never will be. (`ports open` launches a browser, never a server: it hands a URL to the page you already have running, and stays on the observer side of that line.)
 - **Zero config** — no manifest, no daemon, nothing to declare. All context is inferred from the machine itself. Useful sixty seconds after install, on a machine in whatever state it's in. (An optional `ports-config.yaml` can extend detection with your own framework rules and project markers — an extension layer, never a requirement.)
 - **Local-first** — a single static binary. No cloud, no accounts, no telemetry.
 
