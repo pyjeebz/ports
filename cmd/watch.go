@@ -122,8 +122,15 @@ func runWatch() error {
 // console (conhost) prints them raw, so links go only to terminals that
 // announce themselves: Windows Terminal (WT_SESSION) or one that sets
 // TERM_PROGRAM, like VS Code's. NO_COLOR turns them off everywhere.
-func hyperlinksWork() bool {
-	if !stdoutIsTTY() || os.Getenv("NO_COLOR") != "" {
+func hyperlinksWork() bool { return escapesWork(os.Stdout) }
+
+// escapesWork reports whether f is a terminal that renders escape codes —
+// colour or links — rather than printing them: never a pipe or file,
+// never under NO_COLOR or TERM=dumb, and on Windows only a terminal that announces
+// itself (conhost prints them raw).
+func escapesWork(f *os.File) bool {
+	if fi, err := f.Stat(); err != nil || fi.Mode()&os.ModeCharDevice == 0 ||
+		os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		return false
 	}
 	if runtime.GOOS == "windows" {

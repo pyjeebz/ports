@@ -353,6 +353,16 @@ func AssertOutputNotContains(t *testing.T, output string, unexpected ...string) 
 // Skips where `script` isn't the util-linux one (macOS, Windows).
 func RunPortsPTY(t *testing.T, keys []string, args ...string) (string, int) {
 	t.Helper()
+	raw, code := RunPortsPTYRaw(t, nil, keys, args...)
+	clean := regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]|\x1b\]8;;[^\x1b]*\x1b\\`).ReplaceAllString(raw, "")
+	return strings.ReplaceAll(clean, "\r", ""), code
+}
+
+// RunPortsPTYRaw is RunPortsPTY with the terminal's bytes as they came —
+// escape codes kept — and extra environment (KEY=value) on top of the
+// hermetic one.
+func RunPortsPTYRaw(t *testing.T, env []string, keys []string, args ...string) (string, int) {
+	t.Helper()
 	if runtime.GOOS != "linux" {
 		t.Skip("pseudo-terminal tests drive util-linux script")
 	}
@@ -364,7 +374,7 @@ func RunPortsPTY(t *testing.T, keys []string, args ...string) (string, int) {
 		line += " " + a
 	}
 	cmd := exec.Command("script", "-qec", line, "/dev/null")
-	cmd.Env = hermeticEnv(t)
+	cmd.Env = append(hermeticEnv(t), env...)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -389,6 +399,5 @@ func RunPortsPTY(t *testing.T, keys []string, args ...string) (string, int) {
 			code = exitErr.ExitCode()
 		}
 	}
-	clean := regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`).ReplaceAllString(out.String(), "")
-	return strings.ReplaceAll(clean, "\r", ""), code
+	return out.String(), code
 }

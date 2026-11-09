@@ -500,13 +500,13 @@ func writeFindings(findings []Finding) {
 	for _, f := range findings {
 		switch f.Status {
 		case CheckInfo:
-			fmt.Printf("· %s\n", f.Message)
+			fmt.Println(Mark("· "+f.Message, false))
 		case CheckWarn:
-			fmt.Printf("⚠ %s\n", f.Message)
+			fmt.Println(Mark("⚠ "+f.Message, false))
 		case CheckFail:
-			fmt.Printf("✗ %s\n", f.Message)
+			fmt.Println(Mark("✗ "+f.Message, false))
 		default:
-			fmt.Printf("✓ %s\n", f.Message)
+			fmt.Println(Mark("✓ "+f.Message, false))
 		}
 		if f.Fix != "" {
 			fmt.Printf("  → %s\n", f.Fix)

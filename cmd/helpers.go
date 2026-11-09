@@ -229,7 +229,7 @@ func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Servic
 			fix := ""
 			for _, t := range targets {
 				if t.Error != refusedAlong {
-					fmt.Fprintf(os.Stderr, "✗ %s %s\n", portList(t.Ports), t.Error)
+					fmt.Fprintln(os.Stderr, inspect.Mark(fmt.Sprintf("✗ %s %s", portList(t.Ports), t.Error), true))
 					if fix == "" {
 						fix = t.Fix
 					}
@@ -253,14 +253,14 @@ func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Servic
 					t.Fix = stopFix(t.Service, t.Ports[0])
 					code = 1
 					if !asJSON {
-						fmt.Fprintf(os.Stderr, "✗ %s (%s): %v\n", name, ports, err)
+						fmt.Fprintln(os.Stderr, inspect.Mark(fmt.Sprintf("✗ %s (%s): %v", name, ports, err), true))
 						fmt.Fprintf(os.Stderr, "  → run `ports doctor %d` to see why\n", t.Ports[0])
 					}
 					continue
 				}
 				t.Action = actionStopped
 				if !asJSON {
-					fmt.Println(okMsg(t.Service, ports))
+					fmt.Println(inspect.Mark(okMsg(t.Service, ports), false))
 				}
 			}
 		}
@@ -268,7 +268,7 @@ func stopAll(matched []inspect.Service, opts stopOpts, okMsg func(inspect.Servic
 
 	for _, t := range skipped {
 		if !asJSON {
-			fmt.Fprintf(os.Stderr, "· skipped %s (%s): %s\n  → %s\n", inspect.ProcessName(t.Service), portList(t.Ports), t.Error, t.Fix)
+			fmt.Fprintf(os.Stderr, "%s\n  → %s\n", inspect.Mark(fmt.Sprintf("· skipped %s (%s): %s", inspect.ProcessName(t.Service), portList(t.Ports), t.Error), true), t.Fix)
 		}
 	}
 	// skipped rows never sink a stop that did its job — but when they

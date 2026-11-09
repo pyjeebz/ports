@@ -58,6 +58,9 @@ func Execute(version string) {
 	rootCmd.Version = version
 	// table URLs are clickable only where someone can click them
 	inspect.Hyperlinks = hyperlinksWork()
+	// colour, for each stream on its own: a piped stdout stays plain even
+	// while stderr is still the terminal
+	inspect.Color, inspect.ColorErr = escapesWork(os.Stdout), escapesWork(os.Stderr)
 
 	// Load config file. A file that exists but doesn't parse is a bad
 	// invocation — the user asked ports to run with input it can't read.
