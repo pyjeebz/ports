@@ -216,6 +216,8 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 When a filter leaves the table empty, `ports` says `nothing listening matches the filter` rather than claim nothing is listening.
 
+On a terminal, output is lightly coloured: uptime and other users' rows are dimmed, and ✓, ⚠ and ✗ are green, yellow and red. Each stream decides for itself — a piped stdout is plain even while stderr is still the terminal. `NO_COLOR` (set and not empty), `TERM=dumb`, a pipe or a file turn colour off, and the bytes are then exactly what they'd be without it. `--json` never carries colour. On Windows, colour needs Windows Terminal or another terminal that sets `TERM_PROGRAM`; the legacy console gets plain text.
+
 ## Config
 
 None is required — every row is inferred from the machine itself, and the tool is fully useful sixty seconds after install with no file anywhere. But `ports-config.yaml` is an opt-in extension layer for the two things a scan can't guess: your own framework names and your own project markers. It's looked up in `.`, `~/.config/ports`, and `/etc/ports`:

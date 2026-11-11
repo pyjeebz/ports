@@ -154,8 +154,13 @@ func WriteTable(services []Service, sort SortMode) {
 		_, _ = fmt.Fprintln(w, line)
 	}
 	_ = w.Flush()
-	for _, line := range strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n") {
-		fmt.Println(strings.TrimRight(line, " "))
+	lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+	}
+	colourTable(lines, rows)
+	for _, line := range lines {
+		fmt.Println(line)
 	}
 	if unknown {
 		fmt.Fprintln(os.Stderr, "\nsome ports belong to other users' processes (shown as ?) — run with sudo to see them")

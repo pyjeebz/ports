@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -977,4 +978,30 @@ for (const p of [%d, %d]) http.createServer((q, r) => r.end('ok')).listen(p);
 		t.Fatalf("picker exited %d, opened %q, want %q (the second of :%d, :%d):\n%s", code, opened(), want, lo, hi, out)
 	}
 	AssertOutputContains(t, out, "open which?")
+}
+
+// Colour reaches a terminal and nothing else: a pipe and NO_COLOR get
+// the plain bytes, without a single escape code.
+func TestColour(t *testing.T) {
+	port, err := FindFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := HTTPFixture(t, port)
+	defer fixture.Stop()
+	fixture.WaitReady(t)
+	sgr := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+	out, code := RunPortsPTYRaw(t, []string{"TERM=xterm-256color", "NO_COLOR="}, nil, "doctor", strconv.Itoa(port))
+	if code > 1 || !sgr.MatchString(out) {
+		t.Fatalf("doctor on a terminal should colour its marks (exit %d):\n%q", code, out)
+	}
+	out, _ = RunPortsPTYRaw(t, []string{"TERM=xterm-256color", "NO_COLOR=1"}, nil, "doctor", strconv.Itoa(port))
+	if sgr.MatchString(out) {
+		t.Errorf("NO_COLOR, yet colour:\n%q", out)
+	}
+	stdout, _, _ := RunPorts(t, "doctor", strconv.Itoa(port))
+	if strings.Contains(stdout, "\x1b") {
+		t.Errorf("a pipe, yet escapes:\n%q", stdout)
+	}
 }

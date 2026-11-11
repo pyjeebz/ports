@@ -187,7 +187,7 @@ func waitReport(t waitTarget, rows []inspect.Service) error {
 		if wantJSON() {
 			return inspect.WriteJSON(nil)
 		}
-		fmt.Printf("✓ %s is free\n", t)
+		fmt.Println(inspect.Mark(fmt.Sprintf("✓ %s is free", t), false))
 		return nil
 	}
 	return writeReport(rows, inspect.SortDefault)
