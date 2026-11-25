@@ -652,7 +652,7 @@ func TestExitCodes(t *testing.T) {
 		{"doctor with a non-numeric port exits 2", []string{"doctor", "99b"}, 2},
 		{"diff was cut: an unknown command exits 2", []string{"diff", "before.json"}, 2},
 		{"wait with no target exits 2", []string{"wait"}, 2},
-		{"wait --http on a name exits 2", []string{"wait", "shop", "--http"}, 2},
+		{"wait --http on a name nothing holds times out with 1", []string{"wait", "nobody-here", "--http", "--timeout", "1s"}, 1},
 		{"wait --http --gone exits 2", []string{"wait", "1", "--http", "--gone"}, 2},
 		{"wait on an out-of-range port exits 2, never a name", []string{"wait", "70000", "--gone"}, 2},
 		{"wait on port 0 exits 2", []string{"wait", "0", "--gone"}, 2},

@@ -25,16 +25,18 @@ var openCmd = &cobra.Command{
 
 A port (3000 or :3000) opens that port; a name opens the web server
 ` + "`ports stop`" + ` would match — a project, framework, container, or
-process. ports asks the listener first, HTTPS then HTTP, so the browser
-gets the scheme it really speaks — and a port that isn't a web server
-(a database, a debugger) is reported, not opened.
+process. A name the router serves (ports proxy) opens as that name,
+http://shop.localhost. Otherwise ports asks the listener first, HTTPS
+then HTTP, so the browser gets the scheme it really speaks — and a port
+that isn't a web server (a database, a debugger) is reported, not
+opened.
 
 A name with several web servers behind it opens a picker in a terminal;
 off one, it's a usage error that lists the ports, so name one.
 
 $BROWSER is honoured; otherwise it's open on macOS, xdg-open on Linux,
 wslview or explorer.exe in WSL, and the URL handler on Windows. ports
-opens a browser, never a server: it's an observer still.
+opens a browser, never a server.
 
 Exit codes: 0 when the browser was asked to open the page, 1 when
 nothing is listening, nothing answers HTTP, or no browser could be
@@ -82,6 +84,16 @@ func runOpen(cmd *cobra.Command, args []string) error {
 			rows = []inspect.Service{{Port: port}}
 		} else {
 			return exitError{code: 1, msg: fmt.Sprintf("nothing matching %q is listening — `ports` lists what is", args[0])}
+		}
+	}
+
+	// a name the router serves opens as that name — nothing to probe
+	if !isPort {
+		named := nameArg(args[0])
+		for _, s := range rows {
+			if s.Name == named && s.NameURL != "" {
+				return open(s.NameURL)
+			}
 		}
 	}
 

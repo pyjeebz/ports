@@ -25,6 +25,20 @@ func TestMatchesName(t *testing.T) {
 	}
 }
 
+func TestMatchesNameByRouterName(t *testing.T) {
+	api := Service{Process: "python3", Framework: "FastAPI", ProjectName: "shop", Name: "api.shop"}
+	for _, q := range []string{"api.shop", "API.shop", "api.shop.localhost", "shop"} {
+		if !api.MatchesName(q) {
+			t.Errorf("MatchesName(%q) = false, want true", q)
+		}
+	}
+	for _, q := range []string{"api", "shop.localhost", "api.shop.localhost.evil"} {
+		if api.MatchesName(q) {
+			t.Errorf("MatchesName(%q) = true, want false", q)
+		}
+	}
+}
+
 func TestMatchesQuery(t *testing.T) {
 	s := Service{Process: "python3.12", Framework: "FastAPI", Project: "/home/x/shop", ProjectName: "shop"}
 	for _, q := range []string{"fast", "PYTHON", "sho", "x/shop"} {

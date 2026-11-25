@@ -39,8 +39,10 @@ step between starting a server and using it, without a sleep-and-retry.
 
 A port (3000 or :3000) waits for any listener on it; a name waits for
 a service that ` + "`ports stop`" + ` would match — a project, framework,
-container, or process. --http waits until the port answers an HTTP request, not just
-accepts connections: dev servers often bind before they can serve.
+container, process, or the name the router reaches it by (api.shop).
+--http waits until the port answers an HTTP request, not just accepts
+connections: dev servers often bind before they can serve. With a name,
+--http waits for the one server that name reaches.
 --gone waits the other way, until the port or service is free.
 
 ports wait only watches. It never starts anything.
@@ -104,9 +106,6 @@ func runWait(cmd *cobra.Command, args []string) error {
 		t.port = port
 	} else {
 		t.name = args[0]
-	}
-	if waitHTTP && t.name != "" {
-		return exitError{code: 2, msg: "--http needs a port — a name can hold several"}
 	}
 	if waitHTTP && waitGone {
 		return exitError{code: 2, msg: "--http and --gone don't combine — a free port answers nothing"}
@@ -177,6 +176,15 @@ func (t waitTarget) check() ([]inspect.Service, bool, error) {
 	if waitGone {
 		return nil, len(rows) == 0, nil
 	}
+	if waitHTTP && t.name != "" {
+		// a project or framework can hold several ports; the name the
+		// router reaches holds one, and that one has to answer
+		named := nameArg(t.name)
+		rows = match(rows, func(s inspect.Service) bool { return s.Name == named })
+		if len(rows) != 1 || !inspect.ServesHTTP(rows[0].Port) {
+			return nil, false, nil
+		}
+	}
 	// a port can be listening and still missing from the scan for a
 	// moment (bound, not yet attributable) — keep waiting for the row
 	return rows, len(rows) > 0, nil
@@ -208,6 +216,9 @@ func (t waitTarget) timeoutMsg() string {
 			return fmt.Sprintf("%s — %s still holds %s; `%s` stops it", after, inspect.ProcessName(s), t, stop)
 		}
 		return after + " — " + t.String() + " was still held"
+	}
+	if waitHTTP && t.name != "" {
+		return fmt.Sprintf("%s — nothing called %s answers HTTP; `ports url %s` shows where it would", after, nameArg(t.name), nameArg(t.name))
 	}
 	if waitHTTP && inspect.Listening(t.port) {
 		return fmt.Sprintf("%s — :%d is listening but not answering HTTP; `ports doctor %d` looks closer", after, t.port, t.port)

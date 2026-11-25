@@ -77,11 +77,15 @@ func frameworkKeyMatch(q, framework string) bool {
 }
 
 // MatchesName reports an exact, case-insensitive match on the handles a
-// developer stops things by: project name, framework, container or
+// developer stops things by: the name the router reaches it by (api.shop,
+// or api.shop.localhost), project name, framework, container or
 // compose-service name, or process name. On docker rows the process
 // (docker-proxy, ?) is deliberately not a handle — matching it would
 // select every published container at once.
 func (s Service) MatchesName(q string) bool {
+	if s.Name != "" && (strings.EqualFold(q, s.Name) || strings.EqualFold(q, s.Name+".localhost")) {
+		return true
+	}
 	if (s.ProjectName != "" && strings.EqualFold(q, s.ProjectName)) ||
 		(s.Framework != "" && frameworkKeyMatch(q, s.Framework)) ||
 		(s.Unit != "" && strings.EqualFold(q, s.Unit)) {
@@ -103,7 +107,7 @@ func (s Service) MatchesQuery(q string) bool {
 	}
 	q = strings.ToLower(q)
 	for _, hay := range []string{
-		s.Framework, s.Process, s.ProjectName, s.Project,
+		s.Name, s.Framework, s.Process, s.ProjectName, s.Project,
 		s.Container, s.Image, s.ComposeProject, s.ComposeService, s.Unit,
 	} {
 		if hay != "" && strings.Contains(strings.ToLower(hay), q) {
