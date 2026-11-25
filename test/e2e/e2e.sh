@@ -30,9 +30,16 @@ cp "$hosts" "$work/hosts.before"
 # an HTTP server on the port in $PORT, the way ports run hands one over
 serve='import os, http.server as h; h.ThreadingHTTPServer(("127.0.0.1", int(os.environ["PORT"])), h.SimpleHTTPRequestHandler).serve_forever()'
 
-routerPort() { ports proxy status --json | jq -r .port; }
+# json <python expression over j> — reads JSON on stdin; no jq needed
+json() { "$py" -c "import json, sys; j = json.load(sys.stdin); r = $1; print('' if r is None else r)"; }
+routerPort() { ports proxy status --json | json 'j["port"]'; }
 status() { # status <host> → the HTTP code the router answers for it
-	curl -s -o /dev/null -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:$(routerPort)/" || true
+	"$py" - "$1" "$(routerPort)" <<'EOF' || echo 000
+import http.client, sys
+c = http.client.HTTPConnection("127.0.0.1", int(sys.argv[2]), timeout=5)
+c.request("GET", "/", headers={"Host": sys.argv[1]})
+print(c.getresponse().status)
+EOF
 }
 answers() { [ "$(status "$1")" = "$2" ]; } # answers <host> <code>, asked afresh each time
 resolves() { # resolves <host> → whether the system resolver (not curl's) finds it on loopback
@@ -74,7 +81,7 @@ resolves e2e-alias.localhost && echo "(this resolver already finds *.localhost o
 ports hosts sync || fail "hosts sync"
 resolves site.localhost || fail "site.localhost doesn't resolve after hosts sync"
 resolves e2e-alias.localhost || fail "an alias doesn't resolve after hosts sync"
-ports doctor --json | jq -e '.[] | select(.check == "names" and .status == "ok")' >/dev/null ||
+[ "$(ports doctor --json | json 'any(f["check"] == "names" and f["status"] == "ok" for f in j)')" = True ] ||
 	fail "doctor doesn't see the names resolve: $(ports doctor --json)"
 ports hosts clean || fail "hosts clean"
 cmp -s "$hosts" "$work/hosts.before" || { diff "$work/hosts.before" "$hosts" || true; fail "clean didn't leave the hosts file as it was"; }
@@ -95,7 +102,7 @@ want=process
 case "$os" in Linux) want=systemd ;; Darwin) want=launchd ;; esac
 ports proxy start || fail "proxy start"
 ports proxy start >/dev/null || fail "a second proxy start isn't a no-op"
-managed=$(ports proxy status --json | jq -r .managed_by)
+managed=$(ports proxy status --json | json 'j["managed_by"]')
 echo "managed by $managed"
 [ "$managed" = "$want" ] || echo "::warning::wanted $want, got $managed (start fell back)"
 "$py" -c "$(echo "$serve" | sed 's/int(os.environ\["PORT"\])/18765/')" >/dev/null 2>&1 &
@@ -128,7 +135,7 @@ EOF
 	ports proxy >"$work/proxy.log" 2>&1 &
 	waitFor 10 ports proxy status || fail "the router didn't come up"
 	waitFor 20 ports wait web.shop --timeout 1s || fail "web.shop never appeared: $(ports --json)"
-	names=$(ports --json | jq -r '.[] | select(.compose_project == "shop") | "\(.port) \(.name) \(.name_url // "-")"')
+	names=$(ports --json | json '"\n".join("%s %s %s" % (r["port"], r.get("name"), r.get("name_url", "-")) for r in j if r.get("compose_project") == "shop")')
 	echo "$names"
 	echo "$names" | grep -q '^18081 web.shop http://web.shop.localhost' || fail "web isn't web.shop with a URL"
 	echo "$names" | grep -q '^16379 cache.shop -$' || fail "cache isn't cache.shop without a URL"
