@@ -59,7 +59,9 @@ var hostsCleanCmd = &cobra.Command{
 	Use:   "clean",
 	Short: "Take every name ports wrote out of the hosts file",
 	Args:  cobra.NoArgs,
-	RunE:  func(cmd *cobra.Command, args []string) error { return hostsSet(nil, "✓ the hosts file holds no names from ports") },
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return hostsSet(nil, "✓ the hosts file holds no names from ports")
+	},
 }
 
 // hostsApplyCmd is the one step that runs as root: it reads names from

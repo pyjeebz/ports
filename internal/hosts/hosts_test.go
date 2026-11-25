@@ -3,6 +3,7 @@ package hosts
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -70,7 +71,8 @@ func TestWrite(t *testing.T) {
 	if got := Names(data); !slices.Equal(got, []string{"shop"}) {
 		t.Errorf("after Write: %v\n%s", got, data)
 	}
-	if st, _ := os.Stat(path); st.Mode().Perm() != 0o644 {
+	// Windows keeps no Unix permission bits to carry over
+	if st, _ := os.Stat(path); runtime.GOOS != "windows" && st.Mode().Perm() != 0o644 {
 		t.Errorf("mode %v, want the file's own 0644", st.Mode().Perm())
 	}
 	entries, _ := os.ReadDir(filepath.Dir(path))
