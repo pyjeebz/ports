@@ -46,7 +46,11 @@ its name; the router finds where it went within two seconds.
 The router listens on 127.0.0.1 and ::1 only, and answers only
 .localhost names it knows. It prefers port 80, so URLs need no port;
 when 80 is taken or not allowed it uses 8480 instead (--port picks one).
-It starts nothing: servers run the way they always have.`,
+It starts nothing: servers run the way they always have.
+
+  ports proxy start    run it in the background, started at login
+  ports proxy stop     stop it and remove that
+  ports proxy status   whether it runs, where, and how`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runProxy(cmd.Flags().Changed("port"))
