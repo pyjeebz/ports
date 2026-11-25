@@ -830,8 +830,14 @@ func TestFreeExpect(t *testing.T) {
 		t.Error("the port should be free after a matching free")
 	}
 
-	// nothing left to free: [] under --json, exit 1
+	// nothing left to free: [] under --json, exit 1. On WSL the Windows
+	// side's wslrelay can go on relaying the port it mirrored for a
+	// moment after the Linux listener is gone — a row free rightly
+	// refuses, and not the one this test freed
 	stdout, _, code = RunPorts(t, "free", strconv.Itoa(port), "--json")
+	if onWSL() && code == 1 && windowsRowsOnly(stdout) {
+		return
+	}
 	if code != 1 || strings.TrimSpace(stdout) != "[]" {
 		t.Errorf("free on an idle port: exit %d, stdout %q", code, stdout)
 	}
@@ -1004,4 +1010,23 @@ func TestColour(t *testing.T) {
 	if strings.Contains(stdout, "\x1b") {
 		t.Errorf("a pipe, yet escapes:\n%q", stdout)
 	}
+}
+
+// windowsRowsOnly reports whether a stop's JSON results are all
+// Windows-side rows seen across the WSL boundary.
+func windowsRowsOnly(stdout string) bool {
+	var results []struct {
+		Service struct {
+			Windows bool `json:"windows"`
+		} `json:"service"`
+	}
+	if json.Unmarshal([]byte(stdout), &results) != nil || len(results) == 0 {
+		return false
+	}
+	for _, r := range results {
+		if !r.Service.Windows {
+			return false
+		}
+	}
+	return true
 }
