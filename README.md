@@ -69,6 +69,7 @@ been running. That context is what turns "kill a random PID and hope" into
 - **Diagnoses** — `ports doctor 3000` explains why a port won't free or a row looks odd: uninterruptible sleep, a zombie, TIME_WAIT sockets, a Windows-side listener — findings and the command that fixes each, never an action taken on its own. Bare `ports doctor` checks the whole machine.
 - **Watches** — `ports --watch` redraws the table live until you interrupt it (still a foreground loop: it dies with its terminal, never a daemon)
 - **Speaks JSON** (`--json`) so scripts and coding agents can ask what's running
+- **Serves coding agents over MCP** — `ports mcp` gives an agent `list`, `here`, `find`, `url`, `wait`, `stop` and `doctor` as tools, each the CLI's own JSON and exit code. `stop` always needs `expect`, and the MCP server starts nothing: agents start servers with `ports run`.
 
 ## Principles
 
