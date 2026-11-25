@@ -22,6 +22,11 @@ type Service struct {
 	ProjectName string    `json:"project_name,omitempty"`
 	Started     time.Time `json:"started,omitzero"`
 
+	// the name a web dev server is reached by (shop, api.shop), and its
+	// address through the router while one runs
+	Name    string `json:"name,omitempty"`
+	NameURL string `json:"name_url,omitempty"`
+
 	// container context, filled from the engine when the port is really
 	// a container behind a proxy; Runtime names the engine (docker,
 	// podman, …) the row came from

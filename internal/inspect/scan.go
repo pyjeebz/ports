@@ -14,6 +14,19 @@ import (
 // process bound on both v4 and v6 shows once, sorted by port. On WSL2
 // it also includes listeners on the Windows side of the boundary.
 func Scan(cfg *Config) ([]Service, error) {
+	return scan(cfg, true)
+}
+
+// ScanOwn is Scan cut down to what the router asks every two seconds:
+// this machine's own processes — the listeners whose pid the scan can
+// see — with no question to the container engine or across the WSL
+// boundary, and no hunt for the owners of the rest. A row the scan can't
+// put a pid to is left out.
+func ScanOwn(cfg *Config) ([]Service, error) {
+	return scan(cfg, false)
+}
+
+func scan(cfg *Config, full bool) ([]Service, error) {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
@@ -23,7 +36,7 @@ func Scan(cfg *Config) ([]Service, error) {
 	// apply, cost far more than the whole /proc scan
 	winCh := make(chan []Service, 1)
 	go func() {
-		if onWSL() {
+		if full && onWSL() {
 			winCh <- windowsListeners()
 			return
 		}
@@ -49,6 +62,9 @@ func Scan(cfg *Config) ([]Service, error) {
 			continue
 		}
 		s := describe(c, env)
+		if !full && !s.Known() {
+			continue
+		}
 		if !s.Known() {
 			if owners == nil {
 				owners = socketOwners()
@@ -62,7 +78,9 @@ func Scan(cfg *Config) ([]Service, error) {
 		seen[k] = true
 		services = append(services, s)
 	}
-	enrichDocker(services, listContainers())
+	if full {
+		enrichDocker(services, listContainers())
+	}
 	if slices.ContainsFunc(services, Service.Anonymous) {
 		attribute(services, listProcs(), env.rules, lookupUser)
 		services = collapseUnowned(services)
