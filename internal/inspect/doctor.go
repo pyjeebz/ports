@@ -153,7 +153,12 @@ func DiagnoseMachine(cfg *Config) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	return diagnoseMachine(services, probeRuntime(), onWSL()), nil
+	return MachineFindings(services), nil
+}
+
+// MachineFindings is DiagnoseMachine over a scan already taken.
+func MachineFindings(services []Service) []Finding {
+	return diagnoseMachine(services, probeRuntime(), onWSL())
 }
 
 // diagnosePort is the check sequence for one port, pure over its inputs.

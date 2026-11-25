@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pyjeebz/ports/internal/inspect"
+	"github.com/pyjeebz/ports/internal/router"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +23,10 @@ is a command for you to run.
   ✓ nothing else holds :3000 — no stray sockets
 
 Without a port, it checks the machine: the container engine, every
-docker-proxy port that didn't resolve, and every listener a plain scan
-can't see or shouldn't share.
+docker-proxy port that didn't resolve, every listener a plain scan
+can't see or shouldn't share — and, once dev servers have names, whether
+a router serves them and whether this machine's own resolver finds
+*.localhost names (browsers do; Node, Python and Go may not).
 
 Exit codes: 0 when nothing needs doing (every finding is ✓ or · info),
 1 when anything is ⚠ or ✗
@@ -37,10 +40,17 @@ naturally), 2 for bad arguments.`,
 		var render func()
 		switch len(args) {
 		case 0:
-			var err error
-			if findings, err = inspect.DiagnoseMachine(cfg); err != nil {
+			services, err := scanNamed(cfg)
+			if err != nil {
 				return err
 			}
+			named := 0
+			for _, s := range services {
+				if s.Name != "" {
+					named++
+				}
+			}
+			findings = append(inspect.MachineFindings(services), router.Diagnose(named)...)
 			render = func() { inspect.WriteMachineFindings(findings) }
 		default:
 			port, err := requirePort(args[0])
