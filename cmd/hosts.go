@@ -29,7 +29,7 @@ var hostsCmd = &cobra.Command{
 	Short: "Write dev server names to the hosts file, for clients that need it",
 	Long: `Browsers and curl send every *.localhost name to this machine on their
 own. Node's fetch, Python and Go ask the system resolver instead, which
-on macOS — and on a Linux whose resolv.conf skips systemd-resolved's
+on Windows — and on a Linux whose resolv.conf skips systemd-resolved's
 stub — doesn't know shop.localhost. ports hosts sync writes the names
 into /etc/hosts so those clients find them too.
 

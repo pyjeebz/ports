@@ -13,7 +13,7 @@ import (
 // Diagnose is what bare `ports doctor` says about names: whether a router
 // runs and where, and whether this machine's own resolver finds the
 // names — browsers and curl always do, but Node's fetch, Python and Go
-// ask the system, and on macOS or a Linux whose resolv.conf skips
+// ask the system, and on Windows or a Linux whose resolv.conf skips
 // systemd-resolved's stub they get nothing unless the hosts file has
 // them. Every finding is info: none of it stops a dev server from
 // working, and a machine that never uses names shouldn't fail doctor

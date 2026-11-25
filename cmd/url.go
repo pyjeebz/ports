@@ -30,7 +30,7 @@ name's; without one it's the server's own address, http://localhost:8000,
 so a script works either way.
 
 Browsers and curl resolve every *.localhost name on their own; some
-systems' resolvers don't (macOS, and Linux without systemd-resolved's
+systems' resolvers don't (Windows, and Linux without systemd-resolved's
 stub), so Node's fetch, Python or Go may not find shop.localhost there.
 --local prints the server's own address, which every client reaches;
 ports hosts sync makes the names resolve for them too.

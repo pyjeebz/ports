@@ -1,7 +1,7 @@
 // Package hosts keeps the names ports hands out in the system hosts file,
 // for the clients that don't resolve *.localhost on their own: browsers
 // and curl send every .localhost name to loopback, but Node, Python and Go
-// ask the system resolver, which on macOS — and on a Linux whose
+// ask the system resolver, which on Windows — and on a Linux whose
 // resolv.conf skips systemd-resolved's stub — knows nothing of them. The
 // names live in one marked block; nothing outside it is ever touched.
 package hosts
