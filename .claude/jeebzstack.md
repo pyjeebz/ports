@@ -29,12 +29,12 @@ Touching `web/`: `cd web && npm run lint && npm run build`. CI doesn't check the
 Touching these makes a change **risky tier**: rollback written first, fresh-context review.
 
 - `install.sh`, `web/app/install/script.sh`: strangers pipe it to `sh`. The two copies must be byte-identical (CI checks), and it's served live from ports.tools, so a broken one breaks every curl install until the next site deploy.
-- `internal/inspect/kill.go`, `cmd/kill.go`, `cmd/free.go`: the only write path in a tool whose promise is "observer, never a runner". Stopping the wrong process is the worst bug ports can have. `--expect` exists to prevent exactly that.
+- `internal/inspect/kill.go`, `cmd/kill.go`, `cmd/free.go`: the stop path. Stopping the wrong process is the worst bug ports can have. `--expect` exists to prevent exactly that.
 - `internal/inspect/output.go` and any `--json`/`--format` change: the JSON shape is a contract for scripts. Additive only, unless it's a breaking release.
 - `cmd/root.go` exit codes: the exit grammar (`2` = bad invocation) is documented and scripted against.
 - `internal/inspect/config.go`: the `ports-config.yaml` format lives on users' disks. Old files must keep loading, or fail loudly naming the file.
 - `.goreleaser.yaml`, `.github/workflows/release.yml`: the release pipeline, Homebrew cask and Scoop manifest. A mistake ships to package managers.
-- Anything that starts, supervises or installs something: it crosses the settled "observer, never a runner" line in the README. Don't, without revisiting that decision explicitly.
+- The router and anything that starts or installs something (`ports proxy`, `ports run`, the background service): the README promises ports "routes, and runs only what you ask it to". The router binds loopback only and serves only `.localhost` names in its route table; only `ports run` starts a process, and only the command given; nothing installs without an explicit command. Supervising (restart-on-crash, log collection) stays out.
 
 ## Deploy
 

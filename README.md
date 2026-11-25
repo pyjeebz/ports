@@ -70,8 +70,8 @@ been running. That context is what turns "kill a random PID and hope" into
 
 ## Principles
 
-- **Observer, never a runner** — it never starts, supervises, or installs anything. Read-only plus targeted kill. There are plenty of process managers; this is not one, and it never will be. (`ports open` launches a browser, never a server: it hands a URL to the page you already have running, and stays on the observer side of that line.)
-- **Zero config** — no manifest, no daemon, nothing to declare. All context is inferred from the machine itself. Useful sixty seconds after install, on a machine in whatever state it's in. (An optional `ports-config.yaml` can extend detection with your own framework rules and project markers — an extension layer, never a requirement.)
+- **Routes, and runs only what you ask it to** — ports gives your dev servers names and routes to them, but it never starts a server on its own and never installs anything without asking. It runs a command only when you hand it one, and the router listens on loopback only. It doesn't restart crashed servers, collect logs or supervise anything: there are plenty of process managers, and this is not one.
+- **Zero config** — no manifest, nothing to declare. All context, names included, is inferred from the machine itself. Useful sixty seconds after install, on a machine in whatever state it's in. (An optional `ports-config.yaml` can extend detection with your own framework rules and project markers — an extension layer, never a requirement.)
 - **Local-first** — a single static binary. No cloud, no accounts, no telemetry.
 
 ## Install
