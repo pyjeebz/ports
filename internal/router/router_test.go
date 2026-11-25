@@ -256,3 +256,34 @@ func TestURL(t *testing.T) {
 		t.Errorf("on 8480: %s", got)
 	}
 }
+
+func TestHeadersBeforeBody(t *testing.T) {
+	// a long poll: the headers go out at once, the body much later
+	release := make(chan struct{})
+	b := newBackend(t, "tcp4", "127.0.0.1:0", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Held", "1")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		<-release
+	}))
+	defer close(release)
+	srv := routerFor(t, b)
+	req, _ := http.NewRequest("GET", srv.URL+"/", nil)
+	req.Host = "shop.localhost"
+	got := make(chan *http.Response, 1)
+	go func() {
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil {
+			got <- resp
+		}
+	}()
+	select {
+	case resp := <-got:
+		_ = resp.Body.Close()
+		if resp.Header.Get("X-Held") != "1" {
+			t.Errorf("headers %v", resp.Header)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the headers were held back until a body byte that never came")
+	}
+}
