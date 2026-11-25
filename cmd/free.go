@@ -28,6 +28,9 @@ func freePort(port uint32) error {
 	if err := stopFormat(); err != nil {
 		return err
 	}
+	if err := requireExpect(); err != nil {
+		return err
+	}
 	cfg := buildInspectConfig()
 	services, err := scanNamed(cfg)
 	if err != nil {

@@ -31,7 +31,9 @@ Another user's listener can't be stopped without sudo: a name that
 reaches one skips it and says which command would.
 
 --expect <name> stops only if everything it would stop is that name —
-the guard for scripts and agents. --dry-run shows what would stop.
+the guard for scripts and agents. Set PORTS_REQUIRE_EXPECT=1 in an
+agent's environment and a stop without it (ports stop, free, kill) is
+refused with exit 2. --dry-run shows what would stop.
 
 Run bare in a terminal, ports stop opens a picker: choose a row with
 ↑/↓, confirm, and it stops exactly the process you confirmed — if it
@@ -102,6 +104,9 @@ var rescan = func() ([]inspect.Service, error) { return scanNamed(buildInspectCo
 // the port now; a target no longer holding the port stops nothing.
 func stopPicked(chosen inspect.Service) error {
 	if err := stopFormat(); err != nil {
+		return err
+	}
+	if err := requireExpect(); err != nil {
 		return err
 	}
 	services, err := rescan()

@@ -473,3 +473,31 @@ func TestStopAllSkippedJSON(t *testing.T) {
 		t.Errorf("skipped result: %+v", r)
 	}
 }
+
+func TestRequireExpect(t *testing.T) {
+	defer func(e string, d bool) { expect, dryRun = e, d }(expect, dryRun)
+	expect, dryRun = "", false
+	t.Setenv("PORTS_REQUIRE_EXPECT", "")
+	if err := requireExpect(); err != nil {
+		t.Errorf("unset: %v", err)
+	}
+	for _, off := range []string{"0", "false", "no"} {
+		t.Setenv("PORTS_REQUIRE_EXPECT", off)
+		if err := requireExpect(); err != nil {
+			t.Errorf("PORTS_REQUIRE_EXPECT=%s: %v", off, err)
+		}
+	}
+	t.Setenv("PORTS_REQUIRE_EXPECT", "1")
+	var ee exitError
+	if err := requireExpect(); !errors.As(err, &ee) || ee.code != 2 {
+		t.Errorf("set, no --expect: %v, want exit 2", err)
+	}
+	expect = "nextjs"
+	if err := requireExpect(); err != nil {
+		t.Errorf("set, with --expect: %v", err)
+	}
+	expect, dryRun = "", true
+	if err := requireExpect(); err != nil {
+		t.Errorf("set, --dry-run: %v", err)
+	}
+}

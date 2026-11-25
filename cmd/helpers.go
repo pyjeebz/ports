@@ -210,6 +210,21 @@ func stopFormat() error {
 	return nil
 }
 
+// requireExpect is the guard an agent's environment can make mandatory:
+// with PORTS_REQUIRE_EXPECT set, a stop by port or name that doesn't say
+// what it expects to stop is a bad invocation, and stops nothing. A dry
+// run stops nothing anyway; the picker is a person choosing a row.
+func requireExpect() error {
+	if expect != "" || dryRun {
+		return nil
+	}
+	switch strings.ToLower(os.Getenv("PORTS_REQUIRE_EXPECT")) {
+	case "", "0", "false", "no":
+		return nil
+	}
+	return exitError{code: 2, msg: "PORTS_REQUIRE_EXPECT is set: say what this should stop with --expect <project|framework|container|process> — nothing was stopped"}
+}
+
 // stopAll stops every target and reports each — a line as it happens,
 // or the whole set as JSON once it's done. With --expect, every target
 // must match the expected name or nothing is stopped at all: the guard
