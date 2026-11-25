@@ -57,7 +57,7 @@ func TestTableFollowsAMove(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		return slices.Clone(current), nil
-	}, nil)
+	}, nil, nil)
 	changes, err := table.Refresh()
 	if err != nil || len(changes) != 1 || changes[0].Kind != "added" || changes[0].Route.Name != "shop" {
 		t.Fatalf("first refresh: %+v, %v", changes, err)
@@ -97,7 +97,7 @@ func TestLookupMissRescans(t *testing.T) {
 	table := NewTable(func() ([]inspect.Service, error) {
 		scans++
 		return current, nil
-	}, nil)
+	}, nil, nil)
 	if _, err := table.Refresh(); err != nil {
 		t.Fatal(err)
 	}
@@ -126,5 +126,89 @@ func TestTargets(t *testing.T) {
 		if got := (Route{Addr: addr, Port: 80}).Targets()[0]; got != want {
 			t.Errorf("%s: first target %s, want %s", addr, got, want)
 		}
+	}
+}
+
+func TestResolveDeclaredWin(t *testing.T) {
+	shop := project(t, "shop")
+	plain := inspect.Service{Port: 4242, Pid: 9, Addr: "127.0.0.1", Process: "python3"} // no framework, no project
+	services := []inspect.Service{web(shop, 3000, "Next.js"), web(shop, 4123, "Vite"), plain}
+	got := Resolve(services, nil,
+		Aliases{"stripe": 4242, "gone": 4999},
+		[]Run{{Name: "docs", Port: 4123, Dir: shop}},
+	)
+	want := map[string]uint32{"shop": 3000, "docs": 4123, "stripe": 4242, "gone": 4999}
+	if len(got) != len(want) {
+		t.Fatalf("routes %v, want %v", got, want)
+	}
+	for name, port := range want {
+		if got[name].Port != port {
+			t.Errorf("%s → :%d, want :%d", name, got[name].Port, port)
+		}
+	}
+	if services[1].Name != "docs" || services[2].Name != "stripe" {
+		t.Errorf("rows named %q and %q, want the declared names on them", services[1].Name, services[2].Name)
+	}
+	if got["docs"].Project != shop {
+		t.Errorf("a run's route keeps its project, got %q", got["docs"].Project)
+	}
+}
+
+func TestResolveAliasOverRun(t *testing.T) {
+	shop := project(t, "shop")
+	services := []inspect.Service{web(shop, 4123, "Vite")}
+	got := Resolve(services, nil, Aliases{"pinned": 4123}, []Run{{Name: "docs", Port: 4123}})
+	if got["pinned"].Port != 4123 || services[0].Name != "pinned" {
+		t.Errorf("alias didn't win: %v, row %q", got, services[0].Name)
+	}
+}
+
+func TestResolveDeclaredNameTakesDiscovered(t *testing.T) {
+	// an alias called shop for another port: the discovered shop gives
+	// the name up rather than two servers answering to it
+	shop := project(t, "shop")
+	services := []inspect.Service{web(shop, 3000, "Next.js")}
+	got := Resolve(services, nil, Aliases{"shop": 9000}, nil)
+	if got["shop"].Port != 9000 || services[0].Name != "" {
+		t.Errorf("shop → :%d, discovered row named %q; want the alias's :9000 and no name", got["shop"].Port, services[0].Name)
+	}
+}
+
+func TestValidName(t *testing.T) {
+	for _, ok := range []string{"shop", "api.shop", "fix-ui.shop", "a1"} {
+		if !ValidName(ok) {
+			t.Errorf("ValidName(%q) = false", ok)
+		}
+	}
+	for _, bad := range []string{"", "Shop", "-x", "x-", "a..b", ".a", "a_b", "日本", "a.b."} {
+		if ValidName(bad) {
+			t.Errorf("ValidName(%q) = true", bad)
+		}
+	}
+}
+
+func TestLiveRunsDropsTheDead(t *testing.T) {
+	t.Setenv("PORTS_STATE_DIR", t.TempDir())
+	pid := int32(os.Getpid())
+	started, err := ProcessStarted(pid)
+	if err != nil {
+		t.Skip(err)
+	}
+	if err := Register(Run{Name: "live", Port: 4001, Pid: pid, Started: started}); err != nil {
+		t.Fatal(err)
+	}
+	// this pid, but a different start: the process that registered it is gone
+	if err := Register(Run{Name: "stale", Port: 4002, Pid: pid + 1_000_000, Started: 1}); err != nil {
+		t.Fatal(err)
+	}
+	runs := LiveRuns()
+	if len(runs) != 1 || runs[0].Name != "live" {
+		t.Fatalf("LiveRuns = %+v, want only live", runs)
+	}
+	if err := Unregister(pid); err != nil {
+		t.Fatal(err)
+	}
+	if runs := LiveRuns(); len(runs) != 0 {
+		t.Errorf("after Unregister: %+v", runs)
 	}
 }

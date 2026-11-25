@@ -73,16 +73,65 @@ func Name(services []inspect.Service, claims *naming.Claims) {
 	}
 }
 
-// FromServices is the route table for a scan whose rows are named.
-func FromServices(services []inspect.Service) map[string]Route {
+// Resolve names a scan's rows and returns the route table: discovered
+// names first, then the declared ones laid over them by port — a ports
+// run registration, then an alias, each naming whatever listens on its
+// port, framework or not. A discovered name that a declared one took for
+// another port is dropped. A declared name whose port nobody holds still
+// routes, to a page saying it isn't running.
+func Resolve(services []inspect.Service, claims *naming.Claims, aliases Aliases, runs []Run) map[string]Route {
+	Name(services, claims)
+
+	declared := map[string]uint32{}
+	for _, r := range runs {
+		declared[r.Name] = r.Port
+	}
+	for name, port := range aliases {
+		declared[name] = port
+	}
+	byPort := map[uint32]string{}
+	for _, r := range runs {
+		byPort[r.Port] = r.Name
+	}
+	for name, port := range aliases {
+		byPort[port] = name
+	}
+	for i := range services {
+		s := &services[i]
+		if s.Windows || s.Container != "" {
+			continue
+		}
+		if name, ok := byPort[s.Port]; ok {
+			s.Name = name
+			continue
+		}
+		if port, ok := declared[s.Name]; ok && port != s.Port {
+			s.Name = ""
+		}
+	}
+
 	out := map[string]Route{}
 	for _, s := range services {
 		if s.Name == "" {
 			continue
 		}
+		if _, ok := out[s.Name]; ok && byPort[s.Port] == "" {
+			continue // the declared row keeps the name
+		}
 		out[s.Name] = Route{
 			Name: s.Name, Port: s.Port, Addr: s.Addr, Pid: s.Pid, Started: s.Started,
 			Framework: inspect.ProcessName(s), Project: s.Project,
+		}
+	}
+	for name, port := range declared {
+		if _, ok := out[name]; !ok {
+			out[name] = Route{Name: name, Port: port, Addr: "127.0.0.1"}
+		}
+	}
+	for _, r := range runs {
+		if rt, ok := out[r.Name]; ok && rt.Project == "" {
+			rt.Project = r.Dir
+			out[r.Name] = rt
 		}
 	}
 	return out
@@ -99,8 +148,9 @@ type Change struct {
 // so a burst of requests for an unknown name costs one scan, not one
 // each.
 type Table struct {
-	scan   func() ([]inspect.Service, error)
-	claims *naming.Claims
+	scan     func() ([]inspect.Service, error)
+	claims   *naming.Claims
+	declared Declared
 
 	mu     sync.RWMutex
 	routes map[string]Route
@@ -113,10 +163,11 @@ type Table struct {
 // minGap is the shortest time between two scans.
 const minGap = 250 * time.Millisecond
 
-// NewTable is a table filled by scan. claims, when not nil, are kept up
-// to date as new projects appear.
-func NewTable(scan func() ([]inspect.Service, error), claims *naming.Claims) *Table {
-	return &Table{scan: scan, claims: claims, routes: map[string]Route{}, gone: map[string]Route{}}
+// NewTable is a table filled by scan, with declared names laid over it
+// (nil for discovery alone). claims, when not nil, are kept up to date as
+// new projects appear.
+func NewTable(scan func() ([]inspect.Service, error), claims *naming.Claims, declared Declared) *Table {
+	return &Table{scan: scan, claims: claims, declared: declared, routes: map[string]Route{}, gone: map[string]Route{}}
 }
 
 // Refresh rescans and replaces the routes, reporting what changed. A
@@ -135,11 +186,15 @@ func (t *Table) Refresh() ([]Change, error) {
 	if err != nil {
 		return nil, err
 	}
-	Name(services, t.claims)
+	var aliases Aliases
+	var runs []Run
+	if t.declared != nil {
+		aliases, runs = t.declared()
+	}
+	next := Resolve(services, t.claims, aliases, runs)
 	if t.claims != nil {
 		_ = t.claims.Save() // a lost save only means the claim is made again
 	}
-	next := FromServices(services)
 
 	t.mu.Lock()
 	prev := t.routes

@@ -22,7 +22,8 @@ func scanNamed(cfg *inspect.Config) ([]inspect.Service, error) {
 
 func nameServices(services []inspect.Service) {
 	claims := naming.LoadClaims()
-	routes.Name(services, claims)
+	aliases, runs := routes.LoadDeclared()
+	routes.Resolve(services, claims, aliases, runs)
 	_ = claims.Save() // a lost save only means the claim is made again
 	info, ok := router.Running()
 	if !ok {

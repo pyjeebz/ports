@@ -106,3 +106,21 @@ func Remove(name string) error {
 	}
 	return nil
 }
+
+// Glob is the state files whose names match pattern (filepath.Match
+// syntax), by name.
+func Glob(pattern string) ([]string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return nil, err
+	}
+	paths, err := filepath.Glob(filepath.Join(dir, pattern))
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(paths))
+	for i, p := range paths {
+		names[i] = filepath.Base(p)
+	}
+	return names, nil
+}

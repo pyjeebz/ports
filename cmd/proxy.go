@@ -87,7 +87,7 @@ func runProxy(portSet bool) error {
 	}
 
 	cfg := buildInspectConfig()
-	table := routes.NewTable(func() ([]inspect.Service, error) { return inspect.ScanOwn(cfg) }, naming.LoadClaims())
+	table := routes.NewTable(func() ([]inspect.Service, error) { return inspect.ScanOwn(cfg) }, naming.LoadClaims(), routes.LoadDeclared)
 	if _, err := table.Refresh(); err != nil {
 		return err
 	}

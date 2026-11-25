@@ -63,7 +63,7 @@ func routerFor(t *testing.T, bs ...backend) *httptest.Server {
 		}
 		return out, nil
 	}
-	table := routes.NewTable(scan, nil)
+	table := routes.NewTable(scan, nil, nil)
 	if _, err := table.Refresh(); err != nil {
 		t.Fatal(err)
 	}
