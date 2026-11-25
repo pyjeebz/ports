@@ -57,7 +57,7 @@ is running, never empty output.`,
 		// resolved first, so the root is found from the same path the
 		// PROJECT column walks up from — the kernel's, links resolved
 		root := inspect.ProjectRoot(cfg, inspect.RealPath(abs))
-		services, err := inspect.Scan(cfg)
+		services, err := scanNamed(cfg)
 		if err != nil {
 			return err
 		}

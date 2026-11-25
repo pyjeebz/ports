@@ -57,6 +57,7 @@ been running. That context is what turns "kill a random PID and hope" into
 ## What it does
 
 - **Lists** every listening port with the framework, project directory, and uptime — not just a PID — grouped by project by default, or ordered with `--sort port|uptime|process|project`
+- **Names every dev server** — `ports proxy` puts each web dev server at `http://<name>.localhost`, whether ports started it or not: `shop.localhost` for a project's app, `api.shop.localhost` for the one in `apps/api`, `ui.shop.localhost` for the same app in a git worktree on `fix/ui`. A name comes from the project, never the port, so it survives a restart on another port. The router listens on loopback only and refuses any host that isn't one of its names. `ports url api.shop` prints a URL for scripts.
 - **Groups** processes into the applications they belong to, so `frontend :3000`, `api :8000`, and `db :5432` read as one project
 - **Unwraps Docker**, naming the real container and compose service instead of `docker-proxy`
 - **Stops things safely by name** — `ports stop shop`, `ports stop 3000` — with graceful termination before force. Add `--expect nextjs` and a stop only happens if that's really what holds the port — the guard for scripts and agents; `--json` reports each stop as a result object.

@@ -83,7 +83,7 @@ func runWatch() error {
 	asJSON := jsonOut || format == "json"
 
 	tick := func() error {
-		services, err := inspect.Scan(cfg)
+		services, err := scanNamed(cfg)
 		if err != nil {
 			return err
 		}

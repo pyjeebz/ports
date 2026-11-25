@@ -131,7 +131,9 @@ func WriteTable(services []Service, sort SortMode) {
 
 	labels := projectLabels(rows)
 	// the URL column appears only when a row has one, and goes last: a
-	// link's escape bytes never sit in a cell tabwriter measures
+	// link's escape bytes never sit in a cell tabwriter measures. While
+	// the router runs it's the name's URL (http://shop.localhost) — the
+	// name reads there, so it needs no column of its own
 	urls := slices.ContainsFunc(rows, func(s Service) bool { return s.URL != "" })
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', 0)
@@ -149,7 +151,7 @@ func WriteTable(services []Service, sort SortMode) {
 		if urls {
 			// every row keeps the column so the block stays aligned;
 			// the padding a row without a URL picks up is trimmed below
-			line += "\t" + hyperlink(s.URL)
+			line += "\t" + hyperlink(cmp.Or(s.NameURL, s.URL))
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}

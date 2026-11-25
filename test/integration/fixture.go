@@ -233,10 +233,11 @@ func FindFreePort() (int, error) {
 }
 
 // hermeticEnv builds the child's environment: a throwaway HOME, and none
-// of the machine's container choices — CONTAINER_RUNTIME, DOCKER_HOST —
-// so the suite asserts the binary, not the developer's ~/.config/ports
-// and environment. Everything else passes through
-// untouched (PATH above all), since the child is a normal program.
+// of the machine's container choices (CONTAINER_RUNTIME, DOCKER_HOST) or
+// its state directory (PORTS_STATE_DIR, XDG_STATE_HOME) — so the suite
+// asserts the binary, not the developer's ~/.config/ports and
+// environment. Everything else passes through untouched (PATH above
+// all), since the child is a normal program.
 func hermeticEnv(t *testing.T) []string {
 	t.Helper()
 	home, err := os.MkdirTemp("", "ports-home")
@@ -249,7 +250,8 @@ func hermeticEnv(t *testing.T) []string {
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
 		if key == "HOME" || key == "PORTS_BINARY" ||
-			key == "CONTAINER_RUNTIME" || key == "DOCKER_HOST" {
+			key == "CONTAINER_RUNTIME" || key == "DOCKER_HOST" ||
+			key == "PORTS_STATE_DIR" || key == "XDG_STATE_HOME" {
 			continue
 		}
 		env = append(env, kv)

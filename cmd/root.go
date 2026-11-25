@@ -272,7 +272,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return exitError{code: 2, msg: err.Error()}
 	}
 	cfg := buildInspectConfig()
-	services, err := inspect.Scan(cfg)
+	services, err := scanNamed(cfg)
 	if err != nil {
 		return err
 	}

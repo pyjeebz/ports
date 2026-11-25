@@ -21,7 +21,7 @@ var findCmd = &cobra.Command{
 			return exitError{code: 2, msg: err.Error()}
 		}
 		cfg := buildInspectConfig()
-		services, err := inspect.Scan(cfg)
+		services, err := scanNamed(cfg)
 		if err != nil {
 			return err
 		}

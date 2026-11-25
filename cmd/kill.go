@@ -26,7 +26,7 @@ func killName(q string) error {
 		return err
 	}
 	cfg := buildInspectConfig()
-	services, err := inspect.Scan(cfg)
+	services, err := scanNamed(cfg)
 	if err != nil {
 		return err
 	}

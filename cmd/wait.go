@@ -76,7 +76,7 @@ func (t waitTarget) String() string {
 
 // rows scans and keeps the target's rows.
 func (t waitTarget) rows() ([]inspect.Service, error) {
-	services, err := inspect.Scan(buildInspectConfig())
+	services, err := scanNamed(buildInspectConfig())
 	if err != nil {
 		return nil, err
 	}

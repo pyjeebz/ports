@@ -72,7 +72,7 @@ func pickToStop() error {
 	if err := stopFormat(); err != nil {
 		return err
 	}
-	services, err := inspect.Scan(buildInspectConfig())
+	services, err := scanNamed(buildInspectConfig())
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func pickToStop() error {
 
 // rescan is the scan stopPicked trusts — a seam tests swap to change the
 // machine between the pick and the stop.
-var rescan = func() ([]inspect.Service, error) { return inspect.Scan(buildInspectConfig()) }
+var rescan = func() ([]inspect.Service, error) { return scanNamed(buildInspectConfig()) }
 
 // stopPicked stops exactly what was confirmed. The machine moved on while
 // the picker was open — a dev server restarted, another project took the
