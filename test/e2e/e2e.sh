@@ -34,6 +34,7 @@ routerPort() { ports proxy status --json | jq -r .port; }
 status() { # status <host> → the HTTP code the router answers for it
 	curl -s -o /dev/null -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:$(routerPort)/" || true
 }
+answers() { [ "$(status "$1")" = "$2" ]; } # answers <host> <code>, asked afresh each time
 resolves() { # resolves <host> → whether the system resolver (not curl's) finds it on loopback
 	"$py" - "$1" <<'EOF'
 import socket, sys
@@ -100,7 +101,7 @@ echo "managed by $managed"
 "$py" -c "$(echo "$serve" | sed 's/int(os.environ\["PORT"\])/18765/')" >/dev/null 2>&1 &
 web=$!
 ports alias e2e-web 18765 >/dev/null
-waitFor 10 test "$(status e2e-web.localhost)" = 200 || fail "the background router didn't route an alias"
+waitFor 10 answers e2e-web.localhost 200 || fail "the background router didn't route an alias"
 kill "$web" 2>/dev/null || true
 ports alias e2e-web --remove >/dev/null
 ports proxy stop || fail "proxy stop"
@@ -131,7 +132,7 @@ EOF
 	echo "$names"
 	echo "$names" | grep -q '^18081 web.shop http://web.shop.localhost' || fail "web isn't web.shop with a URL"
 	echo "$names" | grep -q '^16379 cache.shop -$' || fail "cache isn't cache.shop without a URL"
-	waitFor 10 test "$(status web.shop.localhost)" = 200 || fail "web.shop.localhost didn't reach nginx"
+	waitFor 10 answers web.shop.localhost 200 || fail "web.shop.localhost didn't reach nginx"
 	[ "$(status cache.shop.localhost)" != 200 ] || fail "redis was routed as if it spoke HTTP"
 	ports proxy stop >/dev/null
 	done_

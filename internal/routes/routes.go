@@ -132,6 +132,16 @@ func composeScope(s inspect.Service, claims *naming.Claims) string {
 	return naming.Label(s.ComposeProject)
 }
 
+// urlHost is the host a URL reaches a listener by: localhost for a
+// wildcard or loopback bind, the bound address otherwise.
+func urlHost(addr string) string {
+	switch addr {
+	case "", "0.0.0.0", "::", "127.0.0.1", "::1", "*":
+		return "localhost"
+	}
+	return strings.Replace(addr, "%", "%25", 1)
+}
+
 // notHTTP are the engines a container commonly runs that speak their own
 // protocol, never HTTP: a compose db service gets a name to stop and
 // wait on, but no route — db.shop.localhost would only ever be an error.
@@ -178,6 +188,11 @@ func Resolve(services []inspect.Service, claims *naming.Claims, aliases Aliases,
 		}
 		if name, ok := byPort[s.Port]; ok {
 			s.Name = name
+			if s.URL == "" && !notHTTP[s.Framework] {
+				// named on purpose, framework or not: it's a web server
+				// to whoever named it, so it gets its own address too
+				s.URL = "http://" + net.JoinHostPort(urlHost(s.Addr), strconv.Itoa(int(s.Port)))
+			}
 			continue
 		}
 		if port, ok := declared[s.Name]; ok && port != s.Port {

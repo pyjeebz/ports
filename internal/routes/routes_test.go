@@ -149,6 +149,9 @@ func TestResolveDeclaredWin(t *testing.T) {
 	if services[1].Name != "docs" || services[2].Name != "stripe" {
 		t.Errorf("rows named %q and %q, want the declared names on them", services[1].Name, services[2].Name)
 	}
+	if services[2].URL != "http://localhost:4242" {
+		t.Errorf("an aliased plain server's URL = %q, want its own address", services[2].URL)
+	}
 	if got["docs"].Project != shop {
 		t.Errorf("a run's route keeps its project, got %q", got["docs"].Project)
 	}
