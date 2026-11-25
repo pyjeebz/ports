@@ -5,6 +5,7 @@ import (
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/pyjeebz/ports/internal/router"
+	"github.com/pyjeebz/ports/internal/routes"
 	"github.com/spf13/cobra"
 )
 
@@ -44,13 +45,13 @@ naturally), 2 for bad arguments.`,
 			if err != nil {
 				return err
 			}
-			named := 0
+			var names []string
 			for _, s := range services {
-				if s.Name != "" {
-					named++
+				if routes.Routable(s) {
+					names = append(names, s.Name)
 				}
 			}
-			findings = append(inspect.MachineFindings(services), router.Diagnose(named)...)
+			findings = append(inspect.MachineFindings(services), router.Diagnose(names)...)
 			render = func() { inspect.WriteMachineFindings(findings) }
 		default:
 			port, err := requirePort(args[0])
