@@ -125,6 +125,22 @@ func Names(apps []App, claims *Claims) []string {
 	return names
 }
 
+// Scope is the part of a name a project gives every app in it — its
+// base name, behind the branch in a linked worktree (shop, ui.shop) —
+// for whatever runs from dir inside project: a compose service started
+// there is named <service>.<scope>. "" when the project gives no name.
+func Scope(project, dir string, claims *Claims) string {
+	root, repo, branch := checkout(project, dir)
+	base := baseName(root, repo)
+	if claims != nil {
+		base = claims.Claim(repo, base)
+	}
+	if base == "" {
+		return ""
+	}
+	return join(branch, base)
+}
+
 func join(parts ...string) string {
 	var out []string
 	for _, p := range parts {

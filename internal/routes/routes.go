@@ -7,6 +7,7 @@
 package routes
 
 import (
+	"cmp"
 	"net"
 	"slices"
 	"strconv"
@@ -71,6 +72,80 @@ func Name(services []inspect.Service, claims *naming.Claims) {
 	for k, name := range naming.Names(apps, claims) {
 		services[at[k]].Name = name
 	}
+	nameContainers(services, claims)
+}
+
+// nameContainers names each published compose container after its
+// service, inside the project it was started from: web in ~/shop is
+// web.shop, db is db.shop — the same base the host apps get. A container
+// publishing several ports names the lowest; the rest count up
+// (minio-2.shop). A name a host app already has goes to the host app.
+func nameContainers(services []inspect.Service, claims *naming.Claims) {
+	taken := map[string]bool{}
+	for _, s := range services {
+		if s.Name != "" {
+			taken[s.Name] = true
+		}
+	}
+	var rows []int
+	for i, s := range services {
+		if s.ComposeService != "" && !s.Windows {
+			rows = append(rows, i)
+		}
+	}
+	slices.SortStableFunc(rows, func(a, b int) int { return cmp.Compare(services[a].Port, services[b].Port) })
+	scopes := map[string]string{}
+	for _, i := range rows {
+		s := &services[i]
+		key := s.ComposeDir + "\x00" + s.ComposeProject
+		scope, ok := scopes[key]
+		if !ok {
+			scope = composeScope(*s, claims)
+			scopes[key] = scope
+		}
+		service := naming.Label(s.ComposeService)
+		if scope == "" || service == "" {
+			continue
+		}
+		name := service + "." + scope
+		for n := 2; taken[name]; n++ {
+			name = service + "-" + strconv.Itoa(n) + "." + scope
+		}
+		taken[name] = true
+		s.Name = name
+	}
+}
+
+// composeScope is the project part of a compose service's name: the
+// project the compose file sits in, named as ports names any project,
+// else the compose project's own name.
+func composeScope(s inspect.Service, claims *naming.Claims) string {
+	if s.ComposeDir != "" {
+		project := inspect.DetectProject(s.ComposeDir)
+		if project == "" {
+			project = s.ComposeDir
+		}
+		if scope := naming.Scope(project, s.ComposeDir, claims); scope != "" {
+			return scope
+		}
+	}
+	return naming.Label(s.ComposeProject)
+}
+
+// notHTTP are the engines a container commonly runs that speak their own
+// protocol, never HTTP: a compose db service gets a name to stop and
+// wait on, but no route — db.shop.localhost would only ever be an error.
+var notHTTP = map[string]bool{
+	"PostgreSQL": true, "MySQL": true, "MariaDB": true, "Redis": true,
+	"Valkey": true, "Dragonfly": true, "MongoDB": true, "Memcached": true,
+	"NATS": true,
+}
+
+// Routable reports whether a named row should be reachable through the
+// router: every host app ports names is a web server already; a
+// container is unless it runs an engine that never speaks HTTP.
+func Routable(s inspect.Service) bool {
+	return s.Name != "" && !notHTTP[s.Framework]
 }
 
 // Resolve names a scan's rows and returns the route table: discovered
@@ -98,7 +173,7 @@ func Resolve(services []inspect.Service, claims *naming.Claims, aliases Aliases,
 	}
 	for i := range services {
 		s := &services[i]
-		if s.Windows || s.Container != "" {
+		if s.Windows {
 			continue
 		}
 		if name, ok := byPort[s.Port]; ok {
@@ -112,7 +187,7 @@ func Resolve(services []inspect.Service, claims *naming.Claims, aliases Aliases,
 
 	out := map[string]Route{}
 	for _, s := range services {
-		if s.Name == "" {
+		if s.Name == "" || (byPort[s.Port] == "" && !Routable(s)) {
 			continue
 		}
 		if _, ok := out[s.Name]; ok && byPort[s.Port] == "" {

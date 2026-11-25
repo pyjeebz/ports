@@ -19,9 +19,9 @@ func Scan(cfg *Config) ([]Service, error) {
 
 // ScanOwn is Scan cut down to what the router asks every two seconds:
 // this machine's own processes — the listeners whose pid the scan can
-// see — with no question to the container engine or across the WSL
-// boundary, and no hunt for the owners of the rest. A row the scan can't
-// put a pid to is left out.
+// see — and the containers behind published ports, with no question
+// across the WSL boundary and no hunt for the owners of the rest. A row
+// that is neither is left out.
 func ScanOwn(cfg *Config) ([]Service, error) {
 	return scan(cfg, false)
 }
@@ -62,9 +62,6 @@ func scan(cfg *Config, full bool) ([]Service, error) {
 			continue
 		}
 		s := describe(c, env)
-		if !full && !s.Known() {
-			continue
-		}
 		if !s.Known() {
 			if owners == nil {
 				owners = socketOwners()
@@ -78,10 +75,12 @@ func scan(cfg *Config, full bool) ([]Service, error) {
 		seen[k] = true
 		services = append(services, s)
 	}
-	if full {
-		enrichDocker(services, listContainers())
-	}
-	if slices.ContainsFunc(services, Service.Anonymous) {
+	enrichDocker(services, listContainers())
+	if !full {
+		// the router's scan: this user's processes and the containers
+		// behind published ports, nothing it can't put a name to
+		services = slices.DeleteFunc(services, func(s Service) bool { return !s.Known() && s.ContainerID == "" })
+	} else if slices.ContainsFunc(services, Service.Anonymous) {
 		attribute(services, listProcs(), env.rules, lookupUser)
 		services = collapseUnowned(services)
 	}

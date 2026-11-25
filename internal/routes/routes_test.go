@@ -212,3 +212,59 @@ func TestLiveRunsDropsTheDead(t *testing.T) {
 		t.Errorf("after Unregister: %+v", runs)
 	}
 }
+
+func container(dir, project, service, framework string, port uint32) inspect.Service {
+	return inspect.Service{
+		Port: port, Process: "docker-proxy", Addr: "0.0.0.0", Framework: framework,
+		Container: project + "-" + service + "-1", ContainerID: "c-" + service,
+		ComposeProject: project, ComposeService: service, ComposeDir: dir, ProjectName: project,
+	}
+}
+
+func TestComposeNames(t *testing.T) {
+	shop := project(t, "shop")
+	services := []inspect.Service{
+		web(shop, 3000, "Next.js"),
+		container(shop, "shop", "api", "", 8000),
+		container(shop, "shop", "db", "PostgreSQL", 5432),
+		container(shop, "shop", "minio", "MinIO", 9001),
+		container(shop, "shop", "minio", "MinIO", 9000),
+		container("", "other", "web", "nginx", 8081),
+	}
+	got := Resolve(services, nil, nil, nil)
+	names := map[uint32]string{}
+	for _, s := range services {
+		names[s.Port] = s.Name
+	}
+	want := map[uint32]string{3000: "shop", 8000: "api.shop", 5432: "db.shop", 9000: "minio.shop", 9001: "minio-2.shop", 8081: "web.other"}
+	for port, name := range want {
+		if names[port] != name {
+			t.Errorf(":%d named %q, want %q", port, names[port], name)
+		}
+	}
+	if _, ok := got["db.shop"]; ok {
+		t.Error("db.shop (PostgreSQL) got a route; it never speaks HTTP")
+	}
+	for _, name := range []string{"shop", "api.shop", "minio.shop", "web.other"} {
+		if _, ok := got[name]; !ok {
+			t.Errorf("%s has no route", name)
+		}
+	}
+	if got["api.shop"].Targets()[0] != "127.0.0.1:8000" {
+		t.Errorf("a published container is reached on loopback: %v", got["api.shop"].Targets())
+	}
+}
+
+func TestComposeNameYieldsToHostApp(t *testing.T) {
+	shop := project(t, "shop")
+	if err := os.MkdirAll(filepath.Join(shop, "apps", "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	host := web(shop, 4000, "NestJS")
+	host.Cwd = filepath.Join(shop, "apps", "api")
+	services := []inspect.Service{web(shop, 3000, "Next.js"), host, container(shop, "shop", "api", "", 8000)}
+	Resolve(services, nil, nil, nil)
+	if services[1].Name != "api.shop" || services[2].Name != "api-2.shop" {
+		t.Errorf("host api = %q, compose api = %q; want api.shop and api-2.shop", services[1].Name, services[2].Name)
+	}
+}

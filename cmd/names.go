@@ -30,7 +30,7 @@ func nameServices(services []inspect.Service) {
 		return
 	}
 	for i := range services {
-		if services[i].Name != "" {
+		if routes.Routable(services[i]) {
 			services[i].NameURL = router.URL(services[i].Name, info.Port)
 		}
 	}

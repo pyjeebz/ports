@@ -39,7 +39,8 @@ or not, until Ctrl-C.
 
 A name comes from the project — its package.json name or its folder —
 and the app's place in it: the main app is shop, an app in apps/api is
-api.shop, the same app in a git worktree on fix-ui is fix-ui.shop. Names
+api.shop, the same app in a git worktree on fix-ui is fix-ui.shop, and
+the web service of a compose project started there is web.shop. Names
 don't come from ports, so a server that restarts on another port keeps
 its name; the router finds where it went within two seconds.
 
