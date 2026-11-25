@@ -20,7 +20,10 @@ const DefaultPort = 80
 
 // FallbackPort is where it listens when 80 is taken or not allowed. One
 // fixed number, never a free one picked at random, so a URL written down
-// once keeps working.
+// once keeps working. 8480: ends in 80 so it reads as HTTP, sits on no
+// browser's blocked-port list, clear of the ports dev servers reach for
+// (3000s, 5173, 8000, 8080, 8888) and of ports run's 4000-4999, and of
+// portless, which takes 443.
 const FallbackPort = 8480
 
 // Listen opens the router's sockets on both loopbacks, and nowhere else:
