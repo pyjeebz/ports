@@ -18,6 +18,8 @@ import (
 	"strings"
 	"syscall"
 
+	gproc "github.com/shirou/gopsutil/v4/process"
+
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/pyjeebz/ports/internal/naming"
 	"github.com/pyjeebz/ports/internal/router"
@@ -329,8 +331,12 @@ func withPortFlags(command []string, framework string, port uint32) []string {
 	return append(out, flags...)
 }
 
-// forwardSignals passes a stop on to the command. Ctrl-C reaches it from
-// the terminal on its own, so SIGINT is passed only when there's no
+// forwardSignals passes a stop on to the command and everything it
+// started. A package runner doesn't: SIGTERM to `npm run dev` ends npm
+// and leaves Vite holding the port, the very leftover ports exists to
+// find — so the tree is collected before anything is signalled, while
+// the servers are still npm's children to find. Ctrl-C reaches them all
+// from the terminal on its own, so SIGINT is passed only when there's no
 // terminal to send it — an agent or script interrupting ports run.
 func forwardSignals(p *os.Process) (stop func()) {
 	sig := make(chan os.Signal, 1)
@@ -348,7 +354,11 @@ func forwardSignals(p *os.Process) (stop func()) {
 				if s == os.Interrupt && tty {
 					continue
 				}
+				tree := descendants(int32(p.Pid))
 				_ = p.Signal(s)
+				for _, d := range tree {
+					_ = d.SendSignal(s.(syscall.Signal))
+				}
 			case <-done:
 				return
 			}
@@ -358,4 +368,20 @@ func forwardSignals(p *os.Process) (stop func()) {
 		signal.Stop(sig)
 		close(done)
 	}
+}
+
+// descendants is every process under pid, children first.
+func descendants(pid int32) []*gproc.Process {
+	root, err := gproc.NewProcess(pid)
+	if err != nil {
+		return nil
+	}
+	var out []*gproc.Process
+	queue := []*gproc.Process{root}
+	for len(queue) > 0 {
+		kids, _ := queue[0].Children()
+		queue = append(queue[1:], kids...)
+		out = append(out, kids...)
+	}
+	return out
 }
