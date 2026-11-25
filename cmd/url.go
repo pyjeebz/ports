@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var urlLocal bool
+
 var urlCmd = &cobra.Command{
 	Use:   "url [name]",
 	Short: "Print a dev server's URL by name, for scripts",
@@ -26,6 +28,11 @@ With no name it's the app in the directory you're in, else the main app
 of the project. While the router runs (ports proxy) the URL is the
 name's; without one it's the server's own address, http://localhost:8000,
 so a script works either way.
+
+Browsers and curl resolve every *.localhost name on their own; some
+systems' resolvers don't (macOS, and Linux without systemd-resolved's
+stub), so Node's fetch, Python or Go may not find shop.localhost there.
+--local prints the server's own address, which every client reaches.
 
 Exit codes: 0 with the URL on stdout, 1 when nothing running has that
 name (the names that are running go to stderr), 2 for a bad invocation.
@@ -69,6 +76,9 @@ name (the names that are running go to stderr), 2 for a bad invocation.
 			}
 		}
 		url := cmp.Or(s.NameURL, s.URL)
+		if urlLocal {
+			url = s.URL
+		}
 		if wantJSON() {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
@@ -80,7 +90,7 @@ name (the names that are running go to stderr), 2 for a bad invocation.
 			}{s.Name, url, s.Port, s.URL})
 		}
 		fmt.Println(url)
-		if s.NameURL == "" && inspect.ColorErr {
+		if s.NameURL == "" && !urlLocal && inspect.ColorErr {
 			// only where someone reads it: a script capturing stdout
 			// gets a URL that works either way
 			fmt.Fprintf(os.Stderr, "the router isn't running — `ports proxy` serves this at http://%s.localhost\n", s.Name)
@@ -91,6 +101,7 @@ name (the names that are running go to stderr), 2 for a bad invocation.
 
 func init() {
 	formatFlags(urlCmd, "text, json")
+	urlCmd.Flags().BoolVar(&urlLocal, "local", false, "Print the server's own address (http://localhost:4123), not the name's")
 	rootCmd.AddCommand(urlCmd)
 }
 
