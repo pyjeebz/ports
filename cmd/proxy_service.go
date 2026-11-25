@@ -88,7 +88,17 @@ func proxyStart() error {
 	}
 	kind := service.Available()
 	if err := service.Install(kind, exe, stateEnv()); err != nil {
-		return fmt.Errorf("can't start the router: %w", err)
+		if kind == service.Process {
+			return fmt.Errorf("can't start the router: %w", err)
+		}
+		// no login session to hang a service on — a Mac reached over
+		// SSH, a Linux box without a user manager: run it detached
+		fmt.Fprintf(os.Stderr, "  couldn't set up the %s service (%v) — running the router in the background until logout instead\n", kind, err)
+		_ = service.Uninstall(kind)
+		kind = service.Process
+		if err := service.Install(kind, exe, stateEnv()); err != nil {
+			return fmt.Errorf("can't start the router: %w", err)
+		}
 	}
 	info, ok := waitRouter(5 * time.Second)
 	if !ok {

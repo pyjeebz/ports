@@ -1,0 +1,39 @@
+name: e2e
+
+# The paths that touch the system — the router's background service, the
+# hosts file, Docker — run here, on disposable runners, never on a
+# developer's own machine by accident.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+      - name: Build
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          go build -o "$RUNNER_TEMP/bin/" .
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: A user systemd manager, as a desktop login has
+        if: runner.os == 'Linux'
+        run: |
+          sudo loginctl enable-linger "$USER"
+          uid=$(id -u)
+          for _ in $(seq 50); do [ -S "/run/user/$uid/bus" ] && break; sleep 0.2; done
+          echo "XDG_RUNTIME_DIR=/run/user/$uid" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus" >> "$GITHUB_ENV"
+      - name: End to end
+        shell: bash
+        run: test/e2e/e2e.sh
