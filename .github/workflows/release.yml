@@ -32,9 +32,12 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      # trusted publishing: npm checks this workflow's OIDC identity, so no
+      # token is stored and nothing bypasses 2FA. Each @pyjeebz/ports*
+      # package names this repo and release.yml as its trusted publisher
+      # on npmjs.com; npm 11.5 or newer does the exchange.
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          npm install -g npm@^11.5.1
           node tools/npm/build.mjs "${GITHUB_REF_NAME#v}" dist npm-out
-          sh tools/npm/publish.sh npm-out --provenance
+          sh tools/npm/publish.sh npm-out
