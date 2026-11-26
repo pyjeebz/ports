@@ -17,23 +17,3 @@ export const SITE = {
   },
   installCurl: "curl -fsSL https://ports.tools/install | sh",
 } as const;
-
-export type InstallMethod = {
-  id: string;
-  label: string;
-  lines: string[];
-};
-
-export const INSTALL_METHODS: InstallMethod[] = [
-  { id: "curl", label: "curl", lines: [SITE.installCurl] },
-  { id: "brew", label: "Homebrew", lines: ["brew install pyjeebz/tap/ports"] },
-  {
-    id: "scoop",
-    label: "Scoop",
-    lines: [
-      "scoop bucket add pyjeebz https://github.com/pyjeebz/scoop-bucket",
-      "scoop install ports",
-    ],
-  },
-  { id: "go", label: "Go", lines: ["go install github.com/pyjeebz/ports@latest"] },
-];

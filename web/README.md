@@ -14,17 +14,21 @@ npm run lint
 
 | Path | What |
 | ---- | ---- |
-| `app/page.tsx` | The landing page: prose, terminal output, two diagrams |
-| `components/landing/` | Its parts — code blocks, install tabs, the diagrams, nav and TOC |
-| `content/docs/*.mdx` | The docs at `/docs`, rendered by Fumadocs |
-| `lib/site.ts` | Copy and command data the landing renders |
+| `content/home/index.mdx` | Getting Started — the landing page at `/`, written as a doc |
+| `content/docs/*.mdx` | The docs at `/docs` |
+| `app/(site)/` | The shared notebook layout, and the pages that render the MDX |
+| `components/site/` | Page parts for MDX — install, the two diagrams, code tabs, promises |
+| `components/ui/` | shadcn components |
+| `app/md/`, `app/llms.txt/` | Every page as Markdown, for Copy page and agents |
+| `lib/site.ts` | Copy the site shares — tagline, links, the install command |
 | `lib/og.tsx`, `app/api/og/` | Open Graph cards (Satori, set in Geist) |
 | `app/install/` | `ports.tools/install` — serves `script.sh` |
 
 ## Before you change things
 
-- **Design:** `DESIGN.md` — Geist and shadcn's neutral tokens, a page that
-  reads like the docs, and the rules for the little motion there is.
+- **Design:** `DESIGN.md` — Vercel's Geist palette and type, shadcn, a
+  landing page that is the first page of the docs, and the rules for the
+  little motion there is.
 - **Next.js:** this is Next 16 — read `AGENTS.md` first; `params`,
   `searchParams`, `cookies`, and `headers` are async.
 - **Installer:** `app/install/script.sh` is a byte-identical copy of the

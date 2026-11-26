@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  MarkdownCopyButton,
+  ViewOptionsPopover,
+} from "fumadocs-ui/layouts/notebook/page";
 
 import { source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
+import { SITE } from "@/lib/site";
 
 export function generateStaticParams() {
   return source.generateParams();
@@ -43,9 +51,16 @@ export default async function DocPage(props: PageProps<"/docs/[[...slug]]">) {
 
   return (
     <DocsPage toc={page.data.toc}>
-      <DocsTitle className="font-display font-normal text-charcoal">
-        {page.data.title}
-      </DocsTitle>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <DocsTitle>{page.data.title}</DocsTitle>
+        <div className="flex items-center gap-1.5 pt-1.5">
+          <MarkdownCopyButton markdownUrl={`/md/docs/${page.slugs.join("/")}`} />
+          <ViewOptionsPopover
+            markdownUrl={`/md/docs/${page.slugs.join("/")}`}
+            githubUrl={`${SITE.links.github}/blob/main/web/content/docs/${page.path}`}
+          />
+        </div>
+      </div>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
         <MDX components={getMDXComponents()} />

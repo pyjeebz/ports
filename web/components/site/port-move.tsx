@@ -1,6 +1,7 @@
 "use client";
 
-import { ReplayButton } from "./route-flow";
+import { Badge } from "@/components/ui/badge";
+import { Figure } from "./figure";
 import { useSteps } from "./use-steps";
 
 // a dev server that restarts and comes back on another port, twice
@@ -25,25 +26,22 @@ export function PortMove() {
   const moves = movesSoFar(step, round);
 
   return (
-    <figure ref={ref} className="my-6 overflow-hidden rounded-lg border bg-card">
-      <figcaption className="flex h-9 items-center justify-between border-b bg-muted/40 pr-1 pl-3.5 text-xs text-muted-foreground">
-        <span>A restart on another port</span>
-        <ReplayButton onClick={replay} />
-      </figcaption>
-
-      <div className="grid sm:grid-cols-2">
+    <Figure ref={ref} title="A restart on another port" onReplay={replay}>
+      <div className="grid font-mono sm:grid-cols-2">
         {/* the browser: one URL, start to finish */}
         <div className="border-b p-4 sm:border-r sm:border-b-0">
-          <div className="flex h-8 items-center gap-2 rounded-md border bg-muted/40 px-2.5 font-mono text-xs">
-            <span className="size-2 rounded-full bg-border" />
+          <div className="flex h-8 items-center justify-between gap-2 rounded-md border bg-chrome pr-1 pl-2.5 font-mono text-xs">
             <span>shop.localhost</span>
+            <Badge variant="secondary" className="rounded-[5px] px-1.5 font-sans text-[11px] font-normal text-muted-foreground">
+              same URL throughout
+            </Badge>
           </div>
           <div className="relative mt-3 h-[116px]">
             <div
               className={`absolute inset-0 transition-[opacity,filter] duration-300 ease-out ${s.up ? "opacity-100" : "opacity-0 blur-[2px]"}`}
               aria-hidden={!s.up}
             >
-              <p className="text-sm font-medium">Shop</p>
+              <p className="font-sans text-sm font-medium">Shop</p>
               <div className="mt-3 grid gap-2">
                 <span className="h-2 w-3/4 rounded-full bg-muted" />
                 <span className="h-2 w-1/2 rounded-full bg-muted" />
@@ -72,16 +70,16 @@ export function PortMove() {
         <div className="flex flex-col p-4 font-mono text-xs leading-6">
           <span className="text-muted-foreground">$ ports proxy</span>
           <span>
-            <span className="text-added">✓</span> routing *.localhost on :80
+            <span className="text-green">✓</span> routing *.localhost on :80
           </span>
           {moves.map((m) => (
-            <span key={m.key} className="enter text-foreground/80">
+            <span key={m.key} className="enter text-blue">
               ~ http://shop.localhost → :{m.port} Next.js
             </span>
           ))}
           <span className="mt-auto flex items-center gap-2 pt-3">
             <span
-              className={`size-1.5 rounded-full transition-colors duration-200 ${s.up ? "bg-live" : "bg-muted-foreground/40"}`}
+              className={`size-1.5 rounded-full transition-colors duration-200 ${s.up ? "bg-green" : "bg-muted-foreground/40"}`}
             />
             <span className="text-muted-foreground">dev server</span>
             {s.up ? (
@@ -96,7 +94,7 @@ export function PortMove() {
           </span>
         </div>
       </div>
-    </figure>
+    </Figure>
   );
 }
 

@@ -1,154 +1,205 @@
 @import "tailwindcss";
-/* Fumadocs token defaults must register before the preset: shiki.css
-   @applies fd-diff utilities, which only exist once these @theme vars load. */
+/* Fumadocs reads shadcn's variables (shadcn.css maps --color-fd-* onto
+   them), so the docs chrome, the landing page and the shadcn components
+   all draw from the one set of tokens below. */
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
 @custom-variant dark (&:is(.dark *));
 
 /* ── Tokens ──────────────────────────────────────────────────
-   shadcn's neutral palette, light and dark. The site reads like a doc:
-   ink on white, one muted grey for secondary text, hairline borders,
-   and colour only where it carries meaning — a diff, a status dot. */
+   Vercel's Geist palette: white and #171717 in light, black and #ededed
+   in dark, greys from its scale, borders as alpha so they sit right on
+   any surface. Colour appears only where it means something — a request
+   (blue), an answer (green), a refusal (red). */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --border: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #171717;
+  --muted: #f2f2f2;
+  --muted-foreground: #666666;
+  --accent: #f2f2f2;
+  --accent-foreground: #171717;
+  --destructive: #e5484d;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.08);
+  --ring: #a8a8a8;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4d4d4d;
+  --sidebar-accent: #ebebeb;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #a8a8a8;
 
-  --added: oklch(0.6 0.13 150);
-  --added-bg: oklch(0.6 0.13 150 / 0.09);
-  --removed: oklch(0.58 0.19 27);
-  --removed-bg: oklch(0.58 0.19 27 / 0.08);
-  --live: oklch(0.65 0.15 150);
-  --signal: oklch(0.55 0.2 260);
+  --chrome: #fafafa; /* the top bar */
+  --blue: #0070f3;
+  --blue-soft: rgba(0, 112, 243, 0.08);
+  --green: #1a7f37;
+  --green-soft: rgba(40, 169, 72, 0.1);
+  --red: #d6001c;
+  --red-soft: rgba(229, 72, 77, 0.09);
 
-  /* motion: strong curves, never the weak built-ins */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.175 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.205 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.175 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #000000;
+  --foreground: #ededed;
+  --card: #0a0a0a;
+  --card-foreground: #ededed;
+  --popover: #0a0a0a;
+  --popover-foreground: #ededed;
+  --primary: #ededed;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ededed;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1a1;
+  --accent: #1f1f1f;
+  --accent-foreground: #ededed;
+  --destructive: #ff6166;
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #5c5c5c;
+  --sidebar: #000000;
+  --sidebar-foreground: #a1a1a1;
+  --sidebar-accent: #1f1f1f;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: rgba(255, 255, 255, 0.14);
+  --sidebar-ring: #5c5c5c;
 
-  --added: oklch(0.75 0.13 150);
-  --added-bg: oklch(0.75 0.13 150 / 0.12);
-  --removed: oklch(0.72 0.15 27);
-  --removed-bg: oklch(0.72 0.15 27 / 0.12);
-  --live: oklch(0.75 0.15 150);
-  --signal: oklch(0.72 0.14 260);
+  --chrome: #000000;
+  --blue: #52a8ff;
+  --blue-soft: rgba(82, 168, 255, 0.12);
+  --green: #3dd068;
+  --green-soft: rgba(61, 208, 104, 0.12);
+  --red: #ff6166;
+  --red-soft: rgba(255, 97, 102, 0.12);
 }
 
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, "Roboto Mono", monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-added: var(--added);
-  --color-added-bg: var(--added-bg);
-  --color-removed: var(--removed);
-  --color-removed-bg: var(--removed-bg);
-  --color-live: var(--live);
-  --color-signal: var(--signal);
+  --color-chrome: var(--chrome);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
 
   --ease-out: var(--ease-out);
-  --ease-in-out: var(--ease-in-out);
 }
 
 @layer base {
   * {
     border-color: var(--border);
   }
-  html {
-    scroll-behavior: smooth;
-  }
   body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
   }
   ::selection {
-    background: oklch(0.55 0.2 260 / 0.18);
+    background: var(--blue-soft);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+/* ── Type, the way portless sets it ─────────────────────────
+   Weight 450 headings that tighten as they grow, 16/28 body at 90% ink,
+   13px mono for inline code. */
+#nd-page h1 {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 450;
+  letter-spacing: -0.05em;
+}
+.prose {
+  --tw-prose-body: color-mix(in oklab, var(--foreground) 90%, transparent);
+  font-size: 16px;
+  line-height: 28px;
+}
+.prose :where(h2) {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 450;
+  letter-spacing: -0.04em;
+}
+.prose :where(h3) {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.prose :where(:not(pre) > code) {
+  font-size: 13px;
+}
+
+/* ── Code blocks ─────────────────────────────────────────────
+   Flat, with a hairline: a code block is a surface, not a card lifted
+   off the page. Output lines in a console block are muted, so the
+   command reads first. */
+figure.shiki {
+  box-shadow: none;
+  border-radius: 8px;
+}
+.line-output,
+.line-output span {
+  color: var(--muted-foreground) !important;
+}
+
+#nd-subnav {
+  background: color-mix(in oklab, var(--chrome) 85%, transparent);
 }
 
 /* ── Enter ───────────────────────────────────────────────────
-   Something new in an explainer — a request, an answer, a log line —
+   Something new in a diagram — a request, an answer, a log line —
    arrives rather than appears: up 4px, out of a slight blur, on a strong
-   ease-out. A keyed remount restarts it, so each new value enters. */
+   ease-out. A keyed remount restarts it, so each new value enters.
+   Written flat — @starting-style at the top level — because nesting it
+   under @media made the CSS pipeline drop every rule after it. */
 .enter {
-  display: inline-block;
+  display: inline-flex;
   transition:
     opacity 240ms var(--ease-out),
     transform 240ms var(--ease-out),
     filter 240ms var(--ease-out);
-  @starting-style {
+}
+@starting-style {
+  .enter {
     opacity: 0;
     transform: translateY(4px);
     filter: blur(2px);
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  .enter {
-    @starting-style {
+  @starting-style {
+    .enter {
       transform: none;
       filter: none;
     }

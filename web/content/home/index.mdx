@@ -1,0 +1,155 @@
+---
+title: Getting Started
+description: Every dev server on your machine, by name — http://shop.localhost instead of http://localhost:3000, whether ports started it or not.
+---
+
+ports replaces port numbers with stable `.localhost` names for every dev server on your machine, whether ports started it or not. See what's running, reach it by name, stop it safely. For people and coding agents.
+
+```diff
+- http://localhost:3000     # shop, or whichever app got there first
++ http://shop.localhost     # shop, on any port, after any restart
+```
+
+Nothing about how you start servers changes. Run `npm run dev` the way you always do — from a terminal, an editor or `docker compose` — and `shop.localhost` works.
+
+## Install
+
+<Install />
+
+One static binary for macOS, Linux and Windows, WSL included. No runtime, no account.
+
+## Every server, by name
+
+Start the router once. It runs in the background from then on, and again at login.
+
+```console
+$ ports proxy start
+✓ routing *.localhost on :80 — a systemd user unit, started at login
+```
+
+Every web dev server now has a name. It comes from the project — its `package.json` name, or its folder — and the app's place in it:
+
+| Where it runs | Its name |
+| --- | --- |
+| `~/shop` | `shop.localhost` |
+| `~/shop/apps/api` | `api.shop.localhost` |
+| a worktree of shop on `fix/ui` | `ui.shop.localhost` |
+| the `web` service of a compose project in `~/shop` | `web.shop.localhost` |
+| anything else, named by you | `ports alias stripe 4242` |
+
+Two projects that are both called shop are told apart once — the second becomes `shop-client`, after its parent folder — and remembered, so they never swap. Each app gets its own origin, so cookies and local storage stop leaking between them.
+
+## How it works
+
+The router listens on this machine's loopback, and nowhere else. Browsers already send every `*.localhost` name there, so nothing needs configuring. For each request it reads the Host header, looks the name up, and passes the request on — WebSockets and event streams included, so hot reload works as before.
+
+<RouteFlow />
+
+The route table isn't declared anywhere. ports builds it from the machine itself, every two seconds: which processes listen, which project each belongs to, which port is the app and which its debugger. A name comes from the project, never the port, so a server that restarts somewhere else keeps it.
+
+<PortMove />
+
+A Host that isn't one of its names is refused with a `421`. That's what keeps a website from reaching your dev servers by pointing its own domain at `127.0.0.1`.
+
+## What's running
+
+`ports` lists every listener with what it is, the project it belongs to, and how long it's been up — the context `lsof` leaves out.
+
+```console
+$ ports
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://shop.localhost
+8000   FastAPI      shop              14m      http://api.shop.localhost
+5432   PostgreSQL   docker: shop-db   2d
+5173   Vite         admin             3h       http://admin.localhost
+```
+
+`ports here` narrows it to the project you're in, `ports find postgres` searches, and `ports doctor 3000` explains a port that won't free.
+
+## Start on a free port
+
+`ports run` picks a free port, hands it over the way the framework takes one — `PORT`, or `--port` for Vite, Astro and Angular — and names the server for as long as it runs.
+
+```console
+$ ports run -- npm run dev
+→ http://shop.localhost (:4123)
+```
+
+When the project is already up, it says where instead of starting a second copy on the next free port:
+
+```console
+$ ports run -- npm run dev
+ports: shop is taken by another ports run (pid 48211, :4123) — name this one: ports run shop-2 -- …
+```
+
+## Stop it safely
+
+```console
+$ ports stop api.shop --expect fastapi
+✓ stopped FastAPI (:8000)
+```
+
+`--expect` is the guard: if anything the stop would reach isn't what you said, nothing is stopped. Set `PORTS_REQUIRE_EXPECT=1` and every stop must carry it. A stop sends SIGTERM, waits, then SIGKILL; another user's process is never touched.
+
+## For coding agents
+
+Agents start a second dev server on the next free port, then test the wrong one. With ports they check first, reuse what's running, and reach it by name.
+
+<CodeTabs defaultValue="shell">
+<CodeTabsList>
+<CodeTab value="shell">Shell</CodeTab>
+<CodeTab value="mcp">MCP</CodeTab>
+<CodeTab value="json">JSON</CodeTab>
+</CodeTabsList>
+<CodeTabPanel value="shell">
+
+```bash
+ports here || (ports run -- npm run dev &)   # reuse it if it's up
+ports wait shop --http                       # until it answers
+curl "$(ports url shop)/api/health"          # by name, never a guessed port
+```
+
+</CodeTabPanel>
+<CodeTabPanel value="mcp">
+
+```bash
+claude mcp add ports -- ports mcp
+```
+
+</CodeTabPanel>
+<CodeTabPanel value="json">
+
+```console
+$ ports url shop --json
+{
+  "name": "shop",
+  "url": "http://shop.localhost",
+  "port": 4123,
+  "local_url": "http://localhost:4123"
+}
+```
+
+</CodeTabPanel>
+</CodeTabs>
+
+Every command speaks JSON with `--json`, and exits `0` when it found something, `1` when it didn't, `2` when it was called wrong. The MCP server offers `list`, `here`, `find`, `url`, `wait`, `stop` and `doctor` as tools; it starts nothing, and its `stop` always needs `expect`.
+
+## Names for every client
+
+Browsers and curl send every `*.localhost` name to this machine on their own. Node's `fetch`, Python and Go ask the system instead, and on Windows — or a Linux that skips systemd-resolved — the system doesn't know them.
+
+```console
+$ ports doctor
+· this machine's resolver doesn't find shop, api.shop
+  → `ports hosts sync` writes them to the hosts file
+$ ports hosts sync
+✓ /etc/hosts resolves 2 name(s) for every client: api.shop, shop
+```
+
+The names go in one marked block, and nothing else in the file is touched. `ports hosts clean` takes them out again.
+
+## What ports won't do
+
+<Promises />
+
+Every command and flag is in the [docs](/docs); the source is on [GitHub](https://github.com/pyjeebz/ports).
