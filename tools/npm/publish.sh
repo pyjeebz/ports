@@ -9,8 +9,9 @@ set -eu
 out=$1
 shift
 for dir in "$out"/ports-*/ "$out"/ports/; do
-  name=$(node -p "require('./$dir/package.json').name")
-  version=$(node -p "require('./$dir/package.json').version")
+  # resolved from here, so a relative and an absolute out-dir both work
+  name=$(node -p "require(require('path').resolve(process.argv[1], 'package.json')).name" "$dir")
+  version=$(node -p "require(require('path').resolve(process.argv[1], 'package.json')).version" "$dir")
   if npm view "$name@$version" version >/dev/null 2>&1; then
     echo "$name@$version is already on npm"
     continue
