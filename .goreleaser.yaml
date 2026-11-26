@@ -40,8 +40,8 @@ homebrew_casks:
       owner: pyjeebz
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/pyjeebz/ports
-    description: "See what's running on your machine, by project — and kill it by name"
+    homepage: https://ports.tools
+    description: "Every dev server on your machine, by name"
 
 scoops:
   - repository:
@@ -49,8 +49,8 @@ scoops:
       name: scoop-bucket
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: bucket
-    homepage: https://github.com/pyjeebz/ports
-    description: "See what's running on your machine, by project — and kill it by name."
+    homepage: https://ports.tools
+    description: "Every dev server on your machine, by name."
 
 checksum:
   name_template: checksums.txt
