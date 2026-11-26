@@ -62,7 +62,7 @@ It starts nothing: servers run the way they always have.
 }
 
 func init() {
-	proxyCmd.Flags().IntVar(&proxyPort, "port", 0, "listen on this port instead of 80 (no fallback)")
+	proxyCmd.Flags().IntVar(&proxyPort, "port", 0, "Listen on this port instead of 80 (no fallback)")
 	rootCmd.AddCommand(proxyCmd)
 }
 

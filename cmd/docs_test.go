@@ -14,7 +14,7 @@ import (
 // the check that catches it, without running a scan.
 func TestDocumentedCommandsParse(t *testing.T) {
 	files, _ := filepath.Glob("../web/content/docs/*.mdx")
-	files = append(files, "../README.md")
+	files = append(files, "../web/content/home/index.mdx", "../README.md")
 	checked := 0
 	for _, file := range files {
 		b, err := os.ReadFile(file)
@@ -75,6 +75,11 @@ func parseDocumented(line string) error {
 	var positional []string
 	for i := 0; i < len(rest); i++ {
 		w := rest[i]
+		if w == "--" {
+			// what follows is the command ports run starts, not ours
+			positional = append(positional, rest[i+1:]...)
+			break
+		}
 		if !strings.HasPrefix(w, "-") || w == "-" {
 			positional = append(positional, w)
 			continue
@@ -119,6 +124,7 @@ func TestParseDocumented(t *testing.T) {
 		"ports --format",          // a flag missing its value
 		"ports diff before.json",  // cut before release
 		"ports --tree",            // cut before release
+		"ports run --watch -- x",  // a flag run doesn't take, before the --
 	} {
 		if parseDocumented(bad) == nil {
 			t.Errorf("`%s` should fail the docs check", bad)
@@ -127,7 +133,8 @@ func TestParseDocumented(t *testing.T) {
 	for _, good := range []string{
 		"ports", "ports --json", "ports -w", "ports find postgres --sort uptime",
 		"ports wait 3000 --http --timeout 60s", "ports free 3000 --expect nextjs --json", "ports stop shop --dry-run", "ports stop :3000 --expect nextjs",
-		"ports ps",
+		"ports ps", "ports run -- npm run dev", "ports run docs --port 4500 -- npm run docs",
+		"ports proxy start", "ports hosts sync --prune", "ports alias stripe 4242",
 	} {
 		if err := parseDocumented(good); err != nil {
 			t.Errorf("`%s` should pass the docs check: %v", good, err)

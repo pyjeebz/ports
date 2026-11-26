@@ -40,7 +40,9 @@ name (the names that are running go to stderr), 2 for a bad invocation.
 --json prints {"name", "url", "port", "local_url"}.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if format != "table" && format != "json" {
+		// "text" is what this prints; "table", the shared flag's default,
+		// means the same here
+		if format != "table" && format != "text" && format != "json" {
 			return exitError{code: 2, msg: fmt.Sprintf("unknown format %q (want text or json)", format)}
 		}
 		cfg := buildInspectConfig()

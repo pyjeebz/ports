@@ -58,7 +58,7 @@ func init() {
 	formatFlags(waitCmd, "table, json")
 	waitCmd.Flags().DurationVar(&waitTimeout, "timeout", 30*time.Second, "Give up after this long (0 waits forever)")
 	waitCmd.Flags().BoolVar(&waitGone, "gone", false, "Wait until nothing listens instead")
-	waitCmd.Flags().BoolVar(&waitHTTP, "http", false, "Wait until the port answers HTTP, not just connections (ports only)")
+	waitCmd.Flags().BoolVar(&waitHTTP, "http", false, "Wait until it answers HTTP, not just accepts connections — a name: the one server it reaches")
 	rootCmd.AddCommand(waitCmd)
 }
 
