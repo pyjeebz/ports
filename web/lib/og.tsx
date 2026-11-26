@@ -4,10 +4,9 @@ import { join } from "path";
 import { ImageResponse } from "next/og";
 
 /**
- * Shared OG image factory. Every card uses the paper palette from
- * globals.css so the preview matches the site. (Satori needs real font
- * files; the hand-drawn Google fonts ship as woff2 via next/font, so the
- * cards keep Geist while the site draws in Kalam.)
+ * Shared OG image factory. Every card uses the site's neutral palette —
+ * ink on white, hairline borders — in Geist, read from the geist
+ * package's TTFs since Satori needs real font files.
  *
  * Satori has no <mask>, so the logo's slash cut is faked by overpainting
  * the ring with the card background instead of masking it away.
@@ -54,7 +53,7 @@ export function ogImageAlt(parts: string[]): string {
 }
 
 const LOGO = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke="#2c2c2a" stroke-width="14" fill="none"/><line x1="12" y1="88" x2="88" y2="12" stroke="#f4f1ea" stroke-width="18" stroke-linecap="square"/><circle cx="38" cy="38" r="6" fill="#2c2c2a"/><circle cx="62" cy="62" r="6" fill="#2c2c2a"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke="#0a0a0a" stroke-width="14" fill="none"/><line x1="12" y1="88" x2="88" y2="12" stroke="#ffffff" stroke-width="18" stroke-linecap="square"/><circle cx="38" cy="38" r="6" fill="#0a0a0a"/><circle cx="62" cy="62" r="6" fill="#0a0a0a"/></svg>',
 )}`;
 
 export function makeOgImage({
@@ -75,8 +74,8 @@ export function makeOgImage({
           flexDirection: "column",
           width: "100%",
           height: "100%",
-          background: "#f4f1ea",
-          color: "#2c2c2a",
+          background: "#ffffff",
+          color: "#0a0a0a",
           padding: "72px 80px",
           justifyContent: "space-between",
           fontFamily: "Geist",
@@ -94,7 +93,7 @@ export function makeOgImage({
             height: "640px",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid #c9c4b6",
+            border: "1px solid #e5e5e5",
             borderRadius: "9999px",
           }}
         >
@@ -103,7 +102,7 @@ export function makeOgImage({
               display: "flex",
               width: "440px",
               height: "440px",
-              border: "1px solid #c9c4b6",
+              border: "1px solid #e5e5e5",
               borderRadius: "9999px",
               alignItems: "center",
               justifyContent: "center",
@@ -114,7 +113,7 @@ export function makeOgImage({
                 display: "flex",
                 width: "240px",
                 height: "240px",
-                border: "1px solid #c9c4b6",
+                border: "1px solid #e5e5e5",
                 borderRadius: "9999px",
               }}
             />
@@ -125,7 +124,7 @@ export function makeOgImage({
             display: "flex",
             width: "10px",
             height: "10px",
-            background: "#3d63dd",
+            background: "#0a0a0a",
             borderRadius: "9999px",
             position: "absolute",
             right: "300px",
@@ -157,7 +156,7 @@ export function makeOgImage({
                 fontWeight: 600,
                 letterSpacing: "-0.04em",
                 lineHeight: 1.04,
-                color: i === lines.length - 1 ? "#595955" : "#2c2c2a",
+                color: i === lines.length - 1 ? "#737373" : "#0a0a0a",
               }}
             >
               {line}
@@ -171,11 +170,11 @@ export function makeOgImage({
             justifyContent: "space-between",
             alignItems: "center",
             fontSize: 26,
-            color: "#595955",
+            color: "#737373",
           }}
         >
           <div style={{ display: "flex" }}>{footnote}</div>
-          <div style={{ display: "flex", color: "#3d63dd" }}>ports.tools</div>
+          <div style={{ display: "flex", color: "#0a0a0a" }}>ports.tools</div>
         </div>
       </div>
     ),

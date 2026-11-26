@@ -5,8 +5,8 @@ Router), Tailwind v4, and Fumadocs, deployed on Vercel.
 
 ```sh
 npm install
-npm run dev     # http://localhost:3000
-npm run build   # fumadocs-mdx, then next build
+ports run -- npm run dev   # http://ports.localhost, with `ports proxy start` running
+npm run build              # fumadocs-mdx, then next build
 npm run lint
 ```
 
@@ -14,8 +14,8 @@ npm run lint
 
 | Path | What |
 | ---- | ---- |
-| `app/page.tsx`, `components/site/` | The landing page, section by section |
-| `components/ui/` | Napkin primitives — Card, Button, Badge, Input, Checkbox, Tape, … |
+| `app/page.tsx` | The landing page: prose, terminal output, two diagrams |
+| `components/landing/` | Its parts — code blocks, install tabs, the diagrams, nav and TOC |
 | `content/docs/*.mdx` | The docs at `/docs`, rendered by Fumadocs |
 | `lib/site.ts` | Copy and command data the landing renders |
 | `lib/og.tsx`, `app/api/og/` | Open Graph cards (Satori, set in Geist) |
@@ -23,8 +23,8 @@ npm run lint
 
 ## Before you change things
 
-- **Design:** `FIGMA.md` is the guide to the Napkin design system — fonts,
-  palette, drawably pen strokes, and the rules for rotation and spacing.
+- **Design:** `DESIGN.md` — Geist and shadcn's neutral tokens, a page that
+  reads like the docs, and the rules for the little motion there is.
 - **Next.js:** this is Next 16 — read `AGENTS.md` first; `params`,
   `searchParams`, `cookies`, and `headers` are async.
 - **Installer:** `app/install/script.sh` is a byte-identical copy of the

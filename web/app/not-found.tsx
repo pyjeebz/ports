@@ -1,21 +1,17 @@
 import Link from "next/link";
 
+// The site's 404, worded like the router's own page for a name it
+// doesn't know.
 export default function NotFound() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">
-        404 · no listener
+    <main className="mx-auto flex min-h-dvh max-w-[560px] flex-col justify-center px-6">
+      <p className="text-sm text-muted-foreground">404</p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-[-0.015em]">Nothing is called that yet</h1>
+      <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+        There&apos;s no page at this address. It may have moved, or never existed.
       </p>
-      <h1 className="mt-3 font-mono text-3xl">Nothing on this port</h1>
-      <p className="mt-3 max-w-md text-sm text-muted">
-        Nothing is listening at this URL. Check the address, or head back to
-        ports.tools.
-      </p>
-      <Link
-        href="/"
-        className="mt-8 font-mono text-sm text-accent underline-offset-4 hover:underline"
-      >
-        ← back to ports.tools
+      <Link href="/" className="mt-6 text-sm underline underline-offset-4 hover:text-muted-foreground">
+        Back to ports.tools
       </Link>
     </main>
   );

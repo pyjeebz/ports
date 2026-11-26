@@ -1,310 +1,156 @@
 @import "tailwindcss";
 /* Fumadocs token defaults must register before the preset: shiki.css
-   @applies fd-diff utilities, which only exist once these @theme vars load.
-   The preset does not import this file itself. */
-@import "fumadocs-ui/css/lib/default-colors.css";
-/* Fumadocs UI styles: preset pulls in base + shiki + typography. */
+   @applies fd-diff utilities, which only exist once these @theme vars load. */
+@import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
-/* drawably's sketch chrome classes + boiling keyframes. The stroke/ink
-   colours are set on :root below, so the chrome draws in charcoal. */
-@import "drawably/style.css";
 
-/* ── Napkin tokens (wabi-sabi paper + ink) ──────────────────
-   Raw values on :root are the single source of truth; @theme inline
-   exposes them as Tailwind utilities. The dark-site names (panel, line,
-   strong…) stay defined — remapped onto the paper palette — so the docs
-   and any section not yet translated keep rendering coherently. */
+@custom-variant dark (&:is(.dark *));
+
+/* ── Tokens ──────────────────────────────────────────────────
+   shadcn's neutral palette, light and dark. The site reads like a doc:
+   ink on white, one muted grey for secondary text, hairline borders,
+   and colour only where it carries meaning — a diff, a status dot. */
 :root {
-  /* ink */
-  --charcoal: #2c2c2a;
-  --charcoal-light: #595955;
-  --faint: #8a877d;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --border: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 
-  /* paper */
-  --paper: #f4f1ea;
-  --muted-paper: #ebe7dd;
+  --added: oklch(0.6 0.13 150);
+  --added-bg: oklch(0.6 0.13 150 / 0.09);
+  --removed: oklch(0.58 0.19 27);
+  --removed-bg: oklch(0.58 0.19 27 / 0.08);
+  --live: oklch(0.65 0.15 150);
+  --signal: oklch(0.55 0.2 260);
 
-  /* highlighters */
-  --highlighter-yellow: #ffe27a;
-  --highlighter-pink: #ffb8d1;
-  --highlighter-blue: #a8ccff;
-  --highlighter-green: #b5e8b0;
+  /* motion: strong curves, never the weak built-ins */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
 
-  /* legacy names from the dark site, remapped onto the paper palette */
-  --background: var(--paper);
-  --foreground: var(--charcoal);
-  --strong: var(--charcoal);
-  --muted: var(--charcoal-light);
-  --panel: #ffffff;
-  --panel-2: var(--muted-paper);
-  --line: #55534c;
-  --line-soft: #c9c4b6;
-  --accent: #3d63dd;
-  --accent-soft: rgba(61, 99, 221, 0.14);
-  --alert: #b45309;
-  --danger: #d64545;
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.175 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.175 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 
-  /* drawably draws the sketch chrome in ink */
-  --drawably-stroke: var(--charcoal);
-  --drawably-fill: var(--charcoal);
-
-  /* Fumadocs' --color-fd-* tokens, mapped onto the paper palette.
-     Unlayered :root rules beat the preset's @theme defaults. */
-  --color-fd-background: var(--paper);
-  --color-fd-foreground: var(--charcoal);
-  --color-fd-card: #ffffff;
-  --color-fd-card-foreground: var(--charcoal);
-  --color-fd-popover: #ffffff;
-  --color-fd-popover-foreground: var(--charcoal);
-  --color-fd-muted: var(--muted-paper);
-  --color-fd-muted-foreground: var(--charcoal-light);
-  --color-fd-secondary: var(--muted-paper);
-  --color-fd-secondary-foreground: var(--charcoal);
-  --color-fd-primary: var(--charcoal);
-  --color-fd-primary-foreground: var(--paper);
-  --color-fd-accent: rgba(44, 44, 42, 0.08);
-  --color-fd-accent-foreground: var(--charcoal);
-  --color-fd-border: var(--line-soft);
-  --color-fd-ring: var(--charcoal);
+  --added: oklch(0.75 0.13 150);
+  --added-bg: oklch(0.75 0.13 150 / 0.12);
+  --removed: oklch(0.72 0.15 27);
+  --removed-bg: oklch(0.72 0.15 27 / 0.12);
+  --live: oklch(0.75 0.15 150);
+  --signal: oklch(0.72 0.14 260);
 }
 
 @theme inline {
-  /* napkin names */
-  --color-paper: var(--paper);
-  --color-charcoal: var(--charcoal);
-  --color-charcoal-light: var(--charcoal-light);
-  --color-highlighter-yellow: var(--highlighter-yellow);
-  --color-highlighter-pink: var(--highlighter-pink);
-  --color-highlighter-blue: var(--highlighter-blue);
-  --color-highlighter-green: var(--highlighter-green);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* legacy names still resolve for untranslated files */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-strong: var(--strong);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
-  --color-faint: var(--faint);
-  --color-panel: var(--panel);
-  --color-panel-2: var(--panel-2);
-  --color-line: var(--line);
-  --color-line-soft: var(--line-soft);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-alert: var(--alert);
-  --color-danger: var(--danger);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-added: var(--added);
+  --color-added-bg: var(--added-bg);
+  --color-removed: var(--removed);
+  --color-removed-bg: var(--removed-bg);
+  --color-live: var(--live);
+  --color-signal: var(--signal);
 
-  /* Kalam is the body pen, Architects Daughter the Sharpie, JetBrains
-     Mono the rigid technical contrast. */
-  --font-sans: var(--font-kalam), ui-handwriting, system-ui, sans-serif;
-  --font-display: var(--font-architects), var(--font-kalam), cursive;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
-}
-
-* {
-  box-sizing: border-box;
-}
-html {
-  scroll-behavior: smooth;
-}
-body {
-  background: var(--paper);
-  color: var(--charcoal);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  color-scheme: light;
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-::selection {
-  background: var(--highlighter-yellow);
-  color: var(--charcoal);
-}
-:focus-visible {
-  outline: 2px solid var(--charcoal);
-  outline-offset: 2px;
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
 }
 
-/* drawably hosts set their own font; the page's fonts win. */
-.drawably-host {
-  font-family: inherit;
-}
-
-/* ── the sketchbook ground ────────────────────────────────── */
-/* Faint paper grain — an inline feTurbulence noise, no image asset. */
-.paper-texture {
-  background-color: var(--paper);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.17 0 0 0 0 0.17 0 0 0 0 0.16 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-attachment: fixed;
-}
-
-/* ── micro-typography primitives ─────────────────────────── */
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--charcoal-light);
-}
-.readout {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--faint);
-}
-.readout b {
-  color: var(--charcoal-light);
-  font-weight: 500;
-}
-
-/* The terminal chrome: rigid technical data in a drawn panel. Rotation
-   and the sketch border come from the Card around it; this stays flat. */
-.code-shell {
-  border: 1.5px solid var(--charcoal);
-  border-radius: 2px;
-  background: #ffffff;
-  overflow: hidden;
-}
-.code-shell pre {
-  margin: 0;
-  padding: 14px 16px;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.8;
-  font-variant-numeric: tabular-nums;
-  color: var(--charcoal);
-}
-
-/* Docs MDX chrome (fumadocs): code blocks and Tabs get the same pen-lined
-   shell instead of the soft rounded SaaS card fumadocs defaults to. Only
-   /docs renders these; the landing's TerminalBlock uses .code-shell. */
-figure.shiki,
-.bg-fd-card.rounded-xl {
-  border-radius: 2px;
-  border-color: var(--charcoal);
-  border-width: 1.5px;
-  box-shadow: none;
-}
-figure.shiki > .border-b {
-  border-color: var(--line-soft);
-}
-/* a codeblock nested in a tab follows the shell's squared bottom */
-.last\:rounded-b-xl:last-child {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* ── section motion ───────────────────────────────────────── */
-/* The site's motion is opacity, color, and small transforms — scaleX
-   line-draws and short translates, never layout properties. Sections
-   server-render their final frame; a client island arms the section by
-   setting data-motion="on" (only when motion is allowed and the section
-   is in view). The stylesheet holds the frames, the attribute arms them,
-   and the reduced-motion block below is the second belt. The hero
-   machine's changes are interaction-driven — the visitor clicks, the
-   machine changes state — never autoplay. Same for the terminal in the
-   interface section: it types only what the visitor runs. */
-
-@keyframes draw-x {
-  from {
-    transform: scaleX(0);
+@layer base {
+  * {
+    border-color: var(--border);
   }
-  to {
-    transform: scaleX(1);
+  html {
+    scroll-behavior: smooth;
   }
-}
-@keyframes pulse-color {
-  0%,
-  100% {
-    border-color: var(--line);
-    color: var(--charcoal-light);
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
   }
-  50% {
-    border-color: var(--accent);
-    color: var(--accent);
+  ::selection {
+    background: oklch(0.55 0.2 260 / 0.18);
   }
-}
-@keyframes appear {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes caret-blink {
-  50% {
-    opacity: 0;
-  }
-}
-
-/* Connector hairlines: drawn by default, replay the draw when armed. */
-[data-motion="on"] [data-draw] {
-  transform-origin: left center;
-  animation: draw-x 0.4s ease-out both;
-}
-/* The resolved endpoint of a pipeline: a slow live-system pulse. */
-[data-motion="on"] [data-pulse] {
-  animation: pulse-color 2.4s ease-in-out infinite;
-}
-/* Staggered entrance for armed sections; the delay comes inline. */
-[data-motion="on"] [data-appear] {
-  animation: appear 0.5s ease-out both;
-}
-/* The typing caret, mid-command. */
-[data-motion="on"] [data-caret] {
-  animation: caret-blink 0.9s step-end infinite;
-}
-
-/* ── the hero machine's dock ──────────────────────────────── */
-/* The machine's state changes are interaction-driven (the visitor
-   clicks Run), not autoplay — animation clarifies the cause and
-   effect of the scan. While a machine row is unrevealed, its port
-   number waits off-side in accent and its berth hairline is undrawn;
-   the reveal flip walks the number into the berth and settles the
-   color while the line draws in. The from-states live only under the
-   armed attribute, so the server frame and reduced-motion users see
-   every row already at rest. */
-.machine-row {
-  position: relative;
-}
-.machine-row::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: var(--line-soft);
-  transform-origin: left center;
-}
-[data-motion="on"] .machine-row::before {
-  transform: scaleX(1);
-  transition: transform 0.4s ease-out;
-}
-[data-motion="on"] .machine-row.opacity-0::before {
-  transform: scaleX(0);
-}
-[data-motion="on"] .machine-row .port-cell {
-  transition: transform 0.5s ease-out, color 0.5s ease-out;
-}
-[data-motion="on"] .machine-row.opacity-0 .port-cell {
-  transform: translateX(-24px);
-  color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  /* Reduced-motion gets the same final states, instantly. */
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+}
+
+/* ── Enter ───────────────────────────────────────────────────
+   Something new in an explainer — a request, an answer, a log line —
+   arrives rather than appears: up 4px, out of a slight blur, on a strong
+   ease-out. A keyed remount restarts it, so each new value enters. */
+.enter {
+  display: inline-block;
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 240ms var(--ease-out),
+    filter 240ms var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(4px);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    @starting-style {
+      transform: none;
+      filter: none;
+    }
   }
 }

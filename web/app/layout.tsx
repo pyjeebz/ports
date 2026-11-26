@@ -1,29 +1,9 @@
 import type { Metadata } from "next";
-import { Architects_Daughter, JetBrains_Mono, Kalam } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { SITE } from "@/lib/site";
 import "./globals.css";
-
-// The Napkin trio: Architects Daughter (display — the Sharpie), Kalam
-// (body — the ballpoint), JetBrains Mono (code, data, tags — the rigid
-// technical contrast).
-const architectsDaughter = Architects_Daughter({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-architects",
-  display: "swap",
-});
-const kalam = Kalam({
-  weight: ["300", "400", "700"],
-  subsets: ["latin"],
-  variable: "--font-kalam",
-  display: "swap",
-});
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
 
 // Drawn from SITE so the layout, OG images and manifest can't drift.
 const title = `ports — ${SITE.tagline}`;
@@ -49,13 +29,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${architectsDaughter.variable} ${kalam.variable} ${jetbrainsMono.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="paper-texture antialiased">
-        {/* The site is a single paper palette; keep next-themes from
-            flipping it. Fumadocs tokens are retinted in CSS. */}
-        <RootProvider theme={{ defaultTheme: "light", enableSystem: false }}>
+      <body className="antialiased">
+        <RootProvider theme={{ defaultTheme: "system", enableSystem: true }}>
           {children}
         </RootProvider>
       </body>
