@@ -1,0 +1,78 @@
+---
+title: Names
+description: How ports names a dev server — from the project, never the port — and how to name one yourself.
+---
+
+A name is what a dev server is reached by: `http://shop.localhost`. ports works it out from things that don't move when a server restarts — the project, the app's place in it, the branch — so a server that comes back on another port keeps its name.
+
+## Which servers get a name
+
+Every web dev server the scan can put to a project: Next.js, Vite, Astro, Remix, Nuxt, SvelteKit, Angular, Storybook, NestJS, FastAPI, Django, Flask, Rails, Laravel, Phoenix, Spring Boot, Gin and their kin — on the port the app serves, never its debugger. A server ports doesn't recognise, or one outside any project, gets a name when you [give it one](#naming-it-yourself).
+
+Only your own processes are named. Another user's listener shows in the table but is never routed to.
+
+## The project's name
+
+The base of every name in a project is, in order:
+
+1. the `name` in its `package.json`, without a scope — `@acme/shop` is `shop`;
+2. else the name of its folder — or, in a git worktree, the main checkout's folder.
+
+A placeholder name a workspace root often carries — `root`, `monorepo`, `workspace`, `app`, `project` — says nothing, so it falls through to the folder. Names are lowercased, with anything but letters and digits turned into a hyphen: `My Shop` is `my-shop`.
+
+## Apps in a project
+
+The project's main app gets the base alone; every other app gets a role in front of it.
+
+| Where it runs | Its name |
+| --- | --- |
+| `~/shop` | `shop` |
+| `~/shop/apps/web` | `shop` — `web`, `app`, `www`, `site`, `frontend`, `client` and `ui` are the main app |
+| `~/shop/apps/api` | `api.shop` |
+| `~/shop/packages/docs/src` | `docs.shop` — `apps`, `packages`, `services`, `projects`, `modules` and `src` hold apps rather than being one |
+
+When several apps run from the same directory, a frontend keeps the base, a backend becomes `api`, and Storybook becomes `storybook`: Vite, FastAPI and Storybook started in `~/shop` are `shop`, `api.shop` and `storybook.shop`. Two apps that would share a name are told apart by port, lowest first — `shop`, then `vite.shop`, then `vite-2.shop`.
+
+## Worktrees
+
+A linked git worktree puts the last segment of its branch between the role and the base. With `fix/ui` checked out:
+
+| Where it runs | Its name |
+| --- | --- |
+| the main checkout, `~/shop` | `shop` |
+| the worktree, `~/shop-fix-ui` | `ui.shop` |
+| its API, `~/shop-fix-ui/apps/api` | `api.ui.shop` |
+
+A worktree with a detached HEAD uses its folder's name instead of a branch.
+
+## Compose services
+
+A container published by `docker compose` is named after its service, inside the project the compose file sits in: the `web` service of a project started in `~/shop` is `web.shop`. A container that publishes several ports names the lowest, and the rest count up (`minio.shop`, `minio-2.shop`). A name a host app already has stays the host app's.
+
+Databases and other engines that never speak HTTP — PostgreSQL, MySQL, Redis, MongoDB and the like — get a name you can stop and wait on (`ports stop db.shop`), but no route: `db.shop.localhost` would only ever be an error.
+
+## Two projects with one name
+
+Two different repositories that are both called `shop` are told apart once, and remembered. The first one ports sees keeps `shop`; the second gets its parent folder added — `~/client/shop` becomes `shop-client` — then a count if that's taken too. The choice is saved, so a restart, a reboot or a different scan order never swaps them. A project whose folder is gone gives its name up.
+
+Worktrees of one repository are one project here, not a clash: they share the base and differ by branch.
+
+## Naming it yourself
+
+Two ways, both stronger than a name ports works out:
+
+```bash
+ports alias stripe 4242            # a fixed name for a port, until removed
+ports run docs -- npm run docs     # a name for as long as the command runs
+```
+
+An alias names whatever listens on its port, recognised or not, and survives restarts and reboots; `ports alias` lists them and `ports alias stripe --remove` drops one. A `ports run` name lasts exactly as long as the command — it goes when the command exits, and a crash that skips the cleanup still leaves nothing behind.
+
+When names compete for a port, an alias wins over a `ports run` name, which wins over a discovered one. A discovered name that a declared one took for another port is dropped rather than shared.
+
+## Where you'll see names
+
+- The table's **URL** column shows `http://shop.localhost` while the [router](/docs/router) runs, and the server's own address when it doesn't.
+- `--json` rows carry `name` always, and `name_url` while the router runs — new fields, so existing scripts keep working.
+- Every command that takes a name takes these: `ports stop api.shop`, `ports wait shop --http`, `ports open shop`, `--expect api.shop`. `api.shop.localhost` works too.
+- `ports url shop` prints the URL, for scripts.

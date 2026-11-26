@@ -1,0 +1,101 @@
+---
+title: Agents
+description: Give a coding agent ports — over MCP or the shell — so it reuses the dev server that's running, reaches it by name, and stops only what it means to.
+---
+
+Coding agents start a second dev server on the next free port, test the wrong one, and kill whatever holds `:3000`. ports gives them what they're missing: what's already running, its name, and stops that check before they act.
+
+## Over MCP
+
+`ports mcp` is a Model Context Protocol server on stdin and stdout. Add it to the agent:
+
+<Tabs items={["Claude Code", "Any client"]}>
+  <Tab value="Claude Code">
+
+```bash
+claude mcp add ports -- ports mcp
+```
+
+  </Tab>
+  <Tab value="Any client">
+
+```json
+{
+  "mcpServers": {
+    "ports": { "command": "ports", "args": ["mcp"] }
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+Its tools are ports's own commands, run with `--json`, so the agent gets exactly the JSON and exit codes a script would:
+
+| Tool | Does | The command |
+| --- | --- | --- |
+| `list` | Every listening port, with names and URLs; `project`, `framework` filters | `ports --json` |
+| `here` | What's running for a project directory — ask before starting one | `ports here <dir> --json` |
+| `find` | Listeners whose framework, process, project or name contains a query | `ports find <query> --json` |
+| `url` | A server's URL by name, or the app in a directory; `local` for `http://localhost:PORT` | `ports url <name> --json` |
+| `wait` | Block until a port or name is up — `http`, `gone`, `timeout_seconds` | `ports wait <target> --json` |
+| `stop` | Stop by port or name. **`expect` is required** | `ports stop <target> --expect <expect> --json` |
+| `doctor` | Explain a port, or the whole machine | `ports doctor --json` |
+
+Exit `1` — nothing found, a timeout, a refused stop — comes back as a result the agent reads, not an error. There is no `run` tool: the MCP server starts nothing. The agent starts servers in its shell, with `ports run`.
+
+## Over the shell
+
+The same loop, for an agent that runs commands:
+
+```bash
+ports here || (ports run -- npm run dev &)   # reuse it if it's up
+ports wait shop --http                       # until it answers
+curl "$(ports url shop)/api/health"          # by name, never a guessed port
+```
+
+- `ports here` exits `1` when nothing runs for the project, so the `||` starts a server only when there isn't one.
+- `ports run` picks a free port and names the server; when the project is already up it refuses and says where, instead of starting a second copy.
+- `ports url` prints the name's URL while the router runs, and the server's own address when it doesn't — the line works either way. `--local` always gives `http://localhost:PORT`, for clients that can't resolve `*.localhost`.
+
+## Contracts
+
+Everything an agent parses is stable:
+
+- **JSON** with `--json` on every command. A query that finds nothing prints `[]`, never empty output. New fields are added; existing ones keep their names and meaning.
+- **Exit codes**, grep-style: `0` found or done, `1` nothing found, timed out or refused, `2` called wrong.
+- **stderr** for messages, **stdout** only for the result.
+
+A server's row:
+
+```json
+{
+  "port": 3000,
+  "pid": 48391,
+  "process": "node",
+  "framework": "Next.js",
+  "addr": "::",
+  "url": "http://localhost:3000",
+  "project": "/home/dev/shop",
+  "project_name": "shop",
+  "name": "shop",
+  "name_url": "http://shop.localhost",
+  "started": "2026-11-25T09:14:02Z"
+}
+```
+
+`name` is there whenever the server has one; `name_url` only while the router runs.
+
+## Guarded stops
+
+A stop an agent runs should say what it expects to stop:
+
+```bash
+ports stop 3000 --expect nextjs --json
+```
+
+If anything the stop would reach isn't that — a project, framework, container, process or name — nothing is stopped, and the result says what was there instead. Set `PORTS_REQUIRE_EXPECT=1` in the agent's environment and every `stop`, `free` and `kill` must carry `--expect`; one that doesn't is refused with exit `2`. A dry run is let through, and so is the picker, since that's a person choosing.
+
+## Reading these docs
+
+Every page is also Markdown: `/md` for Getting Started, `/md/docs/<page>` for the rest, and [`/llms.txt`](/llms.txt) lists them all. Copy page, at the top of each, copies it for your agent.

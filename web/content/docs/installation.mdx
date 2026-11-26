@@ -1,47 +1,48 @@
 ---
 title: Installation
-description: Install via Homebrew, Scoop, or curl. One static binary, no runtime.
+description: Install, upgrade and remove ports — one static binary, no runtime.
 ---
 
 ## Install
 
-<Tabs items={["Homebrew", "curl", "Scoop"]}>
-  <Tab value="Homebrew">
+```bash
+curl -fsSL https://ports.tools/install | sh
+```
 
-    ```sh
-    brew install pyjeebz/tap/ports
-    ```
+The script downloads the latest release for your OS and CPU (macOS or Linux, amd64 or arm64), checks it against the release's checksums, and installs one binary to `/usr/local/bin`, or `~/.local/bin` when that isn't writable. It puts the man pages on your `MANPATH` when it can. `PORTS_BIN` picks another directory.
 
-  </Tab>
-  <Tab value="curl">
+On Windows, download `ports_<version>_windows_amd64.zip` from the [releases](https://github.com/pyjeebz/ports/releases) and put `ports.exe` on your `PATH`. With Go, `go install github.com/pyjeebz/ports@latest` builds it anywhere.
 
-    ```sh
-    curl -fsSL https://ports.tools/install | sh
-    ```
-
-  </Tab>
-  <Tab value="Scoop">
-
-    ```sh
-    scoop bucket add pyjeebz https://github.com/pyjeebz/scoop-bucket
-    scoop install ports
-    ```
-
-  </Tab>
-</Tabs>
-
-## Verify
-
-```sh
+```console
 $ ports --version
 ports <version>
 ```
 
-<Callout type="info">
-  That's it — there is no step two. Run `ports` and you'll see everything
-  listening on your machine.
-</Callout>
+Nothing else to set up: run `ports` and it lists what's listening. For names, start the [router](/docs/router) once:
+
+```bash
+ports proxy start
+```
 
 ## Man pages
 
-Every release archive carries man(1) pages for the whole command tree — `ports.1`, `ports-doctor.1`, and friends — generated from the exact command definitions the release was built with, so they can't drift from the flags it ships. The curl installer copies them onto your `MANPATH` when it can; out of an archive they're readable directly with `man -l ports.1`. Homebrew and Scoop installs don't include them — everything they say lives on these pages too.
+Every release archive carries man(1) pages for the whole command tree — `ports.1`, `ports-proxy.1` and friends — generated from the commands the release was built with, so they can't drift from its flags. Out of an archive they read directly with `man -l ports.1`.
+
+## Upgrade
+
+Run the install script again. The background router runs the `ports` on your `PATH`, so it picks up the new binary when it next starts:
+
+```bash
+ports proxy stop && ports proxy start
+```
+
+On Linux, an upgrade replaces the file and with it the capability that lets the router use port 80. `ports proxy start` offers it again; until then the router runs on 8480.
+
+## Remove
+
+```bash
+ports proxy stop       # stop the router, and remove its login service
+ports hosts clean      # take ports's names out of the hosts file
+```
+
+Then delete the binary, and the state directory if you like — it holds names, aliases and nothing else you'd miss. See [where it keeps state](/docs/router#where-it-keeps-state).

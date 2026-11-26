@@ -1,0 +1,110 @@
+---
+title: Router
+description: The loopback-only router behind http://<name>.localhost — how a request finds its server, ports 80 and 8480, running it in the background, and names for every client.
+---
+
+The router is what makes `http://shop.localhost` answer. It listens on this machine's loopback, reads the Host a request was sent to, and passes the request to the dev server holding that name.
+
+## How a request finds its server
+
+1. A browser sends every `*.localhost` name to this machine on its own — nothing to configure.
+2. The router reads the Host header and looks the name up in its route table.
+3. It passes the request on: plain requests, streamed responses and WebSocket upgrades alike, so hot reload works as it does on `localhost:3000`.
+4. The dev server sees `Host: shop.localhost` and `X-Forwarded-Host`, so the links, redirects and cookies it makes carry the name.
+
+The route table isn't declared anywhere. ports rebuilds it from a fresh scan every two seconds, and again on a name it doesn't know yet, so a server that restarts on another port is found where it went. A server bound to only one loopback — `::1`, as Node does for `localhost` — is reached there.
+
+## Run it
+
+```bash
+ports proxy                # in the foreground, until Ctrl-C
+ports proxy start          # in the background, started again at login
+ports proxy status         # whether it runs, where, and how
+ports proxy stop           # stop it, and remove what start set up
+```
+
+In the foreground it prints each name, then every change as it happens:
+
+```console
+$ ports proxy
+✓ routing *.localhost on :80 — Ctrl-C stops it
+
+  http://api.shop.localhost   :8000   FastAPI   ~/shop
+  http://shop.localhost       :3000   Next.js   ~/shop
+
+  + http://docs.shop.localhost → :4321 Astro
+  ~ http://shop.localhost → :3001 Next.js
+  - http://docs.shop.localhost
+```
+
+`ports proxy start` keeps it running: a systemd user unit on Linux, a launchd agent on macOS, both started at login. Where neither is there — Windows, WSL without systemd, a machine reached over SSH with no login session — it runs as a background process until logout, and says so. The service runs the `ports` on your `PATH`, so a package-manager upgrade doesn't strand it.
+
+Start is idempotent: a router that already runs is left alone, exit `0`. `ports proxy status` exits `0` when a router runs and `1` when none does, so `ports proxy status || ports proxy start` is safe to put anywhere. `stop` also stops a router running in another terminal — after checking the process really is one.
+
+## Port 80, or 8480
+
+The router prefers port 80, so a name needs no port: `http://shop.localhost`. When 80 is taken or not allowed it uses **8480** instead — one fixed number, never a random free one, so a URL written down once keeps working: `http://shop.localhost:8480`.
+
+- **macOS and Windows** let a user bind 80.
+- **Linux** reserves ports below 1024. In a terminal, `ports proxy start` offers the one-time command that allows it, and runs it only if you say yes:
+
+  ```bash
+  sudo setcap cap_net_bind_service=+ep "$(command -v ports)"
+  ```
+
+  The capability is on the binary, so an upgrade that replaces the file drops it; `ports doctor` then shows the router on 8480 and how to get 80 back.
+- `--port` picks a port yourself, with no fallback: `ports proxy --port 8080`.
+
+## What it refuses
+
+- **Anything off this machine.** It binds `127.0.0.1` and `::1`, nowhere else.
+- **A Host that isn't one of its names.** A request for any host but `localhost` and `*.localhost` gets `421 Misdirected Request`. That's what stops a web page from reaching your dev servers by pointing its own domain at `127.0.0.1`.
+- **Someone else's server.** It routes the dev servers of the user it runs as. Run through `sudo`, it refuses to start — you meant your own servers, and `setcap` gets port 80 without root. Where root is the only user, as in a container or a sandbox, it runs and routes root's own.
+
+## Its own pages
+
+When a request can't reach a server, the router answers itself — in plain text for curl, scripts and agents, and in a browser as a page that reloads every two seconds, so it turns into your app the moment the server is up:
+
+| Request | Answer |
+| --- | --- |
+| `http://localhost` | `200` — every name it serves, as links |
+| a name nothing has | `404` — `Nothing is called docs yet`, and the names that exist |
+| a name whose server stopped | `502` — `shop isn't running`, where it was, and how to start it |
+| a Host that isn't `.localhost` | `421` |
+
+## Frameworks
+
+The dev server sees the name as its Host, and most accept it as is. Checked through the router, hot reload included: **Vite 8** (it allows `.localhost` hosts by default) and **Next.js 16** (its HMR socket is `/_next/hmr`). Django allows `.localhost` too while `DEBUG` is on and `ALLOWED_HOSTS` is empty.
+
+A server with a stricter host check needs `.localhost` added to its allow list — Vite's `server.allowedHosts`, webpack-dev-server's `allowedHosts`, Django's `ALLOWED_HOSTS` once it's set.
+
+## Names for every client
+
+Browsers and curl resolve every `*.localhost` name to this machine on their own. Node's `fetch`, Python and Go ask the system resolver instead, and some systems don't know these names: **Windows**, and **Linux** whose `/etc/resolv.conf` skips systemd-resolved's stub — a VPN's DNS, say. macOS and a stock Ubuntu do.
+
+`ports doctor` checks each name the way those clients would. When one doesn't resolve:
+
+```console
+$ ports hosts sync
+✓ /etc/hosts resolves 2 name(s) for every client: api.shop, shop
+$ ports hosts clean
+✓ the hosts file holds no names from ports
+```
+
+`sync` writes the running names and your aliases into one marked block in the hosts file, pointing at both loopbacks; nothing else in the file is touched, and `clean` leaves it byte for byte as it was. Names already in the block stay, so a stopped server's name still resolves for when it's back — `--prune` drops them. Bare `ports hosts` shows what the block holds and what it lacks.
+
+Writing the hosts file takes root: sync and clean ask `sudo` once, and run nothing as root but the write — the names are checked first, and only names get in. With no terminal to type a password in, they fail at once instead of waiting. On Windows, run them from an elevated terminal. On WSL, the distro rewrites `/etc/hosts` at boot unless `generateHosts = false` is set in `/etc/wsl.conf`.
+
+For a single URL, `ports url shop --local` prints the server's own address, `http://localhost:4123`, which every client reaches.
+
+## Where it keeps state
+
+Names, aliases, `ports run` registrations and the router's whereabouts live in one user-only directory. Deleting it costs your aliases and which of two same-named projects keeps the name; everything else is rebuilt from the machine:
+
+| Platform | Directory |
+| --- | --- |
+| Linux | `$XDG_STATE_HOME/ports`, else `~/.local/state/ports` |
+| macOS | `~/Library/Application Support/ports` |
+| Windows | `%LocalAppData%\ports` |
+
+`PORTS_STATE_DIR` moves it. A background router started with it set keeps using the same directory.

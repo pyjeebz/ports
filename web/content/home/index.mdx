@@ -16,7 +16,7 @@ Nothing about how you start servers changes. Run `npm run dev` the way you alway
 
 <Install />
 
-One static binary for macOS, Linux and Windows, WSL included. No runtime, no account.
+One static binary for macOS and Linux, WSL included; on Windows, take it from the [releases](https://github.com/pyjeebz/ports/releases). No runtime, no account.
 
 ## Every server, by name
 
@@ -140,8 +140,8 @@ Browsers and curl send every `*.localhost` name to this machine on their own. No
 
 ```console
 $ ports doctor
-· this machine's resolver doesn't find shop, api.shop
-  → `ports hosts sync` writes them to the hosts file
+· this machine's resolver doesn't find shop, api.shop — browsers and curl reach them, but Node's fetch, Python and Go clients don't
+  → `ports hosts sync` writes them to the hosts file; meanwhile `ports url --local <name>` gives an address every client reaches
 $ ports hosts sync
 ✓ /etc/hosts resolves 2 name(s) for every client: api.shop, shop
 ```
@@ -152,4 +152,4 @@ The names go in one marked block, and nothing else in the file is touched. `port
 
 <Promises />
 
-Every command and flag is in the [docs](/docs); the source is on [GitHub](https://github.com/pyjeebz/ports).
+Every command and flag is in the [docs](/docs/commands); how names are made is in [Names](/docs/names), the router in [Router](/docs/router), and the agent setup in [Agents](/docs/agents). The source is on [GitHub](https://github.com/pyjeebz/ports).

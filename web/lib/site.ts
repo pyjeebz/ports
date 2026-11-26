@@ -8,7 +8,7 @@ export const SITE = {
   description:
     "ports gives every dev server a stable name — http://shop.localhost instead of http://localhost:3000 — whether it started it or not. See what's running, reach it by name, stop it safely. For people and coding agents.",
   links: {
-    docs: "/docs",
+    docs: "/docs/commands",
     commands: "/docs/commands",
     github: "https://github.com/pyjeebz/ports",
     releases: "https://github.com/pyjeebz/ports/releases",

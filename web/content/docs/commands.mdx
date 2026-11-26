@@ -16,13 +16,13 @@ Display every listening TCP port with its framework, project directory, and upti
 | PROCESS  | The human-readable name of the service — framework detection first, then container image names, then raw process names. |
 | PROJECT  | For a process, its project directory's name, with just enough of its parents to tell two same-named projects apart (`work/api`, `oss/api`) — `--json` and doctor's header carry the full path. Otherwise a `docker:` container reference, a `systemd:` unit, `windows`, `user: <name>` for another user's listener ports couldn't trace, or `—` when unknown. |
 | UPTIME   | Duration with `s`, `m`, `h`, `d` suffixes — or `?` when unknown.                                               |
-| URL      | Where a web dev server answers — `http://localhost:3000` — for the frameworks that serve plain HTTP unless told otherwise (Next.js, Vite, Astro, Remix, Nuxt, SvelteKit, Storybook, FastAPI, Django, Flask, Rails, Laravel, Phoenix, Spring Boot, Gin, and their kin). One URL per app, on its own port: the one its command line names with `--port`/`-p`, else its lowest port that isn't a debugger's (`--inspect`, JDWP, debugpy, LiveReload). HTTPS chosen on the command line (`--ssl`, `--cert`, `--experimental-https`…) gets no `http://` URL; HTTPS set in a config file can't be seen. Known from the framework, never by sending a request, so listing stays side-effect free; the column appears only when a row has one, and is a clickable link in a terminal that supports it (plain text in a pipe or with `NO_COLOR`). `ports doctor` verifies a port answers HTTP when you ask about it. |
+| URL      | Where a web dev server answers — `http://shop.localhost` while the [router](/docs/router) runs, else its own address, `http://localhost:3000` — for the frameworks that serve plain HTTP unless told otherwise (Next.js, Vite, Astro, Remix, Nuxt, SvelteKit, Storybook, FastAPI, Django, Flask, Rails, Laravel, Phoenix, Spring Boot, Gin, and their kin). One URL per app, on its own port: the one its command line names with `--port`/`-p`, else its lowest port that isn't a debugger's (`--inspect`, JDWP, debugpy, LiveReload). HTTPS chosen on the command line (`--ssl`, `--cert`, `--experimental-https`…) gets no `http://` URL; HTTPS set in a config file can't be seen. Known from the framework, never by sending a request, so listing stays side-effect free; the column appears only when a row has one, and is a clickable link in a terminal that supports it (plain text in a pipe or with `NO_COLOR`). `ports doctor` verifies a port answers HTTP when you ask about it. |
 
 <span id="cmd-find" />
 
 ## ports find \<name\>
 
-Filter the table. Case-insensitive, matches substrings across framework, process, project, container, and systemd unit names — framework names in their typed form too, so `ports find nextjs` finds Next.js. The listing filters (`--port`, `--framework`, `--project`, `--uptime`) narrow the matches further.
+Filter the table. Case-insensitive, matches substrings across name, framework, process, project, container, and systemd unit names — framework names in their typed form too, so `ports find nextjs` finds Next.js. The listing filters (`--port`, `--framework`, `--project`, `--uptime`) narrow the matches further.
 
 ```sh
 $ ports find postgres
@@ -38,8 +38,8 @@ What's running for this project — the directory you're in, or the one named. A
 ```sh
 $ cd ~/projects/shop/web && ports here
 PORT   PROCESS      PROJECT           UPTIME   URL
-3000   Next.js      shop              14m      http://localhost:3000
-8000   FastAPI      shop              14m      http://localhost:8000
+3000   Next.js      shop              14m      http://shop.localhost
+8000   FastAPI      shop              14m      http://api.shop.localhost
 5432   PostgreSQL   docker: shop-db   2d
 ```
 
@@ -57,14 +57,14 @@ Block until something listens, then print its row — the step between starting 
 $ npm run dev &
 $ ports wait 3000 --http
 PORT   PROCESS   PROJECT   UPTIME   URL
-3000   Next.js   shop      3s       http://localhost:3000
+3000   Next.js   shop      3s       http://shop.localhost
 
 $ ports stop 3000 && ports wait 3000 --gone
 ✓ killed Next.js (pid 48391) — port 3000 is free
 ✓ :3000 is free
 ```
 
-A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports stop` would match — a project, framework, container, or process. `--http` waits until the port answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
+A port (`3000` or `:3000`) waits for any listener on it — anything numeric is read as a port, so a service named `2048` is waited on by its port, not its name; a name waits for a service `ports stop` would match — a [name](/docs/names) like `api.shop`, a project, framework, container, or process. `--http` waits until it answers an HTTP request, on `127.0.0.1` or `::1`: dev servers often bind before they can serve. With a name, `--http` waits for the one server that name reaches. `--gone` waits until the port or service is free. `--timeout` gives up after `30s` by default (`0` waits forever).
 
 Exits `0` when the condition is met, `1` when the timeout passes first — saying what it was waiting on and the command that moves things along — `2` for a bad invocation, and `130` when interrupted. ports wait only watches; it never starts anything.
 
@@ -85,7 +85,7 @@ $ ports open shop
   6006   Storybook   shop      2h       http://localhost:6006
 ```
 
-A port opens that port; a name opens the web server `ports stop` would match. ports asks the listener before it opens anything — one `HEAD` over HTTPS, then over HTTP — so the browser gets the scheme the server really speaks, and a port that isn't a web server (a database, a debugger, one still starting) is reported with exit `1` rather than opened. A cold dev server gets a few seconds to compile its first page before it answers; a plain-HTTP server may log the HTTPS attempt as a bad request. A name with several web servers behind it opens a picker in a terminal; off one — a script, an agent — it's a usage error (exit `2`) that lists the ports, so name one.
+A port opens that port; a name opens the web server `ports stop` would match. A name the router serves opens as that name, `http://shop.localhost`. Otherwise ports asks the listener before it opens anything — one `HEAD` over HTTPS, then over HTTP — so the browser gets the scheme the server really speaks, and a port that isn't a web server (a database, a debugger, one still starting) is reported with exit `1` rather than opened. A cold dev server gets a few seconds to compile its first page before it answers; a plain-HTTP server may log the HTTPS attempt as a bad request. A name with several web servers behind it opens a picker in a terminal; off one — a script, an agent — it's a usage error (exit `2`) that lists the ports, so name one.
 
 `$BROWSER` is honoured (its first entry, split on spaces, no shell; `%s` stands for the URL). Otherwise ports uses `open` on macOS, `xdg-open` on Linux, `wslview` or `explorer.exe` inside WSL, and the URL handler on Windows. If no browser starts, the URL is printed and the exit is `1`. ports opens a browser, never a server.
 
@@ -95,7 +95,7 @@ A port opens that port; a name opens the web server `ports stop` would match. po
 
 ## ports stop \<port|name\>
 
-Stop what you name. A port (`3000` or `:3000`) stops whatever listens on it; anything else is a name — a project, framework, container, systemd unit, or process — and stops every service it matches. Anything all-digits is read as a port, so a project named `2048` stops by name with `ports kill 2048`.
+Stop what you name. A port (`3000` or `:3000`) stops whatever listens on it; anything else is a name — a [name](/docs/names) like `api.shop`, a project, framework, container, systemd unit, or process — and stops every service it matches. Anything all-digits is read as a port, so a project named `2048` stops by name with `ports kill 2048`.
 
 ```sh
 $ ports stop 3000
@@ -105,6 +105,9 @@ $ ports stop shop
 ✓ stopped Next.js (:3000)
 ✓ stopped FastAPI (:8000)
 ✓ stopped PostgreSQL (:5432)
+
+$ ports stop api.shop
+✓ stopped FastAPI (:8000)
 ```
 
 SIGTERM first, SIGKILL only if the process doesn't exit; `--force` skips straight to SIGKILL. Docker-backed ports stop the container through the engine — never docker-proxy.
@@ -125,7 +128,7 @@ $ ports stop 3000 --expect nextjs
   → nothing was stopped — drop --expect to stop regardless, or `ports doctor 3000` to look closer
 ```
 
-It's the guard to put on any stop a script or an agent runs: "stop :3000" becomes "stop :3000 if it's still my dev server". A listener whose owner is hidden can't prove what it is, so the guard refuses it.
+It's the guard to put on any stop a script or an agent runs: "stop :3000" becomes "stop :3000 if it's still my dev server". A listener whose owner is hidden can't prove what it is, so the guard refuses it. With `PORTS_REQUIRE_EXPECT=1` set, every `stop`, `free` and `kill` must carry `--expect` — one that doesn't is refused with exit `2` — except a dry run, and the picker.
 
 ### Results as JSON
 
@@ -184,11 +187,93 @@ What it checks:
 | `sockets` | Everything else on the port: TIME_WAIT (ages out in ~60s) and CLOSE_WAIT (a leak hint in the app) as `·` info, live client connections. |
 | `windows` / `mirror` | On WSL2: a listener on the Windows side signals can't reach, and the same port held on both sides. |
 
-Bare `ports doctor` runs the machine-wide subset — the container engine, every proxy row that didn't resolve, every port shared by more than one process, and every listener a plain scan can't attribute.
+Bare `ports doctor` runs the machine-wide subset — the container engine, every proxy row that didn't resolve, every port shared by more than one process, and every listener a plain scan can't attribute. Once dev servers have names it adds the [router](/docs/router): whether one runs and on which port, and whether this machine's own resolver finds each name the way Node, Python and Go would. Those are info, so a machine that doesn't use names never fails doctor over them.
 
 Findings marked `·` are info: something worth knowing with nothing to do about it, like TIME_WAIT sockets on a healthy server. They never fail the exit code.
 
 Exit codes are grep-style: `0` when nothing needs doing (every finding is ✓ or `·`), `1` when anything is ⚠ or ✗ — so `ports doctor 3000 && ./deploy.sh` gates naturally — and `2` for bad arguments. `--format json` emits the findings as an array of `{check, status, message, fix}` objects, where `status` is `ok`, `info`, `warn`, or `fail`.
+
+<span id="cmd-url" />
+
+## ports url \[name\]
+
+The URL a dev server answers at, by its [name](/docs/names) — the one to hand a script or a test runner instead of a port.
+
+```bash
+$ ports url api.shop
+http://api.shop.localhost
+$ curl "$(ports url api.shop)/health"
+```
+
+With no name it's the app in the directory you're in, else the project's main app. While the router runs the URL is the name's; without one it's the server's own address, `http://localhost:8000`, so a script works either way. `--local` always prints the server's own address — for clients that can't resolve `*.localhost`. `--json` prints `{"name", "url", "port", "local_url"}`. Exits `1` when nothing running has that name, listing the names that are.
+
+<span id="cmd-run" />
+
+## ports run \[name\] -- \<command\>
+
+Start a dev server on a free port, under its name, for as long as it runs.
+
+```bash
+$ ports run -- npm run dev
+→ http://shop.localhost (:4123)
+```
+
+The port comes from 4000–4999 — the same one each time the name runs, when it's free — or `--port`, or the one the command names itself (`--port 3000`, `-p 3000`). It reaches the server the way its framework takes one: `PORT` (and `FLASK_RUN_PORT`, `UVICORN_PORT`) for Next.js, Nuxt and most servers; `--port` with `--strictPort` for Vite; `--port` for Astro and Angular — after the `--` that `npm run` needs. The framework is read from the `package.json` script behind `npm run dev`, `pnpm dev`, `yarn dev` or `bun run dev`.
+
+The name is the project's, as ports names any server; give one before the `--` to choose. When the name is already taken — the project running elsewhere, an alias, another `ports run` — it says where instead of starting a second copy, and exits `1`.
+
+ports run starts only the command given and supervises nothing. Signals reach the command and everything it started — npm alone would leave Vite holding the port — the name goes when the command exits, and ports run exits with the command's code (`127` when the command doesn't exist).
+
+<span id="cmd-alias" />
+
+## ports alias \[name\] \[port\]
+
+A fixed name for a port ports can't name on its own — a server outside any project, or one it doesn't recognise.
+
+```bash
+$ ports alias stripe 4242
+✓ stripe.localhost → :4242
+$ ports alias                     # list them
+$ ports alias stripe --remove
+✓ removed stripe.localhost
+```
+
+An alias wins over any other name for its port, routes whatever listens there, and lasts until removed — across restarts and reboots. When nothing holds the port, the name says so. `--json` lists `[{"name", "port"}]`.
+
+<span id="cmd-proxy" />
+
+## ports proxy
+
+The [router](/docs/router): every web dev server at `http://<name>.localhost`.
+
+| Command | Does |
+| --- | --- |
+| `ports proxy` | Runs it in the foreground, printing each name and every change, until Ctrl-C. `--port` picks the port, with no fallback. |
+| `ports proxy start` | Runs it in the background, started again at login — a systemd user unit on Linux, a launchd agent on macOS, a background process elsewhere. On Linux, in a terminal, offers the one-time `setcap` for port 80. Exits `0` when it already runs. |
+| `ports proxy status` | Whether it runs, on which port, and how it's kept running. Exits `0` when it runs, `1` when it doesn't. `--json` prints `{"running", "pid", "port", "managed_by", "starts_at_login", "log"}`. |
+| `ports proxy stop` | Stops it — a background one, or one in another terminal — and removes what start set up. Dev servers keep running. |
+
+<span id="cmd-hosts" />
+
+## ports hosts
+
+Names for the clients that don't resolve `*.localhost` on their own — Node's `fetch`, Python and Go on Windows and some Linux setups. See [names for every client](/docs/router#names-for-every-client).
+
+| Command | Does |
+| --- | --- |
+| `ports hosts` | What the hosts file's ports block holds, and which running names it lacks. `--json` prints `{"file", "names", "missing"}`. |
+| `ports hosts sync` | Writes the running names and aliases into one marked block, through `sudo`. Keeps names already there unless `--prune`. |
+| `ports hosts clean` | Takes the block out, leaving the file as it was. |
+
+<span id="cmd-mcp" />
+
+## ports mcp
+
+A Model Context Protocol server on stdin and stdout, for coding agents: `list`, `here`, `find`, `url`, `wait`, `stop` (with `expect` required) and `doctor`, each the command run with `--json`. It starts nothing. See [Agents](/docs/agents).
+
+```bash
+claude mcp add ports -- ports mcp
+```
 
 <span id="flags" />
 
@@ -198,8 +283,8 @@ Each command takes the flags it uses and no others. A flag given to a command th
 
 | Flag | Commands | Effect |
 | ---- | -------- | ------ |
-| `--format table\|json` | every command but `completion` | Output format. `json` is an array of `{port, pid, process, framework, project, url, started, container, user, unit, …}` objects — the seam for scripts and agents. |
-| `--json` | every command but `completion` | Short for `--format json`. `stop` reports [result objects](#expect). |
+| `--format table\|json` | the listing commands, `stop`, `wait`, `doctor`, `url` | Output format. `json` is an array of `{port, pid, process, framework, project, url, started, container, user, unit, …}` objects — the seam for scripts and agents. |
+| `--json` | every command that prints a result | Short for `--format json`. `stop` reports [result objects](#expect). |
 | `--port` | `ports`, `find`, `here` | Filter by port(s): `3000`, `3000-4000`, `:3000,:8000`. |
 | `--framework` | `ports`, `find`, `here` | Filter by framework(s) as you'd type them — case, spaces, and punctuation don't matter: `nextjs,vite`, `springboot`. |
 | `--project` | `ports`, `find`, `here` | Filter by project name or path: `shop`, `~/projects/shop`. |
@@ -211,8 +296,12 @@ Each command takes the flags it uses and no others. A flag given to a command th
 | `--dry-run` | `stop` | Show what would be stopped, without stopping it. |
 | `--expect` | `stop` | Stop only if every target it would stop matches this name — otherwise stop nothing; skipped rows aren't judged. See [guarded stops](#expect). |
 | `--timeout` | `wait` | Give up after this long (default `30s`; `0` waits forever). |
-| `--http` | `wait` | Wait until the port answers HTTP, not just connections. Ports only. |
+| `--http` | `wait` | Wait until it answers HTTP, not just accepts connections. With a name, the one server the name reaches. |
 | `--gone` | `wait` | Wait until the port or service is free instead. |
+| `--local` | `url` | Print the server's own address, `http://localhost:4123`, not the name's. |
+| `--port` | `run`, `proxy` | Run the command on this port; run the router on this port, with no fallback. |
+| `--remove` | `alias` | Drop the alias. |
+| `--prune` | `hosts sync` | Drop names from the hosts file that no server or alias holds now. |
 
 When a filter leaves the table empty, `ports` says `nothing listening matches the filter` rather than claim nothing is listening.
 
@@ -252,26 +341,18 @@ The same three codes everywhere, grep-style — so `ports doctor 3000 && ./deplo
 
 An interrupted `ports wait` exits `130` — its condition was never met — and so does a stop or open picker left without choosing; an interrupted `ports --watch` exits `0`, since Ctrl-C is how a watch ends. Errors report on stderr; stdout stays clean for whatever's piping it — and with `--json`, a query that found nothing still prints `[]`.
 
+## Environment
+
+| Variable | Effect |
+| --- | --- |
+| `PORTS_REQUIRE_EXPECT` | Set (and not `0`, `false` or `no`), every `stop`, `free` and `kill` must carry `--expect`. |
+| `PORTS_STATE_DIR` | Where ports keeps names, aliases and the router's whereabouts. See [where it keeps state](/docs/router#where-it-keeps-state). |
+| `NO_COLOR` | Plain output, no colour or links. |
+| `BROWSER` | The browser `ports open` starts. |
+
 ## Scripts and agents
 
-Every command speaks JSON (`--json`), reports errors on stderr, and exits grep-style, so a script or a coding agent can drive ports without parsing tables. The dev-server loop, without duplicate servers or sleep-and-retry:
-
-```sh
-# reuse the server if this project already runs one, else start it
-ports here --port 3000 --json || (npm run dev &)
-
-# block until it actually serves, then use it
-ports wait 3000 --http --timeout 60s
-```
-
-Stopping is just as explicit. Guard every stop with what you expect to find, and read the result instead of parsing lines:
-
-```sh
-# stop :3000 only if it's still this project's Next.js — never someone's database
-ports stop 3000 --expect nextjs --json
-```
-
-`--dry-run` previews the targets, and `ports doctor 3000` explains a stop that failed — every finding with the command that fixes it, never an action taken on its own.
+Every command speaks JSON, reports errors on stderr and exits grep-style, so a script or a coding agent can drive ports without parsing tables. The loop, the MCP server and the contracts are on [Agents](/docs/agents).
 
 ## Permissions
 
