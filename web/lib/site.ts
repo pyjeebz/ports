@@ -16,4 +16,5 @@ export const SITE = {
     install: "/install",
   },
   installCurl: "curl -fsSL https://ports.tools/install | sh",
+  installNpm: "npm i -g @pyjeebz/ports",
 } as const;

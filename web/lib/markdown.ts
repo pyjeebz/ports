@@ -4,7 +4,7 @@ import { SITE } from "@/lib/site";
 // from them: the install command, a sentence for each diagram, the code
 // inside the tabs, the promises as a list.
 const REPLACEMENTS: [RegExp, string][] = [
-  [/<Install\s*\/>/g, "```bash\n" + SITE.installCurl + "\n```"],
+  [/<Install\s*\/>/g, "```bash\n" + SITE.installCurl + "\n# or\n" + SITE.installNpm + "\n```"],
   [
     /<RouteFlow\s*\/>/g,
     "_Diagram: a request for shop.localhost reaches the router on :80, which matches the Host to the shop route and passes it to :3000; a request for evil.example is refused with 421._",

@@ -5,13 +5,25 @@ description: Install, upgrade and remove ports — one static binary, no runtime
 
 ## Install
 
+### curl
+
 ```bash
 curl -fsSL https://ports.tools/install | sh
 ```
 
 The script downloads the latest release for your OS and CPU (macOS or Linux, amd64 or arm64), checks it against the release's checksums, and installs one binary to `/usr/local/bin`, or `~/.local/bin` when that isn't writable. It puts the man pages on your `MANPATH` when it can. `PORTS_BIN` picks another directory.
 
-On Windows, download `ports_<version>_windows_amd64.zip` from the [releases](https://github.com/pyjeebz/ports/releases) and put `ports.exe` on your `PATH`. With Go, `go install github.com/pyjeebz/ports@latest` builds it anywhere.
+### npm
+
+```bash
+npm i -g @pyjeebz/ports
+```
+
+The same binary on macOS, Linux and Windows. npm installs only the package for your platform (`@pyjeebz/ports-<os>-<arch>`, an optional dependency) and runs it through a small launcher; there's no postinstall script, so it works with `--ignore-scripts`. To run it without installing: `npx @pyjeebz/ports here`.
+
+### Otherwise
+
+Download an archive from the [releases](https://github.com/pyjeebz/ports/releases) and put `ports` (`ports.exe` on Windows) on your `PATH`. With Go, `go install github.com/pyjeebz/ports@latest` builds it anywhere.
 
 ```console
 $ ports --version
@@ -30,7 +42,7 @@ Every release archive carries man(1) pages for the whole command tree — `ports
 
 ## Upgrade
 
-Run the install script again. The background router runs the `ports` on your `PATH`, so it picks up the new binary when it next starts:
+Run the install script again, or `npm i -g @pyjeebz/ports@latest`. The background router runs the `ports` on your `PATH`, so it picks up the new binary when it next starts:
 
 ```bash
 ports proxy stop && ports proxy start

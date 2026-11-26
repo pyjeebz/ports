@@ -1,24 +1,27 @@
 <p align="center">
   <a href="https://ports.tools">
-    <img src=".github/og.png" alt="ports — see every port, stop it by name" width="760">
+    <img src=".github/og.png" alt="ports — every dev server on your machine, by name" width="760">
   </a>
 </p>
 
 # ports
 
-**See what's running on your machine, by project — and kill it by name.**
+**Every dev server on your machine, by name.**
 
-[**ports.tools**](https://ports.tools) · [Docs](https://ports.tools/docs) · [Releases](https://github.com/pyjeebz/ports/releases)
+[**ports.tools**](https://ports.tools) · [Docs](https://ports.tools/docs/commands) · [Releases](https://github.com/pyjeebz/ports/releases)
 
-`ports` answers one question, instantly and with zero configuration: *what is running on this machine right now, and what does it belong to?*
+`ports` gives every dev server on your machine a stable name — `http://shop.localhost` instead of `http://localhost:3000` — whether it started the server or not. See what's running, reach it by name, stop it safely. For people and coding agents.
 
 ```
+$ ports proxy start
+✓ routing *.localhost on :80 — a systemd user unit, started at login
+
 $ ports
 PORT   PROCESS      PROJECT           UPTIME   URL
-3000   Next.js      shop              14m      http://localhost:3000
+3000   Next.js      shop              14m      http://shop.localhost
 5432   PostgreSQL   docker: shop-db   2d
-8000   FastAPI      shop              14m      http://localhost:8000
-5173   Vite         admin             3h       http://localhost:5173
+8000   FastAPI      shop              14m      http://api.shop.localhost
+5173   Vite         admin             3h       http://admin.localhost
 
 $ ports stop shop
 ✓ stopped Next.js (:3000)
@@ -79,6 +82,18 @@ been running. That context is what turns "kill a random PID and hope" into
 
 ## Install
 
+**curl** (macOS, Linux):
+
+```
+curl -fsSL https://ports.tools/install | sh
+```
+
+**npm** (macOS, Linux, Windows):
+
+```
+npm i -g @pyjeebz/ports
+```
+
 **Homebrew** (macOS):
 
 ```
@@ -92,12 +107,6 @@ scoop bucket add pyjeebz https://github.com/pyjeebz/scoop-bucket
 scoop install ports
 ```
 
-**curl** (Linux, macOS):
-
-```
-curl -fsSL https://ports.tools/install | sh
-```
-
 Or grab a binary from the [releases page](https://github.com/pyjeebz/ports/releases), or `go install github.com/pyjeebz/ports@latest`. Every release archive also carries man(1) pages for the whole command tree — the curl installer puts them on your `MANPATH` when it can.
 
-Full documentation lives at [ports.tools/docs](https://ports.tools/docs).
+Full documentation lives at [ports.tools](https://ports.tools).
