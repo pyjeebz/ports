@@ -44,6 +44,11 @@ jobs:
         run: |
           cmp install.sh web/app/install/script.sh
           sh -n install.sh
+      - name: npm launcher and scripts parse
+        run: |
+          node --check tools/npm/ports.js
+          node --check tools/npm/build.mjs
+          sh -n tools/npm/publish.sh
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26'

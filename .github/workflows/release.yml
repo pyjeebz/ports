@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # npm provenance: each package says which workflow built it
 
 jobs:
   goreleaser:
@@ -24,3 +25,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+      # npm: the same archives goreleaser just built and checksummed, as
+      # @pyjeebz/ports and one package per platform
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          node tools/npm/build.mjs "${GITHUB_REF_NAME#v}" dist npm-out
+          sh tools/npm/publish.sh npm-out --provenance
