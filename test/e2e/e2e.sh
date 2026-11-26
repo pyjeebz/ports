@@ -2,9 +2,12 @@
 # End to end, on a real machine: the router, ports run, aliases, the hosts
 # file, the background service and compose names — the paths that touch
 # the system and so can't run on a developer's own machine casually. A
-# CI runner is the machine here: disposable, passwordless sudo (an admin
-# on Windows), Docker on Linux. Run it anywhere else only knowingly: it
-# installs and removes the router's service and edits the hosts file.
+# CI runner or a sandbox is the machine here: disposable, root or
+# passwordless sudo (an admin on Windows), Docker on the Linux runner. Run
+# it anywhere else only knowingly: it installs and removes the router's
+# service and edits the hosts file. In an Ephemera sandbox:
+#   ephemera run --include dist/e2e/ports -- sh -c 'PATH=$PWD/dist/e2e:$PATH bash test/e2e/e2e.sh'
+# after CGO_ENABLED=0 GOOS=linux go build -o dist/e2e/ports .
 set -euo pipefail
 
 os=$(uname -s)
@@ -99,7 +102,10 @@ done_
 
 group "the router in the background"
 want=process
-case "$os" in Linux) want=systemd ;; Darwin) want=launchd ;; esac
+case "$os" in
+Linux) systemctl --user show-environment >/dev/null 2>&1 && want=systemd ;; # none in a microVM
+Darwin) want=launchd ;;
+esac
 ports proxy start || fail "proxy start"
 ports proxy start >/dev/null || fail "a second proxy start isn't a no-op"
 managed=$(ports proxy status --json | json 'j["managed_by"]')

@@ -9,11 +9,14 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
 	"text/tabwriter"
 	"time"
+
+	gproc "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/pyjeebz/ports/internal/inspect"
 	"github.com/pyjeebz/ports/internal/naming"
@@ -67,10 +70,8 @@ func runProxy(portSet bool) error {
 	if portSet && (proxyPort < 1 || proxyPort > 65535) {
 		return exitError{code: 2, msg: fmt.Sprintf("--port %d is out of range (1-65535)", proxyPort)}
 	}
-	if runtime.GOOS != "windows" && os.Geteuid() == 0 {
-		// as root the scan sees every user's processes, and the router
-		// would route to servers that aren't yours
-		return exitError{code: 2, msg: "ports proxy runs as you, not root — it routes only your own dev servers"}
+	if err := refuseSudo(); err != nil {
+		return err
 	}
 	if info, ok := router.Running(); ok {
 		return exitError{code: 1, msg: fmt.Sprintf("a router already runs on :%d (pid %d)", info.Port, info.Pid)}
@@ -92,7 +93,7 @@ func runProxy(portSet bool) error {
 	}
 
 	cfg := buildInspectConfig()
-	table := routes.NewTable(func() ([]inspect.Service, error) { return inspect.ScanOwn(cfg) }, naming.LoadClaims(), routes.LoadDeclared)
+	table := routes.NewTable(func() ([]inspect.Service, error) { return ownServices(cfg) }, naming.LoadClaims(), routes.LoadDeclared)
 	if _, err := table.Refresh(); err != nil {
 		return err
 	}
@@ -138,6 +139,39 @@ func runProxy(portSet bool) error {
 		return err
 	}
 	return nil
+}
+
+// refuseSudo turns away a router started through sudo: the person meant
+// their own dev servers, which a root router — routing only root's —
+// would leave out, and port 80 is had without root (setcap). Root that
+// is the only user, as in a container or a sandbox, is fine.
+func refuseSudo() error {
+	if runtime.GOOS == "windows" || os.Geteuid() != 0 || os.Getenv("SUDO_USER") == "" {
+		return nil
+	}
+	return exitError{code: 2, msg: "run ports proxy as yourself, not through sudo — it routes only the dev servers of the user it runs as; for port 80, `ports proxy start` offers setcap"}
+}
+
+// ownServices is the router's scan: the listeners of the user it runs as,
+// and the containers behind published ports. A user's scan can't put a
+// pid to another user's sockets anyway; root's can, so as root the rows
+// of other users' processes are dropped here.
+func ownServices(cfg *inspect.Config) ([]inspect.Service, error) {
+	services, err := inspect.ScanOwn(cfg)
+	if err != nil || runtime.GOOS == "windows" || os.Geteuid() != 0 {
+		return services, err
+	}
+	return slices.DeleteFunc(services, func(s inspect.Service) bool {
+		if !s.Known() {
+			return false // a container, found through the engine
+		}
+		p, err := gproc.NewProcess(s.Pid)
+		if err != nil {
+			return true
+		}
+		uids, err := p.Uids()
+		return err != nil || len(uids) == 0 || uids[0] != 0
+	}), nil
 }
 
 func printRoutes(rs []routes.Route, port int) {

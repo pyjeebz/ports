@@ -77,8 +77,8 @@ func proxyStart() error {
 		fmt.Println(inspect.Mark(fmt.Sprintf("✓ the router already runs %s, on :%d", how, info.Port), false))
 		return nil
 	}
-	if runtime.GOOS != "windows" && os.Geteuid() == 0 {
-		return exitError{code: 2, msg: "ports proxy runs as you, not root — run start without sudo"}
+	if err := refuseSudo(); err != nil {
+		return err
 	}
 	offerPort80()
 
