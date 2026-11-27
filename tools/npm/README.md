@@ -1,11 +1,11 @@
 # ports
 
-Every dev server on your machine, by name — `http://shop.localhost` instead of `http://localhost:3000`, whether ports started it or not. See what's running, reach it by name, stop it safely. For people and coding agents.
+ports finds every dev server on your machine and gives it a name — `http://shop.localhost` instead of `http://localhost:3000`. Start servers the way you already do, from a terminal, an editor, `docker compose` or a coding agent: nothing to wrap, nothing to declare. See what's running, reach it by name, stop it safely. For people and coding agents.
 
 ```bash
 npm i -g @pyjeebz/ports
-ports proxy start          # names for every dev server, from login on
-ports                      # what's running, by project and name
+ports                      # every dev server running, however it was started
+ports proxy start          # each one at http://<name>.localhost, from login on
 ```
 
 Or without installing: `npx @pyjeebz/ports here`.
