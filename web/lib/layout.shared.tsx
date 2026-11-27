@@ -9,7 +9,7 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <span className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em]">
-          <PortsMark className="size-[18px]" />
+          <PortsMark className="size-[13px]" />
           ports
         </span>
       ),

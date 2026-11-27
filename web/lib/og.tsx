@@ -7,9 +7,6 @@ import { ImageResponse } from "next/og";
  * Shared OG image factory. Every card uses the site's neutral palette —
  * ink on white, hairline borders — in Geist, read from the geist
  * package's TTFs since Satori needs real font files.
- *
- * Satori has no <mask>, so the logo's slash cut is faked by overpainting
- * the ring with the card background instead of masking it away.
  */
 
 type OgFont = {
@@ -52,8 +49,9 @@ export function ogImageAlt(parts: string[]): string {
   return parts.join(" ");
 }
 
+// The mark (components/site/mark.tsx): a grid of ports, one become a name.
 const LOGO = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke="#0a0a0a" stroke-width="14" fill="none"/><line x1="12" y1="88" x2="88" y2="12" stroke="#ffffff" stroke-width="18" stroke-linecap="square"/><circle cx="38" cy="38" r="6" fill="#0a0a0a"/><circle cx="62" cy="62" r="6" fill="#0a0a0a"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13" fill="#0a0a0a"><rect width="3" height="3" rx="0.8"/><rect x="5" width="3" height="3" rx="0.8"/><rect x="10" width="3" height="3" rx="0.8"/><rect y="5" width="3" height="3" rx="0.8"/><rect x="5" y="5" width="8" height="3" rx="1.5" fill="#0070f3"/><rect y="10" width="3" height="3" rx="0.8"/><rect x="5" y="10" width="3" height="3" rx="0.8"/><rect x="10" y="10" width="3" height="3" rx="0.8"/></svg>',
 )}`;
 
 export function makeOgImage({
@@ -135,7 +133,7 @@ export function makeOgImage({
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {/* satori cards must use plain img — next/image does not run here */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO} width={46} height={46} alt="" />
+          <img src={LOGO} width={39} height={39} alt="" />
           <div
             style={{
               fontSize: 30,
