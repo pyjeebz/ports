@@ -6,7 +6,7 @@ export const SITE = {
   domain: "https://ports.tools",
   tagline: "Every dev server on your machine, by name",
   description:
-    "ports gives every dev server a stable name — http://shop.localhost instead of http://localhost:3000 — whether it started it or not. See what's running, reach it by name, stop it safely. For people and coding agents.",
+    "ports finds every dev server on your machine and gives it a stable name — http://shop.localhost instead of http://localhost:3000 — however it was started. See what's running, reach it by name, stop it safely. For people and coding agents.",
   links: {
     docs: "/docs/commands",
     commands: "/docs/commands",

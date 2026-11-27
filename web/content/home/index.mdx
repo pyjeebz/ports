@@ -1,16 +1,14 @@
 ---
 title: Getting Started
-description: Every dev server on your machine, by name — http://shop.localhost instead of http://localhost:3000, whether ports started it or not.
+description: ports finds every dev server on your machine and names it — http://shop.localhost instead of http://localhost:3000 — however it was started.
 ---
 
-ports replaces port numbers with stable `.localhost` names for every dev server on your machine, whether ports started it or not. See what's running, reach it by name, stop it safely. For people and coding agents.
+ports finds every dev server on your machine and gives it a name — `http://shop.localhost` instead of `http://localhost:3000`. Start servers the way you already do, from a terminal, an editor, `docker compose` or a coding agent; ports works out what each one is and names it after its project. Nothing to wrap, nothing to declare. See what's running, reach it by name, stop it safely.
 
 ```diff
 - http://localhost:3000     # shop, or whichever app got there first
 + http://shop.localhost     # shop, on any port, after any restart
 ```
-
-Nothing about how you start servers changes. Run `npm run dev` the way you always do — from a terminal, an editor or `docker compose` — and `shop.localhost` works.
 
 ## Install
 
@@ -18,16 +16,37 @@ Nothing about how you start servers changes. Run `npm run dev` the way you alway
 
 One static binary for macOS, Linux and Windows, WSL included — curl on macOS and Linux, npm everywhere. No runtime, no account; `npx @pyjeebz/ports` runs it without installing.
 
-## Every server, by name
+## It finds what's running
 
-Start the router once. It runs in the background from then on, and again at login.
+Run `ports` on your machine as it is. It reads every listener and works out what each one is — the framework, the project it belongs to, the container behind `docker-proxy`, how long it's been up. None of these were started by ports:
+
+```console
+$ ports
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://localhost:3000
+8000   FastAPI      shop              14m      http://localhost:8000
+5432   PostgreSQL   docker: shop-db   2d
+5173   Vite         admin             3h       http://localhost:5173
+```
+
+Start the router once, and each of them answers at a name — the servers already running, and every one you start from now on, wherever you start it. It runs in the background, and again at login.
 
 ```console
 $ ports proxy start
 ✓ routing *.localhost on :80 — a systemd user unit, started at login
+$ ports
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://shop.localhost
+8000   FastAPI      shop              14m      http://api.shop.localhost
+5432   PostgreSQL   docker: shop-db   2d
+5173   Vite         admin             3h       http://admin.localhost
 ```
 
-Every web dev server now has a name. It comes from the project — its `package.json` name, or its folder — and the app's place in it:
+Nothing restarted, and nothing about how you start servers changed. `ports here` narrows the list to the project you're in, `ports find postgres` searches it, and `ports doctor 3000` explains a port that won't free.
+
+## Where names come from
+
+A name comes from the project — its `package.json` name, or its folder — and the app's place in it, never from the port:
 
 | Where it runs | Its name |
 | --- | --- |
@@ -51,24 +70,18 @@ The route table isn't declared anywhere. ports builds it from the machine itself
 
 A Host that isn't one of its names is refused with a `421`. That's what keeps a website from reaching your dev servers by pointing its own domain at `127.0.0.1`.
 
-## What's running
-
-`ports` lists every listener with what it is, the project it belongs to, and how long it's been up — the context `lsof` leaves out.
+## Stop it safely
 
 ```console
-$ ports
-PORT   PROCESS      PROJECT           UPTIME   URL
-3000   Next.js      shop              14m      http://shop.localhost
-8000   FastAPI      shop              14m      http://api.shop.localhost
-5432   PostgreSQL   docker: shop-db   2d
-5173   Vite         admin             3h       http://admin.localhost
+$ ports stop api.shop --expect fastapi
+✓ stopped FastAPI (:8000)
 ```
 
-`ports here` narrows it to the project you're in, `ports find postgres` searches, and `ports doctor 3000` explains a port that won't free.
+`--expect` is the guard: if anything the stop would reach isn't what you said, nothing is stopped. Set `PORTS_REQUIRE_EXPECT=1` and every stop must carry it. A stop sends SIGTERM, waits, then SIGKILL; another user's process is never touched.
 
-## Start on a free port
+## Let ports pick the port
 
-`ports run` picks a free port, hands it over the way the framework takes one — `PORT`, or `--port` for Vite, Astro and Angular — and names the server for as long as it runs.
+You never need `ports run` to get a name — the servers you start yourself are found. It's for when you'd rather ports chose the port: it picks a free one, hands it over the way the framework takes one — `PORT`, or `--port` for Vite, Astro and Angular — and names the server for as long as it runs.
 
 ```console
 $ ports run -- npm run dev
@@ -82,18 +95,9 @@ $ ports run -- npm run dev
 ports: shop is taken by another ports run (pid 48211, :4123) — name this one: ports run shop-2 -- …
 ```
 
-## Stop it safely
-
-```console
-$ ports stop api.shop --expect fastapi
-✓ stopped FastAPI (:8000)
-```
-
-`--expect` is the guard: if anything the stop would reach isn't what you said, nothing is stopped. Set `PORTS_REQUIRE_EXPECT=1` and every stop must carry it. A stop sends SIGTERM, waits, then SIGKILL; another user's process is never touched.
-
 ## For coding agents
 
-Agents start a second dev server on the next free port, then test the wrong one. With ports they check first, reuse what's running, and reach it by name.
+Agents start a second dev server on the next free port, then test the wrong one. With ports they see what's already up — the servers you started included — reuse it, and reach it by name.
 
 <CodeTabs defaultValue="shell">
 <CodeTabsList>
