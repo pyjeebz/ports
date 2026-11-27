@@ -10,26 +10,32 @@
 
 [**ports.tools**](https://ports.tools) · [Docs](https://ports.tools/docs/commands) · [Releases](https://github.com/pyjeebz/ports/releases)
 
-`ports` gives every dev server on your machine a stable name — `http://shop.localhost` instead of `http://localhost:3000` — whether it started the server or not. See what's running, reach it by name, stop it safely. For people and coding agents.
+`ports` finds every dev server on your machine and gives it a name — `http://shop.localhost` instead of `http://localhost:3000`. Start servers the way you already do, from a terminal, an editor, `docker compose` or a coding agent: there's nothing to wrap and nothing to declare. See what's running, reach it by name, stop it safely. For people and coding agents.
 
 ```
+$ ports
+PORT   PROCESS      PROJECT           UPTIME   URL
+3000   Next.js      shop              14m      http://localhost:3000
+8000   FastAPI      shop              14m      http://localhost:8000
+5432   PostgreSQL   docker: shop-db   2d
+5173   Vite         admin             3h       http://localhost:5173
+
 $ ports proxy start
 ✓ routing *.localhost on :80 — a systemd user unit, started at login
 
 $ ports
 PORT   PROCESS      PROJECT           UPTIME   URL
 3000   Next.js      shop              14m      http://shop.localhost
-5432   PostgreSQL   docker: shop-db   2d
 8000   FastAPI      shop              14m      http://api.shop.localhost
+5432   PostgreSQL   docker: shop-db   2d
 5173   Vite         admin             3h       http://admin.localhost
 
 $ ports stop shop
 ✓ stopped Next.js (:3000)
 ✓ stopped FastAPI (:8000)
-
-$ ports stop 3000
-✓ killed Next.js (pid 48391) — port 3000 is free
 ```
+
+None of those servers were started by ports, and none of them restarted: ports found them, and the router gave each one a name.
 
 ## Why
 
@@ -57,11 +63,16 @@ it belongs to, which container is really behind `docker-proxy`, how long it has
 been running. That context is what turns "kill a random PID and hope" into
 "stop yesterday's dev server, keep the database."
 
+The tools that do give servers names — local proxies, process managers — only
+know the servers you start through them or declare in a config. `ports` starts
+from the machine instead: it names what's already running, however it got
+there.
+
 ## What it does
 
-- **Lists** every listening port with the framework, project directory, and uptime — not just a PID — grouped by project by default, or ordered with `--sort port|uptime|process|project`
-- **Names every dev server** — `ports proxy` (or `ports proxy start`, in the background from login on) puts each web dev server at `http://<name>.localhost`, whether ports started it or not: `shop.localhost` for a project's app, `api.shop.localhost` for the one in `apps/api`, `ui.shop.localhost` for the same app in a git worktree on `fix/ui`, `web.shop.localhost` for the `web` service of a compose project started there (a `db` service is `db.shop` to stop and wait on, with no URL — it doesn't speak HTTP). A name comes from the project, never the port, so it survives a restart on another port. The router listens on loopback only and refuses any host that isn't one of its names. `ports url api.shop` prints a URL for scripts. Browsers and curl resolve `*.localhost` on their own; for Node, Python and Go on a system whose resolver doesn't, `ports hosts sync` writes the names into `/etc/hosts` (one marked block, via sudo) and `ports doctor` says when that's needed.
-- **Runs a server on a free port, by name** — `ports run -- npm run dev` picks a free port, hands it to the server the way its framework takes one (`PORT`, or `--port` for Vite, Astro and Angular), and names it for as long as it runs. If the project is already running, it says where instead of starting a second copy. `ports alias stripe 4242` names a port ports can't name on its own.
+- **Finds** every dev server, however it was started — a terminal, an editor, `docker compose`, a coding agent — and lists every listening port with the framework, project directory, and uptime, not just a PID; grouped by project by default, or ordered with `--sort port|uptime|process|project`
+- **Names what it finds** — `ports proxy` (or `ports proxy start`, in the background from login on) puts each web dev server at `http://<name>.localhost`, whether ports started it or not: `shop.localhost` for a project's app, `api.shop.localhost` for the one in `apps/api`, `ui.shop.localhost` for the same app in a git worktree on `fix/ui`, `web.shop.localhost` for the `web` service of a compose project started there (a `db` service is `db.shop` to stop and wait on, with no URL — it doesn't speak HTTP). A name comes from the project, never the port, so it survives a restart on another port. The router listens on loopback only and refuses any host that isn't one of its names. `ports url api.shop` prints a URL for scripts. Browsers and curl resolve `*.localhost` on their own; for Node, Python and Go on a system whose resolver doesn't, `ports hosts sync` writes the names into `/etc/hosts` (one marked block, via sudo) and `ports doctor` says when that's needed.
+- **Picks the port, when you want it to** — you never need it for a name, but `ports run -- npm run dev` picks a free port, hands it to the server the way its framework takes one (`PORT`, or `--port` for Vite, Astro and Angular), and names it for as long as it runs. If the project is already running, it says where instead of starting a second copy. `ports alias stripe 4242` names a port ports can't name on its own.
 - **Groups** processes into the applications they belong to, so `frontend :3000`, `api :8000`, and `db :5432` read as one project
 - **Unwraps Docker**, naming the real container and compose service instead of `docker-proxy`
 - **Stops things safely by name** — `ports stop shop`, `ports stop 3000` — with graceful termination before force. Add `--expect nextjs` and a stop only happens if that's really what holds the port — the guard for scripts and agents, which `PORTS_REQUIRE_EXPECT=1` makes mandatory; `--json` reports each stop as a result object.
